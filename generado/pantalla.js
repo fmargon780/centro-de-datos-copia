@@ -430,12 +430,12 @@ function dibujarHechos(h) {
     total += c.avisos || 0;
     p.appendChild(cajitaDeHechos(c.etiqueta, clase, estado, c.avisos || 0, textoDeUnConjunto(c), c.conjunto));
   });
-  if (h.ensayo) {
-    var en = h.ensayo, claseE = en.estado === 'distinta' ? 'rojo' : (en.estado === 'igual' ? 'verde' : 'ambar');
+  (h.ensayos || []).forEach(function (en) {
+    var claseE = en.estado === 'distinta' ? 'rojo' : (en.estado === 'igual' ? 'verde' : 'ambar');
     var estadoE = en.estado === 'distinta' ? 'distinta de la de hoy' : (en.estado === 'igual' ? 'igual que la de hoy' : 'poniéndose al día');
     total += en.avisos || 0;
-    p.appendChild(cajitaDeHechos('Ficha del alumno (ensayo)', claseE, estadoE, en.avisos || 0, en.linea, 'ensayo'));
-  }
+    p.appendChild(cajitaDeHechos(en.cajita, claseE, estadoE, en.avisos || 0, en.linea, 'ensayo'));
+  });
   document.getElementById('botonAvisos').textContent = total ? 'Avisos (' + total + ')' : 'Avisos';
   if (con.length && h.comprobado) {
     var m = h.comprobado.malos;

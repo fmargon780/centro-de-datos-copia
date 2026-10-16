@@ -135,8 +135,9 @@
   }
 
   /* ---- El montaje ---- */
-  var promesa = null, otraVez = false, trabajando = false, fallo = '';
+  var promesa = null, otraVez = false, trabajando = false, fallo = '', poniendo = '';
   var $ = function (id) { return document.getElementById(id); };
+  var nombreDe = function (conjunto) { return ensayoDe_(conjunto).poniendo; };
   var ceder = function () { return new Promise(function (ok) { setTimeout(ok, 0); }); };
 
   /* La línea pequeña de «Poniendo al día…», justo debajo de «Datos ya hechos». */
@@ -149,7 +150,7 @@
       h.parentNode.insertBefore(l, h.nextSibling);
     }
     l.hidden = !(trabajando || fallo);
-    l.textContent = fallo || (trabajando ? 'Poniendo al día la ficha del alumno…' : '');
+    l.textContent = fallo || (trabajando ? 'Poniendo al día ' + (poniendo || 'el ensayo') + '…' : '');
   }
 
   /* Un fichero vacío en el ensayo es uno que se creó justo cuando se cerró la página: se quita y se rehace. */
@@ -165,11 +166,12 @@
     if (!real) return;
     await sanear(lazyDir(real, E));
     var raiz = raizDeEnsayo(real);
-    var queda = await C.transaccion(function () { return ensayoQuedan_(carpetaDatos_()); }, raiz);
-    if (queda) { trabajando = true; pintar(); }
+    var queda = await C.transaccion(function () { return ensayoSiguiente_(carpetaDatos_()); }, raiz);
+    if (queda) { trabajando = true; poniendo = nombreDe(queda); pintar(); }
     for (var pasos = 0; queda && pasos < MAX_PASOS; pasos++) {
       var r = await C.transaccion(function () { return ensayoPaso_(carpetaDatos_()); }, raiz);
       if (!r.quedan) break;
+      if (r.conjunto) { poniendo = nombreDe(r.conjunto); pintar(); }
       await ceder();
     }
     await C.transaccion(function () { ensayoGuardarVista_(carpetaDatos_()); return null; });

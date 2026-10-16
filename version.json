@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v4",
-  "commit": "cb48f02",
+  "version": "página nueva v5",
+  "commit": "8d1492f",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "ef0d0ed16845e93379cb4476be0b148ef1414fa8b2ca0b0de8878ba25a77444e",
@@ -8,15 +8,15 @@
     "ajustes.js": "93bc4766f6ada25ec9f9ce63bceccc19a1737b9d472e600bb4a06e4d75eb4118",
     "arranque.js": "23851655bf5efa591e5fa461532d7daa08a5eaa853922043edb25e7ad7a0deb4",
     "carpeta.js": "01db0b8187e851e7eb3466e5a5d0e8d90e7c547fe9e2b25968247df9eb24b5c9",
-    "commit.js": "f6e67532a1e0726ff9e4a5eb86efd9c073ad91c5f15696ad46bb9c7811b5394d",
-    "ensayo.js": "750db7887f481705106d4c006b5bc0882fabf09dc5cff349548ee2d156c53b2c",
+    "commit.js": "c573129bb52648530e2d5f0aee4870b001ae3a89149c24aef4e4f25a287a4c02",
+    "ensayo.js": "04194d2d4bfff0abb6cd967bf5c56f8966b044c2aeb36242ab9459e0abe7eda6",
     "escritura.js": "9f73903ccc4960fa8db288cfb6912d182f6ae02d43ced267f40c160eaa7a8138",
     "generado/estilos.css": "c0c9822c413a06be43adb00c1cd9facb1dbf483f6e8fb9667932abebc33997a1",
-    "generado/pantalla.js": "e4eb5907d55efe987b19e0a7993f6b5fdbc4259e3855cce30071a63f53017811",
-    "generado/programa.js": "116cff1e91c88a6fc6d3ed16f8c69d73be6982590e68f2c2e65d768157ef8bfa",
+    "generado/pantalla.js": "69e63724fb1c01416f4e6d6af391dab85a7568ff638916a723601d59b686be42",
+    "generado/programa.js": "507335e738d4ce5958ef1c28fa475e5a41e30ed828e7c6b38058069873876dd2",
     "index.html": "e9efa81d98fc432dd3b87241e835600431cd21aaf65bb6f7fb6066501ac30a88",
-    "servidor.js": "c20fa5e220bdc19631e9c9d5b60fab9e1b492204f08c12c7e2096c617a71d42d",
+    "servidor.js": "2b5f49744372fffd5795cfbe4f24cf79c61fef381728af26ee6e6aefd6ccda40",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "5bfa0cb3e67a85865234bdb72079a0796fb7d3716f1aec48c4e136c511257248"
+    "version.js": "5009c321e08cfb7106788bd55ce94210099e01f2520c7c8a856d92848e624fc8"
   }
 }
