@@ -140,6 +140,13 @@
   var nombreDe = function (conjunto) { return ensayoDe_(conjunto).poniendo; };
   var ceder = function () { return new Promise(function (ok) { setTimeout(ok, 0); }); };
 
+  /* Del fallo, solo lo que ayuda a arreglarlo y nunca un dato: el tipo, el mensaje (salvo en un JSON ilegible, que cita el texto) y los nombres de las dos primeras funciones. */
+  function detalle(e) {
+    var msg = e && e.name !== 'SyntaxError' ? String(e.message || '').slice(0, 100) : '';
+    var pila = ((e && e.stack) || '').split('\n').map(function (l) { var m = /at (?:async )?([\w$.]+)/.exec(l); return m ? m[1] : ''; }).filter(Boolean).slice(0, 2).join(' < ');
+    return [e && e.name, msg, pila].filter(Boolean).join(' · ');
+  }
+
   /* La línea pequeña de «Poniendo al día…», justo debajo de «Datos ya hechos». */
   function pintar() {
     var l = $('ensayoProgreso');
@@ -192,7 +199,7 @@
       try {
         do { otraVez = false; await montar(); } while (otraVez);
       } catch (e) {
-        fallo = 'No he podido poner al día la ficha del alumno en esta página. Se volverá a intentar al abrirla.';
+        fallo = 'No he podido poner al día ' + (poniendo || 'el ensayo') + ' en esta página (' + detalle(e) + '). Se volverá a intentar al abrirla.';
       } finally { trabajando = false; promesa = null; pintar(); refrescar(); }
     })();
     return promesa;
