@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v6",
-  "commit": "28e4b3b",
+  "version": "página nueva v7",
+  "commit": "03845ad",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "ef0d0ed16845e93379cb4476be0b148ef1414fa8b2ca0b0de8878ba25a77444e",
@@ -8,15 +8,15 @@
     "ajustes.js": "93bc4766f6ada25ec9f9ce63bceccc19a1737b9d472e600bb4a06e4d75eb4118",
     "arranque.js": "23851655bf5efa591e5fa461532d7daa08a5eaa853922043edb25e7ad7a0deb4",
     "carpeta.js": "01db0b8187e851e7eb3466e5a5d0e8d90e7c547fe9e2b25968247df9eb24b5c9",
-    "commit.js": "b7131611f3ad9f389e0d8276c51fb8fbc21e24985f25047d13635743964473a8",
+    "commit.js": "9dd27bf0119ade4c5f7f75ec7c8a743b960d44545fba25851d0ad0e723416a8c",
     "ensayo.js": "82e31fa7dac57af48117dc26219c1bef107f5e297c968d5a3e478a083e2a9331",
     "escritura.js": "9f73903ccc4960fa8db288cfb6912d182f6ae02d43ced267f40c160eaa7a8138",
     "generado/estilos.css": "c0c9822c413a06be43adb00c1cd9facb1dbf483f6e8fb9667932abebc33997a1",
     "generado/pantalla.js": "69e63724fb1c01416f4e6d6af391dab85a7568ff638916a723601d59b686be42",
-    "generado/programa.js": "11a2434e4bcc6f29eb47884a7e211bc31c28b3b3bbe67e9e83fe72172d2190f8",
+    "generado/programa.js": "5d721c18d750cb327c10b9ed12d4a3c511348c3b2602e27a62c7859444b6b5b8",
     "index.html": "e9efa81d98fc432dd3b87241e835600431cd21aaf65bb6f7fb6066501ac30a88",
     "servidor.js": "2b5f49744372fffd5795cfbe4f24cf79c61fef381728af26ee6e6aefd6ccda40",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "4b655c16bf7c967626227a1567d62aba100a5aeb72cdf175c7668f7ef3c59128"
+    "version.js": "529e42d12df5a374d8ec78fedf2fdd3b1bb9856981395ae772e6016c7cc8d704"
   }
 }
