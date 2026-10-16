@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v44';
+const VERSION_CD = 'CD v45';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1638,7 +1638,32 @@ function ficheroDeEntrada_(e) {
   if (e && e.idDrive) { try { return DriveApp.getFileById(e.idDrive); } catch (x) { fallo = x; } }
   const f = e && e.ruta ? ficheroPorRuta_(carpetaDatos_(), e.ruta) : null;
   if (f) return f;
+  if (e && e.ruta && (!fallo || /^Esta página solo lee/.test(String(fallo.message)))) {
+    let motivo = '';
+    try { motivo = motivoDeRuta_(carpetaDatos_(), e.ruta); } catch (x) { if (x && x.cargar) throw x; }
+    throw new Error('No encuentro el fichero ' + e.ruta + (motivo ? ' (' + motivo + ')' : '') + '.');
+  }
   throw fallo || new Error('No encuentro el fichero ' + String((e && (e.ruta || e.fichero)) || '') + '.');
+}
+
+/* Por qué no sale un fichero por su ruta, en pocas palabras y sin datos de nadie: qué trozo falta y si hay otro que se llama casi igual (tildes o mayúsculas). Solo para decir un fallo. */
+function motivoDeRuta_(raiz, ruta) {
+  const trozos = String(ruta || '').split('/').filter(function (p) { return p; });
+  const nombre = trozos.pop();
+  if (!nombre) return 'la entrada no trae ruta';
+  const llano = function (t) { return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+  let c = raiz;
+  for (let i = 0; i < trozos.length; i++) {
+    const it = c.getFoldersByName(trozos[i]);
+    if (!it.hasNext()) return 'no está la carpeta «' + trozos[i] + '»';
+    c = it.next();
+  }
+  const mismos = c.getFilesByName(nombre);
+  if (mismos.hasNext()) return 'sí está, pero no se abre';
+  const todos = c.getFiles();
+  let n = 0, parecidos = 0;
+  while (todos.hasNext()) { const f = todos.next(); n++; if (llano(f.getName()) === llano(nombre)) parecidos++; }
+  return 'en su carpeta hay ' + n + ' ficheros y ' + (parecidos ? parecidos + ' se llama casi igual (tildes o mayúsculas)' : 'ninguno se llama así');
 }
 
 /* Pone `idDrive` a las entradas de una lista que lo traen vacío. Devuelve { rellenadas, sinFichero: [entrada] }. */

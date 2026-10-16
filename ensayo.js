@@ -142,7 +142,7 @@
 
   /* Del fallo, solo lo que ayuda a arreglarlo y nunca un dato: el tipo, el mensaje (salvo en un JSON ilegible, que cita el texto) y los nombres de las dos primeras funciones. */
   function detalle(e) {
-    var msg = e && e.name !== 'SyntaxError' ? String(e.message || '').slice(0, 100) : '';
+    var msg = e && e.name !== 'SyntaxError' ? String(e.message || '').slice(0, 260) : '';
     var pila = ((e && e.stack) || '').split('\n').map(function (l) { var m = /at (?:async )?([\w$.]+)/.exec(l); return m ? m[1] : ''; }).filter(Boolean).slice(0, 2).join(' < ');
     return [e && e.name, msg, pila].filter(Boolean).join(' · ');
   }
