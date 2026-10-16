@@ -1,0 +1,104 @@
+<!-- Generado por pagina/construir.mjs a partir de App.html. No se edita a mano. -->
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centro de datos</title>
+<link rel="stylesheet" href="generado/estilos.css">
+</head>
+<body>
+<header>
+  <h1>Centro de datos<span id="nombreCentro"></span></h1>
+  <div class="quien" id="quien">&nbsp;</div>
+</header>
+<div id="pedirCarpeta" class="aviso-ambar" hidden></div>
+<nav>
+  <button class="activa" data-p="listados">Listados</button>
+  <button data-p="pestanaAvisos" id="botonAvisos">Avisos</button>
+  <button data-p="configuracion">Configuración del centro</button>
+  <button data-p="acceso" id="botonAcceso" hidden>Acceso y carpeta</button>
+</nav>
+<main>
+  <div id="avisos"></div>
+  <div id="avisoPasos" class="aviso-pasos" hidden></div>
+  <div id="avisoClave" class="aviso-pasos" hidden></div>
+  <div id="claveFunciona" class="aviso-ok" hidden>La clave funciona.</div>
+  <section id="listados" class="activa">
+    <p class="carpeta" id="carpeta">Carpeta de los datos: comprobando…</p>
+    <div class="cajitas" id="hechos" hidden></div>
+    <div id="sobrasTutorias" class="aviso-pasos" hidden></div>
+    <div class="aviso-recolocar" id="recolocando" hidden></div>
+    <div class="zona" id="zona">
+      <span>Suelta aquí los ficheros de Séneca</span>
+      <label for="elegir">o elígelos</label>
+      <input type="file" id="elegir" multiple hidden>
+      <span class="curso-zona">Lo que no diga de qué curso es, se guarda como del curso <select id="cursoZona"></select></span>
+    </div>
+    <div class="resultados" id="resultados"></div>
+    <div class="sin-clasificar" id="sinClasificar" hidden></div>
+    <div class="rejilla" id="rejilla">
+      <div class="cabeza-tabla"><h2>Listados</h2><label class="curso-tabla">Curso <select id="cursoTabla"></select></label><span class="cuenta" id="resumen"></span><button class="accion" id="verMovimientos">Últimos movimientos</button></div>
+      <table id="tablaListados">
+        <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
+        <thead><tr><th>Listado</th><th>De cuándo es</th><th>Qué trae</th><th>Lo usan</th></tr></thead>
+        <tbody id="filasListados"></tbody>
+      </table>
+    </div>
+    <div class="panel-movimientos" id="panelMovimientos" hidden>
+      <div class="cabeza-tabla"><h2>Últimos movimientos</h2><button class="accion" id="cerrarMovimientos">Cerrar</button></div>
+      <ul id="movimientos"></ul>
+    </div>
+  </section>
+  <section id="pestanaAvisos">
+    <div class="cabeza-tabla"><h2>Avisos</h2><label class="curso-tabla">Ver <select id="filtroAvisos"></select></label><span class="cuenta" id="resumenAvisos"></span></div>
+    <p class="nota-simple" id="detalleAvisos" hidden></p>
+    <div id="listaDeAvisos"><p class="nota-simple">Cargando los avisos…</p></div>
+    <details id="revisadosAvisos" class="revisados" hidden><summary id="resumenRevisados"></summary><div id="listaRevisados"></div></details>
+    <div id="cajaDiag" class="cabeza-tabla" hidden><label>Buscar un código de diagnóstico <input id="codigoDiag" type="text" placeholder="A-1b2c3d4e" maxlength="12"></label> <button id="buscarDiag" type="button">Buscar</button> <span class="aviso-campo" id="resultadoDiag"></span></div>
+  </section>
+  <section id="configuracion">
+    <div class="dos">
+      <div class="caja"><h2>El centro</h2><div id="cajaCentro"></div></div>
+      <div class="caja caja-correo"><h2>El correo</h2><div id="cajaCorreo"></div></div>
+    </div>
+    <p class="nota"><span>Lo leen el Gestor de asuntos y BD Alumnado. Lo que dejes vacío lo sigue poniendo cada aplicación.</span><span id="ultimoCambio"></span></p>
+  </section>
+  <section id="acceso">
+    <div class="dos">
+      <div class="caja">
+        <h2>Quién entra</h2>
+        <ul id="listaAcceso" class="lista"></ul>
+        <div class="anadir">
+          <input type="text" id="accesoNombre" placeholder="Nombre">
+          <input type="text" id="accesoCorreo" placeholder="Correo">
+          <button class="accion" onclick="anadirPersona()">Añadir</button>
+        </div>
+        <span id="avisoAcceso" class="aviso-campo"></span>
+        <p class="nota-simple">Quien no esté en esta lista ve «No tienes acceso».</p>
+      </div>
+      <div class="caja">
+        <h2>Dónde están los datos</h2>
+        <p id="carpetaAcceso">Carpeta: …</p>
+        <div class="anadir">
+          <input type="text" id="enlaceCarpeta" placeholder="Pega aquí el enlace de otra carpeta de Drive" class="ancha">
+          <button class="accion" onclick="cambiarCarpeta()">Cambiar de carpeta</button>
+        </div>
+        <span id="avisoCarpeta" class="aviso-campo"></span>
+      </div>
+    </div>
+  </section>
+</main>
+<p class="nota-simple" id="versionPagina" style="padding:0 16px"></p>
+<script src="version.js"></script>
+<script src="commit.js"></script>
+<script src="generado/programa.js"></script>
+<script src="generado/pantalla.js"></script>
+<script src="carpeta.js"></script>
+<script src="servidor.js"></script>
+<script src="ajustes.js"></script>
+<script src="arranque.js"></script>
+<script src="actualizar-copia.js"></script>
+</body>
+</html>
