@@ -68,11 +68,11 @@
   Carpeta.prototype.createFile = function () { throw new Error(SOLO_LEE); };
   Carpeta.prototype.setTrashed = Carpeta.prototype.createFile;
 
-  var RAIZ = null;
+  var RAIZ = null, REAL = null;
 
-  /* La carpeta se vuelve a leer de cero (nombres y bytes), para ver lo que otra persona haya cambiado. */
-  function reiniciar() {
-    var r = new Carpeta('', RAIZ.handle, null);
+  /* La carpeta se vuelve a leer de cero (nombres y bytes), para ver lo que otra persona haya cambiado. Con `alterna` (fila 46, el ensayo) los .gs ven esa raíz en vez de la de verdad. */
+  function reiniciar(alterna) {
+    var r = new Carpeta('', alterna || REAL, null);
     r.nombre = 'CENTRO DE DATOS';
     RAIZ = r;
   }
@@ -154,6 +154,7 @@
   /* Abre la carpeta elegida. Devuelve true si es «CENTRO DE DATOS» (tiene indice.json). */
   async function abrir(handle) {
     try { await handle.getFileHandle('indice.json'); } catch (e) { return false; }
+    REAL = handle;
     RAIZ = new Carpeta('', handle, null);
     RAIZ.nombre = 'CENTRO DE DATOS';
     instalarGoogle();
@@ -161,5 +162,5 @@
   }
 
   C = window.CarpetaLectura = { abrir: abrir, conCarga: conCarga, precargar: precargar, precargarBase: precargarBase, nombresDe: nombresDe, Falta: Falta, SOLO_LEE: SOLO_LEE,
-    clases: { Fichero: Fichero, Carpeta: Carpeta }, raiz: function () { return RAIZ; }, reiniciar: reiniciar, tomarFaltas: tomarFaltas, rastrear: rastrear, escribirJsonReal: window.escribirJson_ };
+    clases: { Fichero: Fichero, Carpeta: Carpeta }, raiz: function () { return RAIZ; }, handleReal: function () { return REAL; }, reiniciar: reiniciar, tomarFaltas: tomarFaltas, rastrear: rastrear, escribirJsonReal: window.escribirJson_ };
 })();

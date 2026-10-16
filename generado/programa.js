@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v40';
+const VERSION_CD = 'CD v41';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -4863,6 +4863,159 @@ function montarParteDeEntero_(raiz, t, avance, cache, indice) {
   if (desglose) avance.desgloses[t.conj.conjunto] = desglose; else delete avance.desgloses[t.conj.conjunto];
 }
 
+/* ==== Ensayo.gs ==== */
+/* El ensayo de la ficha del alumno (fila 46). La página nueva monta el conjunto `alumnado` en el propio navegador y deja todo en _interno/ensayo-pagina/ (hecho/, leido/, hechos.json e indice.json con
+   solo lo suyo): nunca en hecho/ ni en indice.json, que son de la aplicación de hoy. Este fichero tiene las dos mitades que corren en los dos sitios:
+   - `ensayoPaso_`: un paso del montaje (una lectura o una parte), con los mismos montadores de hoy. Solo lo corre la página, sobre una raíz que ya redirige lo que escribe al ensayo (pagina/ensayo.js).
+   - `ensayoVista_`: compara parte a parte con la de hoy, solo cuando las dos salen de los mismos listados, y cuenta las diferencias por parte y por campo. Solo cifras: nunca el dato de un alumno. */
+const ENSAYO_RUTA_ = '_interno/ensayo-pagina';
+const ENSAYO_CONJUNTO_ = 'alumnado';
+const ENSAYO_COMPARACION_ = 'comparacion.json';
+const ENSAYO_TOPE_MS_ = 3000;
+const CONJUNTO_ENSAYO_ = { conjunto: 'ensayo', titulo: 'Ensayo de la ficha del alumno' };
+
+/* Un paso: la primera tarea que falte (leer un listado, montar una parte o quitar una que sobra). Devuelve { quedan, hecha }. */
+function ensayoPaso_(raiz) {
+  const avance = leerAvance_(raiz);
+  quitarLeidoViejo_(raiz, leerIndice_(raiz), avance);
+  const indice = leerIndice_(raiz);
+  const tareas = tareasDeHechos_(indice, avance, ENSAYO_CONJUNTO_);
+  if (!tareas.length) return { quedan: false, hecha: '' };
+  hacerTareaHechos_(raiz, tareas[0], indice, avance, {}, new Date().getTime() + ENSAYO_TOPE_MS_);
+  avance.ultima = ahoraMadrid_();
+  escribirAvance_(raiz, avance);
+  return { quedan: tareasDeHechos_(leerIndice_(raiz), avance, ENSAYO_CONJUNTO_).length > 0, hecha: tareas[0].que };
+}
+
+/* Lo que falta por montar en el ensayo, sin escribir nada. */
+function ensayoQuedan_(raiz) {
+  return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ENSAYO_CONJUNTO_).length;
+}
+
+/*** ---------------- Comparar ---------------- */
+
+/* Un JSON del ensayo, o null si no está o quedó a medias (un fichero vacío: la página se cerró justo al crearlo). */
+function ensayoJson_(raiz, ruta) {
+  const f = ficheroPorRuta_(raiz, ruta);
+  if (!f) return null;
+  const texto = f.getBlob().getDataAsString('UTF-8');
+  try { return JSON.parse(texto); } catch (e) { return null; }
+}
+
+function ensayoEntradas_(indice) { return ((indice && indice.hechos) || []).filter(function (h) { return h.conjunto === ENSAYO_CONJUNTO_; }); }
+
+function ensayoDeLaRuta_(ruta) { return ENSAYO_RUTA_ + '/' + ruta; }
+
+function ensayoAlDia_(h, indice) {
+  return (h.fuentes || []).length > 0 && h.fuentes.every(function (f) { const e = buscarEnIndice_(indice, f.clave, f.variante); return !!e && e.huella === f.huella; });
+}
+
+/* Lo que cambia cuando cambia algo que se compara: las partes de hoy y las del ensayo, con sus huellas y sus fuentes. */
+function ensayoFirma_(raiz) {
+  const indice = leerIndice_(raiz), ens = ensayoJson_(raiz, ensayoDeLaRuta_('indice.json'));
+  const f = function (h) { return h.ruta + '|' + h.huella + '|' + JSON.stringify(h.fuentes || []); };
+  return JSON.stringify([ensayoEntradas_(indice).map(f).sort(), ensayoEntradas_(ens).map(f).sort(), !!indice.ocupado]);
+}
+
+function ensayoTitulo_(h) { return h.parte === 'antiguos' ? 'antiguos' : 'curso ' + h.cursoEscolar; }
+
+/* En qué difieren dos partes: por campo, a cuántos alumnos afecta. Solo nombres de campo del programa y cuentas. */
+function ensayoDiferencias_(hoy, ens) {
+  const r = { campos: {}, sobran: 0, faltan: 0 };
+  const anota = function (k) { r.campos[k] = (r.campos[k] || 0) + 1; };
+  if (JSON.stringify(hoy.campos) !== JSON.stringify(ens.campos)) r.campos['(la lista de campos)'] = 1;
+  if (JSON.stringify(hoy.columnasMatricula) !== JSON.stringify(ens.columnasMatricula)) r.campos['(las columnas de la matrícula)'] = 1;
+  const porId = function (p) { const m = {}; (p.registros || []).forEach(function (x) { m[x.id] = x; }); return m; };
+  const a = porId(hoy), b = porId(ens);
+  Object.keys(a).forEach(function (id) {
+    if (!b[id]) { r.faltan++; return; }
+    const x = a[id], y = b[id], datosX = x.datos || {}, datosY = y.datos || {};
+    Object.keys(datosX).concat(Object.keys(datosY).filter(function (k) { return !(k in datosX); })).forEach(function (k) { if (JSON.stringify(datosX[k]) !== JSON.stringify(datosY[k])) anota(k); });
+    Object.keys(x).concat(Object.keys(y).filter(function (k) { return !(k in x); })).forEach(function (k) { if (k !== 'datos' && k !== 'id' && JSON.stringify(x[k]) !== JSON.stringify(y[k])) anota('(' + k + ')'); });
+  });
+  Object.keys(b).forEach(function (id) { if (!a[id]) r.sobran++; });
+  if (JSON.stringify(hoy.avisos) !== JSON.stringify(ens.avisos)) r.campos['(los avisos del cruce)'] = Math.max(1, Math.abs((hoy.avisos || []).length - (ens.avisos || []).length));
+  return r;
+}
+
+/* Compara de verdad, abriendo las partes. Devuelve la vista: { firma, estado, partes: {...}, alumnos, difs: [{ parte, campo, n }], sobran: [{ parte, n }], faltan: [{ parte, n }] }.
+   estado: 'sin-ensayo' (la página no ha montado nada), 'esperando' (la aplicación de hoy todavía no ha montado con los mismos ficheros), 'igual' o 'distinta'. */
+function ensayoComparar_(raiz, firma) {
+  const indice = leerIndice_(raiz), ensIdx = ensayoJson_(raiz, ensayoDeLaRuta_('indice.json'));
+  const ens = ensayoEntradas_(ensIdx), hoy = ensayoEntradas_(indice);
+  const v = { firma: firma, estado: 'sin-ensayo', partes: { comparadas: 0, iguales: 0, distintas: 0, esperando: 0 }, alumnos: 0, difs: [], sobran: [], faltan: [] };
+  if (!ens.length) return v;
+  ens.forEach(function (he) {
+    const hr = hoy.filter(function (h) { return h.ruta === he.ruta; })[0];
+    if (!hr || !mismasFuentes_(hr.fuentes, he.fuentes) || !ensayoAlDia_(hr, indice) || !ensayoAlDia_(he, indice)) { v.partes.esperando++; return; }
+    const pHoy = ensayoJson_(raiz, hr.ruta), pEns = ensayoJson_(raiz, ensayoDeLaRuta_(he.ruta));
+    if (!pHoy || !pEns) { v.partes.esperando++; return; }
+    v.partes.comparadas++;
+    const donde = (he.parte === 'antiguos' ? 'Alumnado · antiguos' : 'Alumnado · curso ' + he.cursoEscolar);
+    if (contenidoDeParte_(pHoy) === contenidoDeParte_(pEns)) { v.partes.iguales++; if (he.parte === 'actuales') v.alumnos += (pEns.registros || []).length; return; }
+    v.partes.distintas++;
+    const d = ensayoDiferencias_(pHoy, pEns);
+    Object.keys(d.campos).sort().forEach(function (k) { v.difs.push({ parte: donde, campo: k, n: d.campos[k] }); });
+    if (d.sobran) v.sobran.push({ parte: donde, n: d.sobran });
+    if (d.faltan) v.faltan.push({ parte: donde, n: d.faltan });
+  });
+  hoy.forEach(function (hr) { if (!ens.some(function (he) { return he.ruta === hr.ruta; })) v.partes.esperando++; });
+  v.estado = v.partes.distintas ? 'distinta' : (v.partes.esperando || !v.partes.comparadas ? 'esperando' : 'igual');
+  return v;
+}
+
+/* La vista de ahora: la que dejó la página si sigue siendo de lo mismo y, si no, se calcula (sin guardar nada). */
+function ensayoVista_(raiz) {
+  const firma = ensayoFirma_(raiz);
+  let guardada = null;
+  try { guardada = ensayoJson_(raiz, ensayoDeLaRuta_(ENSAYO_COMPARACION_)); } catch (e) { guardada = null; }
+  if (guardada && guardada.firma === firma) return guardada;
+  return ensayoComparar_(raiz, firma);
+}
+
+/* Lo que hace la página al terminar de montar: guarda la vista junto al ensayo. */
+function ensayoGuardarVista_(raiz) {
+  const firma = ensayoFirma_(raiz);
+  let guardada = null;
+  try { guardada = ensayoJson_(raiz, ensayoDeLaRuta_(ENSAYO_COMPARACION_)); } catch (e) { guardada = null; }
+  if (guardada && guardada.firma === firma) return guardada;
+  const v = ensayoComparar_(raiz, firma);
+  if (v.estado === 'sin-ensayo') return v;
+  escribirJson_(subcarpetaPorRuta_(raiz, ENSAYO_RUTA_), ENSAYO_COMPARACION_, v);
+  return v;
+}
+
+/* La línea de «Datos ya hechos» de la página nueva. */
+function ensayoLinea_(v, trabajando) {
+  if (trabajando) return 'Ficha del alumno: poniéndose al día en esta página';
+  if (v.estado === 'igual') return 'Ficha del alumno: igual que la de hoy (' + numeroLegible_(v.alumnos) + ' alumnos)';
+  if (v.estado === 'distinta') { const n = v.difs.length + v.sobran.length + v.faltan.length; return 'Ficha del alumno: distinta de la de hoy (' + n + (n === 1 ? ' diferencia)' : ' diferencias)'); }
+  if (v.estado === 'esperando') return 'Ficha del alumno: esperando a la aplicación de hoy para comparar';
+  return '';
+}
+
+/* Los avisos de las diferencias, como los de las partes de hecho/ (solo campo y cuenta). */
+function ensayoAvisos_(raiz) {
+  const v = ensayoVista_(raiz), lista = [];
+  const poner = function (tipo, parte, datos, quien) {
+    const a = { tipo: tipo, id: null, datos: datos }, f = frasePlanaDeAviso_(a);
+    lista.push({ huella: huellaDeAviso_('ensayo', parte, a), conjunto: 'ensayo', donde: CONJUNTO_ENSAYO_.titulo + ' · ' + parte, tipo: tipo, quien: quien, que: f.texto, conocida: f.conocida });
+  };
+  v.difs.forEach(function (d) { poner('ensayo-ficha-distinta', d.parte, { campo: d.campo, n: d.n }, d.campo); });
+  v.sobran.forEach(function (d) { poner('ensayo-ficha-sobran', d.parte, { n: d.n }, 'Alumnos de más'); });
+  v.faltan.forEach(function (d) { poner('ensayo-ficha-faltan', d.parte, { n: d.n }, 'Alumnos que faltan'); });
+  return lista;
+}
+
+/* La comprobación `ensayo-ficha-igual`: solo cuentas. */
+function cmpEnsayoFichaIgual_(ctx) {
+  const v = ensayoVista_(ctx.raiz);
+  const cifras = { 'partes-comparadas': v.partes.comparadas, 'partes-iguales': v.partes.iguales, 'partes-distintas': v.partes.distintas, 'partes-esperando': v.partes.esperando,
+    'campos-con-diferencias': v.difs.length, 'alumnos-de-mas': v.sobran.reduce(function (n, d) { return n + d.n; }, 0), 'alumnos-que-faltan': v.faltan.reduce(function (n, d) { return n + d.n; }, 0) };
+  if (v.estado === 'sin-ensayo') return { estado: 'sin datos', cifras: cifras };
+  return { estado: v.estado === 'distinta' ? 'mal' : (v.estado === 'igual' ? 'bien' : 'sin datos'), cifras: cifras };
+}
+
 /* ==== HechosCargos.gs ==== */
 /* El paso propio de los cargos (fila 25), después de montar la parte que entrega el Gestor: une a cada ocupante con su ficha del personal por el nombre, dice quién ocupa cada cargo hoy y avisa de las fechas que no
    cuadran. No quita ni cambia ningún registro. Son nombres de personas: solo viven en la parte y en los avisos, en Drive. */
@@ -5008,11 +5161,12 @@ function claveDeMontaje_(conj, parte, partes, indice, avance, necesarias) {
   return conj.versionMontador + '|' + (parte.anio ? '' : partes.map(function (p) { return p.cursoEscolar; }).join(','));
 }
 
-/* Todo lo que falta por hacer, sin abrir ningún fichero grande. Cada tarea: { que: 'leer' | 'quitar' | 'montar', conj, ... } */
-function tareasDeHechos_(indice, avance) {
+/* Todo lo que falta por hacer, sin abrir ningún fichero grande. Cada tarea: { que: 'leer' | 'quitar' | 'montar', conj, ... }. Con `soloConj` (el ensayo de la página nueva, fila 46): solo ese conjunto y sin su ficha completa. */
+function tareasDeHechos_(indice, avance, soloConj) {
   const tareas = [];
   if (indice.ocupado) return tareas;
   CONJUNTOS_.forEach(function (conj) {
+    if (soloConj && conj.conjunto !== soloConj) return;
     const necesarias = fuentesNecesarias_(indice, avance, conj);
     if (!necesarias) return;
     if (sinListadoPropio_(conj) && !necesarias.length && !(indice.hechos || []).some(function (h) { return h.conjunto === conj.conjunto; })) return;
@@ -5032,7 +5186,7 @@ function tareasDeHechos_(indice, avance) {
       }
     });
     /* La ficha completa, cuando ya está todo lo demás de este conjunto al día. */
-    if (tareas.length === antesDeConj) { const f = tareaDeFichaCompleta_(indice, avance, conj); if (f) tareas.push(f); }
+    if (!soloConj && tareas.length === antesDeConj) { const f = tareaDeFichaCompleta_(indice, avance, conj); if (f) tareas.push(f); }
   });
   return tareas;
 }
@@ -5415,7 +5569,11 @@ const FRASES_AVISO_ = {
   '-dato-repetido': 'Este registro repite un dato que ya traía otro; ha entrado igual.',
   '-sin-ficha': 'Este ocupante no se ha encontrado en la ficha del personal.',
   '-ficha-dudosa': 'Este ocupante podría ser de varias fichas del personal y no se ha unido a ninguna.',
-  '-fechas': 'Las fechas de este cargo no cuadran: {detalle}'
+  '-fechas': 'Las fechas de este cargo no cuadran: {detalle}',
+  /* El ensayo de la ficha del alumno en la página nueva (fila 46, Ensayo.gs). */
+  'ensayo-ficha-distinta': 'En «{campo}» la ficha montada en la página nueva no sale igual que la de hoy ({n} alumnos).',
+  'ensayo-ficha-sobran': '{n} alumnos salen en la ficha montada en la página nueva y no en la de hoy.',
+  'ensayo-ficha-faltan': '{n} alumnos salen en la ficha de hoy y no en la montada en la página nueva.'
 };
 
 /* El texto de un aviso de fechas de cargos: sus dos casos tienen su palabra. */
@@ -5490,7 +5648,7 @@ function leerAvisosDeHechos_(raiz) {
       });
     });
   });
-  avisosDeFicherosQueFaltan_(indice).concat(avisosDeIdsSinFichero_(raiz)).forEach(function (a) { lista.push(a); });
+  avisosDeFicherosQueFaltan_(indice).concat(avisosDeIdsSinFichero_(raiz), ensayoAvisos_(raiz)).forEach(function (a) { lista.push(a); });
   return { avisos: lista, incompleto: incompleto, indice: indice, avance: avance };
 }
 
@@ -5532,7 +5690,7 @@ function webAvisos(ctx) {
     }
   }
   const cuentas = {};
-  CONJUNTOS_.concat([CONJUNTO_LISTADOS_]).forEach(function (c) { cuentas[c.conjunto] = { conjunto: c.conjunto, titulo: c.titulo, pendientes: 0, revisados: 0 }; });
+  CONJUNTOS_.concat([CONJUNTO_LISTADOS_, CONJUNTO_ENSAYO_]).forEach(function (c) { cuentas[c.conjunto] = { conjunto: c.conjunto, titulo: c.titulo, pendientes: 0, revisados: 0 }; });
   const avisos = r.avisos.map(function (a) {
     const v = vistos.vistos[a.huella];
     cuentas[a.conjunto][v ? 'revisados' : 'pendientes']++;
@@ -5544,13 +5702,13 @@ function webAvisos(ctx) {
     const clave = avisoDeClave_(leerComprob_(raiz));
     if (clave) avisos.unshift({ huella: 'clave', conjunto: 'clave', donde: 'Clave de GitHub', quien: 'Clave de GitHub', que: clave.frase, clave: { caso: clave.caso, tipo: clave.tipo } });
   }
-  return { avisos: avisos, conjuntos: CONJUNTOS_.concat([CONJUNTO_LISTADOS_]).map(function (c) { return cuentas[c.conjunto]; }).filter(function (c) { return c.pendientes + c.revisados > 0; }), incompleto: r.incompleto };
+  return { avisos: avisos, conjuntos: CONJUNTOS_.concat([CONJUNTO_LISTADOS_, CONJUNTO_ENSAYO_]).map(function (c) { return cuentas[c.conjunto]; }).filter(function (c) { return c.pendientes + c.revisados > 0; }), incompleto: r.incompleto };
 }
 
 /* «Ya lo he visto» (visto = true) o «Volver a pendientes» (false). Solo escribe lo que cambia. */
 function webAvisoVisto(huella, conjunto, visto, ctx) {
   if (!/^[0-9a-z]{2,16}$/.test(String(huella))) throw new Error('Ese aviso no existe.');
-  if (!CONJUNTOS_.concat([CONJUNTO_LISTADOS_]).some(function (c) { return c.conjunto === conjunto; })) throw new Error('Ese aviso no existe.');
+  if (!CONJUNTOS_.concat([CONJUNTO_LISTADOS_, CONJUNTO_ENSAYO_]).some(function (c) { return c.conjunto === conjunto; })) throw new Error('Ese aviso no existe.');
   const raiz = carpetaDatos_();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -5674,12 +5832,13 @@ const COMPROBACIONES_ = [
   { id: 'diagnostico-envio', fila: 35, que: 'Si el diagnóstico sin nombres se ha subido, cuántos ficheros, registros y bytes lleva y cuánto hace del último intento', funcion: 'cmpDiagnosticoEnvio_' },
   { id: 'subidas-temporales', fila: 36, que: 'Cuántas carpetas de subidas a medias llevan más de una hora abandonadas en _interno/subiendo', funcion: 'cmpSubidasTemporales_' },
   { id: 'recibidos-pendientes', fila: 45, que: 'Cuántos ficheros soltados en la página nueva llevan más de media hora en el diario _interno/recibidos sin colocar', funcion: 'cmpRecibidosPendientes_' },
+  { id: 'ensayo-ficha-igual', fila: 46, que: 'La ficha del alumno que monta la página nueva en el navegador sale igual que la de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoFichaIgual_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }

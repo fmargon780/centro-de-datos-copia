@@ -65,6 +65,8 @@
       var n = await window.AccionesPagina.repasarDiario();
       if (n) { avisar(n === 1 ? 'He terminado de guardar un fichero que había quedado a medias.' : 'He terminado de guardar ' + n + ' ficheros que habían quedado a medias.'); cargarEstado(); }
     } catch (x) { /* se vuelve a intentar la próxima vez que se abra */ }
+    /* El ensayo de la ficha del alumno (fila 46) sigue donde se quedó. */
+    if (window.EnsayoPagina) window.EnsayoPagina.arrancar();
   }
 
   function pedirElegir(texto) {

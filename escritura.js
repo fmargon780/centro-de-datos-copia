@@ -207,19 +207,20 @@
     throw new Error('La carpeta tiene demasiados ficheros por abrir.');
   }
 
-  async function unaVez(fn) {
-    for (var vuelta = 0; vuelta < VUELTAS; vuelta++) {
-      if (vuelta) await new Promise(function (ok) { setTimeout(ok, 150 + Math.random() * 450); });
-      C.reiniciar();
-      var p = await probar(fn), ops = compactar(p.ops);
-      if (!ops.length) return p.resultado;
-      if (await huboCambios(ops)) continue;
-      await reproducir(ops);
-      var bien = await sigueIgual(ops);
-      C.reiniciar();
-      if (bien) return p.resultado;
-    }
-    C.reiniciar();
+  /* `alterna`: una raíz distinta (el ensayo de la fila 46, pagina/ensayo.js) para que los .gs lean y escriban en ella; al terminar la carpeta de verdad vuelve a ser la de siempre. */
+  async function unaVez(fn, alterna) {
+    try {
+      for (var vuelta = 0; vuelta < VUELTAS; vuelta++) {
+        if (vuelta) await new Promise(function (ok) { setTimeout(ok, 150 + Math.random() * 450); });
+        C.reiniciar(alterna);
+        var p = await probar(fn), ops = compactar(p.ops);
+        if (!ops.length) return p.resultado;
+        if (await huboCambios(ops)) continue;
+        await reproducir(ops);
+        var bien = await sigueIgual(ops);
+        if (bien) return p.resultado;
+      }
+    } finally { C.reiniciar(); }
     throw new Error('Otra persona está guardando a la vez y no he podido terminar. Vuelve a probar dentro de un momento.');
   }
 
@@ -230,9 +231,9 @@
     cola = turno.then(function () {}, function () {});
     return turno;
   }
-  function transaccion(fn) {
+  function transaccion(fn, alterna) {
     return enCola(function () {
-      var dentro = function () { return unaVez(fn); };
+      var dentro = function () { return unaVez(fn, alterna); };
       try { if (navigator.locks && navigator.locks.request) return navigator.locks.request('centro-de-datos-escritura', dentro); } catch (e) { /* sin candados: solo esta pestaña */ }
       return dentro();
     });
@@ -240,19 +241,19 @@
 
   /* Un fichero suelto (el diario de lo recibido), escrito sin pasar por los .gs. Devuelve su nombre. */
   async function escribirSuelto(ruta, bytes) {
-    var t = ruta.split('/'), n = t.pop(), h = C.raiz().handle;
+    var t = ruta.split('/'), n = t.pop(), h = C.handleReal();
     for (var k = 0; k < t.length; k++) h = await h.getDirectoryHandle(t[k], { create: true });
     var f = await h.getFileHandle(n, { create: true }), w = await f.createWritable();
     await w.write(aBytes(bytes));
     await w.close();
   }
   async function leerSuelto(ruta) {
-    var t = ruta.split('/'), n = t.pop(), h = C.raiz().handle;
+    var t = ruta.split('/'), n = t.pop(), h = C.handleReal();
     for (var k = 0; k < t.length; k++) h = await h.getDirectoryHandle(t[k]);
     return bytesDe(await h.getFileHandle(n));
   }
   async function borrarSuelto(ruta) {
-    var t = ruta.split('/'), n = t.pop(), h = C.raiz().handle;
+    var t = ruta.split('/'), n = t.pop(), h = C.handleReal();
     try { for (var k = 0; k < t.length; k++) h = await h.getDirectoryHandle(t[k]); await h.removeEntry(n); } catch (e) { if (!e || e.name !== 'NotFoundError') throw e; }
   }
 

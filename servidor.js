@@ -19,6 +19,12 @@
       cargarAprendido_(r0);
       var r = { version: window.VERSION_PAGINA, correo: 'Lee y guarda', esDueno: false, carpeta: { ok: true, nombre: 'CENTRO DE DATOS', url: ENLACE_CARPETA } };
       try { r.hechos = resumenHechosPagina_(r0); delete r.hechos.claveAviso; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
+      /* La línea del ensayo de la ficha del alumno (fila 46): solo esta página la lleva. */
+      try {
+        var montando = window.EnsayoPagina && window.EnsayoPagina.trabajando();
+        var v = montando ? { estado: 'esperando', difs: [], sobran: [], faltan: [] } : ensayoVista_(r0);
+        if (montando || v.estado !== 'sin-ensayo') r.hechos.ensayo = { linea: ensayoLinea_(v, montando), estado: v.estado, avisos: v.difs.length + v.sobran.length + v.faltan.length };
+      } catch (e) { if (e instanceof C.Falta) throw e; }
       try { r.sobrasTutorias = sobrasTutoriasPagina_(r0); } catch (e) { if (e instanceof C.Falta) throw e; r.sobrasTutorias = []; }
       r.centroNombre = '';
       try { r.centroNombre = ((leerJson_(r0, 'configuracion.json') || {}).centro || {}).nombre || ''; } catch (x) { if (x instanceof C.Falta) throw x; }

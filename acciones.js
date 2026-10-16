@@ -57,7 +57,7 @@
       var r = fn(ctxDe(quien));
       if (testigo && r && (r.estado === 'guardado' || r.estado === 'ok' || r.estado === 'sin-clasificar')) ajustarTestigo_(carpetaDatos_(), true);
       return r;
-    });
+    }).then(function (r) { if (window.EnsayoPagina) window.EnsayoPagina.cambio(); return r; });
   }
 
   function colocar(nombre, u8, quien, curso) {
@@ -82,6 +82,7 @@
     var r = await colocar(nombre, u8, quien, curso);
     await C.borrarSuelto(diario);   // si algo se corta antes de llegar aquí, el diario sigue y se coloca al abrir
     if (r.ocupado) mostrarBotonHoy();
+    else if (window.EnsayoPagina) window.EnsayoPagina.cambio();   // fila 46: el ensayo de la ficha del alumno se pone al día con lo nuevo
     return r;
   }
 
