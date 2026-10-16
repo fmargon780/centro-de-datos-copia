@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v45';
+const VERSION_CD = 'CD v46';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1639,11 +1639,26 @@ function ficheroDeEntrada_(e) {
   const f = e && e.ruta ? ficheroPorRuta_(carpetaDatos_(), e.ruta) : null;
   if (f) return f;
   if (e && e.ruta && (!fallo || /^Esta página solo lee/.test(String(fallo.message)))) {
+    /* Sin el id de Drive (la página nueva no lo puede usar): si el fichero se movió de carpeta, se busca por su nombre en el resto y vale si solo hay uno. */
+    { const otro = ficheroPorNombre_(carpetaDatos_(), String(e.ruta).split('/').pop()); if (otro) return otro; }
     let motivo = '';
     try { motivo = motivoDeRuta_(carpetaDatos_(), e.ruta); } catch (x) { if (x && x.cargar) throw x; }
     throw new Error('No encuentro el fichero ' + e.ruta + (motivo ? ' (' + motivo + ')' : '') + '.');
   }
   throw fallo || new Error('No encuentro el fichero ' + String((e && (e.ruta || e.fichero)) || '') + '.');
+}
+
+/* El único fichero con ese nombre en todas las carpetas de listados (no mira _interno ni hecho), o null si no hay ninguno o hay varios. */
+function ficheroPorNombre_(raiz, nombre) {
+  const halladas = [];
+  const mirar = function (c, nivel) {
+    const fs = c.getFilesByName(nombre);
+    while (fs.hasNext()) halladas.push(fs.next());
+    const cs = c.getFolders();
+    while (cs.hasNext()) { const h = cs.next(); if (nivel === 0 && (h.getName() === '_interno' || h.getName() === 'hecho')) continue; mirar(h, nivel + 1); }
+  };
+  mirar(raiz, 0);
+  return halladas.length === 1 ? halladas[0] : null;
 }
 
 /* Por qué no sale un fichero por su ruta, en pocas palabras y sin datos de nadie: qué trozo falta y si hay otro que se llama casi igual (tildes o mayúsculas). Solo para decir un fallo. */
