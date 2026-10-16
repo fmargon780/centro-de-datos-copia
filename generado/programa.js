@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v47';
+const VERSION_CD = 'CD v48';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -4904,7 +4904,7 @@ function montarParteDeEntero_(raiz, t, avance, cache, indice) {
 }
 
 /* ==== Ensayo.gs ==== */
-/* El ensayo de los datos ya hechos (filas 46 a 49). La página nueva monta en el propio navegador los conjuntos de `ENSAYO_CONJUNTOS_` (hoy la ficha del alumno, el personal, las tutorías y el Consejo Escolar) y deja todo en _interno/ensayo-pagina/ (hecho/, leido/, hechos.json e indice.json con
+/* El ensayo de los datos ya hechos (filas 46 a 50). La página nueva monta en el propio navegador los conjuntos de `ENSAYO_CONJUNTOS_` (hoy la ficha del alumno, el personal, las tutorías, el Consejo Escolar y los libros de texto) y deja todo en _interno/ensayo-pagina/ (hecho/, leido/, hechos.json e indice.json con
    solo lo suyo): nunca en hecho/ ni en indice.json, que son de la aplicación de hoy. Un conjunto más es una línea de esa lista (y sus frases en Avisos.gs). Este fichero tiene las dos mitades que corren en los dos sitios:
    - `ensayoPaso_`: un paso del montaje (una lectura o una parte), con los mismos montadores de hoy. Solo lo corre la página, sobre una raíz que ya redirige lo que escribe al ensayo (pagina/ensayo.js).
    - `ensayoVista_`: compara parte a parte con la de hoy, solo cuando las dos salen de los mismos listados, y cuenta las diferencias por parte y por campo. Solo cifras: nunca el dato de una persona. */
@@ -4914,12 +4914,13 @@ const ENSAYO_COMPARACION_ = 'comparacion.json';
 const ENSAYO_TOPE_MS_ = 3000;
 const CONJUNTO_ENSAYO_ = { conjunto: 'ensayo', titulo: 'Ensayo de los datos ya hechos' };
 /* Los conjuntos que ensaya la página. nombre: cómo empieza la línea; cajita: su título; poniendo: «Poniendo al día …»; unidad: lo que cuenta; donde: cómo empieza el sitio de un aviso; fichero: dónde guarda su comparación;
-   aviso: la parte del nombre de sus avisos (`ensayo-<aviso>-distinta`); cuentaPartes: 'actuales' suma las partes `actuales`, 'curso' da la cifra del curso de hoy como la cajita de la aplicación de hoy, 'consejo' da los periodos y los nombramientos del historial como ella. */
+   aviso: la parte del nombre de sus avisos (`ensayo-<aviso>-distinta`); cuentaPartes: 'actuales' suma las partes `actuales`, 'curso' da la cifra del curso de hoy como la cajita de la aplicación de hoy, 'consejo' da los periodos y los nombramientos del historial como ella, 'libros' da los libros y los niveles del curso de hoy (o el más reciente) como ella. */
 const ENSAYO_CONJUNTOS_ = [
   { conjunto: 'alumnado', nombre: 'Ficha del alumno', cajita: 'Ficha del alumno (ensayo)', poniendo: 'la ficha del alumno', unidad: 'alumnos', donde: 'Alumnado', fichero: ENSAYO_COMPARACION_, aviso: 'ficha', cuentaPartes: 'actuales' },
   { conjunto: 'personal', nombre: 'Personal', cajita: 'Personal (ensayo)', poniendo: 'el personal', unidad: 'personas', donde: 'Personal', fichero: 'comparacion-personal.json', aviso: 'personal', cuentaPartes: 'curso' },
   { conjunto: 'tutorias', nombre: 'Tutorías', cajita: 'Tutorías (ensayo)', poniendo: 'las tutorías', unidad: 'grupos', donde: 'Tutorías', fichero: 'comparacion-tutorias.json', aviso: 'tutorias', cuentaPartes: 'curso' },
-  { conjunto: 'consejo-escolar', nombre: 'Consejo Escolar', cajita: 'Consejo Escolar (ensayo)', poniendo: 'el Consejo Escolar', unidad: 'nombramientos', donde: 'Consejo Escolar', fichero: 'comparacion-consejo.json', aviso: 'consejo', cuentaPartes: 'consejo' }
+  { conjunto: 'consejo-escolar', nombre: 'Consejo Escolar', cajita: 'Consejo Escolar (ensayo)', poniendo: 'el Consejo Escolar', unidad: 'nombramientos', donde: 'Consejo Escolar', fichero: 'comparacion-consejo.json', aviso: 'consejo', cuentaPartes: 'consejo' },
+  { conjunto: 'libros', nombre: 'Libros de texto', cajita: 'Libros de texto (ensayo)', poniendo: 'los libros de texto', unidad: 'libros', donde: 'Libros de texto', fichero: 'comparacion-libros.json', aviso: 'libros', cuentaPartes: 'libros' }
 ];
 
 function ensayoDe_(conjunto) { return ENSAYO_CONJUNTOS_.filter(function (c) { return c.conjunto === (conjunto || ENSAYO_CONJUNTO_); })[0]; }
@@ -4981,6 +4982,7 @@ function ensayoDiferencias_(hoy, ens) {
   const anota = function (k) { r.campos[k] = (r.campos[k] || 0) + 1; };
   if (JSON.stringify(hoy.campos) !== JSON.stringify(ens.campos)) r.campos['(la lista de campos)'] = 1;
   if (JSON.stringify(hoy.columnasMatricula) !== JSON.stringify(ens.columnasMatricula)) r.campos['(las columnas de la matrícula)'] = 1;
+  if (JSON.stringify(hoy.columnasLibros) !== JSON.stringify(ens.columnasLibros)) r.campos['(las columnas de los listados de libros)'] = 1;
   if (JSON.stringify(hoy.columnasPersonal) !== JSON.stringify(ens.columnasPersonal)) r.campos['(las columnas de los listados)'] = 1;
   const porId = function (p) { const m = {}; (p.registros || []).forEach(function (x) { m[x.id] = x; }); return m; };
   const a = porId(hoy), b = porId(ens);
@@ -5006,7 +5008,8 @@ function ensayoComparar_(raiz, firma, conjunto) {
   const def = ensayoDe_(conjunto);
   const indice = leerIndice_(raiz), ensIdx = ensayoJson_(raiz, ensayoDeLaRuta_('indice.json'));
   const ens = ensayoEntradas_(ensIdx, def.conjunto), hoy = ensayoEntradas_(indice, def.conjunto), iguales = [];
-  const v = { firma: firma, estado: 'sin-ensayo', periodos: 0, partes: { comparadas: 0, iguales: 0, distintas: 0, esperando: 0 }, cifra: 0, curso: '', difs: [], sobran: [], faltan: [] };
+  const v = { firma: firma, estado: 'sin-ensayo', periodos: 0, partes: { comparadas: 0, iguales: 0, distintas: 0, esperando: 0 }, cifra: 0, curso: '', difs: [], sobran: [], faltan: [], niveles: 0 };
+  const libros = [];
   if (!ens.length) return v;
   ens.forEach(function (he) {
     const hr = hoy.filter(function (h) { return h.ruta === he.ruta; })[0];
@@ -5018,6 +5021,7 @@ function ensayoComparar_(raiz, firma, conjunto) {
     if (contenidoDeParte_(pHoy) === contenidoDeParte_(pEns)) {
       v.partes.iguales++; iguales.push(he);
       if (def.cuentaPartes === 'actuales' && he.parte === 'actuales') v.cifra += (pEns.registros || []).length;
+      if (def.cuentaPartes === 'libros') libros.push({ cursoEscolar: he.cursoEscolar, k: cifrasDeLibros_(pEns) });
       if (def.cuentaPartes === 'consejo') { if (he.parte === 'periodo') v.periodos++; else if (he.parte === 'historial') v.cifra = (pEns.registros || []).length; }
       return;
     }
@@ -5032,6 +5036,11 @@ function ensayoComparar_(raiz, firma, conjunto) {
   if (def.cuentaPartes === 'curso' && v.estado === 'igual') {
     const hoyCurso = partesPorCursosParaPagina_(iguales).actuales[0];
     if (hoyCurso) { v.cifra = hoyCurso.registros; v.curso = hoyCurso.cursoEscolar; }
+  }
+  if (def.cuentaPartes === 'libros' && v.estado === 'igual' && libros.length) {
+    const cursos = libros.slice().sort(function (a, b) { return ordenDeCurso_(b.cursoEscolar) - ordenDeCurso_(a.cursoEscolar); });
+    const p = cursos.filter(function (x) { return x.cursoEscolar === cursoActual_(); })[0] || cursos[0];
+    v.cifra = p.k.libros; v.niveles = p.k.niveles; v.curso = p.cursoEscolar;
   }
   return v;
 }
@@ -5062,6 +5071,7 @@ function ensayoLinea_(v, trabajando, conjunto) {
   const def = ensayoDe_(conjunto);
   if (trabajando) return def.nombre + ': poniéndose al día en esta página';
   if (v.estado === 'igual' && def.cuentaPartes === 'consejo') return def.nombre + ': igual que la de hoy (' + numeroLegible_(v.periodos) + (v.periodos === 1 ? ' periodo' : ' periodos') + ' · ' + numeroLegible_(v.cifra) + (v.cifra === 1 ? ' nombramiento)' : ' nombramientos)');
+  if (v.estado === 'igual' && def.cuentaPartes === 'libros') return def.nombre + ': igual que la de hoy (' + numeroLegible_(v.cifra) + (v.cifra === 1 ? ' libro' : ' libros') + ' en ' + numeroLegible_(v.niveles) + (v.niveles === 1 ? ' nivel' : ' niveles') + ' del curso ' + v.curso + ')';
   if (v.estado === 'igual') return def.nombre + ': igual que la de hoy (' + numeroLegible_(v.cifra) + ' ' + def.unidad + (v.curso ? ' del curso ' + v.curso : '') + ')';
   if (v.estado === 'distinta') { const n = v.difs.length + v.sobran.length + v.faltan.length; return def.nombre + ': distinta de la de hoy (' + n + (n === 1 ? ' diferencia)' : ' diferencias)'); }
   if (v.estado === 'esperando') return def.nombre + ': esperando a la aplicación de hoy para comparar';
@@ -5069,7 +5079,7 @@ function ensayoLinea_(v, trabajando, conjunto) {
 }
 
 function quienDeMas_(def, deMas) {
-  const n = { alumnos: 'Alumnos', personas: 'Personas', grupos: 'Grupos', nombramientos: 'Registros' }[def.unidad];
+  const n = { alumnos: 'Alumnos', personas: 'Personas', grupos: 'Grupos', nombramientos: 'Registros', libros: 'Libros' }[def.unidad];
   return deMas ? n + ' de más' : n + ' que faltan';
 }
 
@@ -5101,11 +5111,12 @@ function cmpEnsayoDe_(ctx, conjunto) {
   return { estado: v.estado === 'distinta' ? 'mal' : (v.estado === 'igual' ? 'bien' : 'sin datos'), cifras: cifras };
 }
 
-/* La comprobación `ensayo-ficha-igual` (fila 46), `ensayo-personal-igual` (fila 47), `ensayo-tutorias-igual` (fila 48) y `ensayo-consejo-igual` (fila 49). */
+/* La comprobación `ensayo-ficha-igual` (fila 46), `ensayo-personal-igual` (fila 47), `ensayo-tutorias-igual` (fila 48) `ensayo-consejo-igual` (fila 49) y `ensayo-libros-igual` (fila 50). */
 function cmpEnsayoFichaIgual_(ctx) { return cmpEnsayoDe_(ctx, 'alumnado'); }
 function cmpEnsayoPersonalIgual_(ctx) { return cmpEnsayoDe_(ctx, 'personal'); }
 function cmpEnsayoTutoriasIgual_(ctx) { return cmpEnsayoDe_(ctx, 'tutorias'); }
 function cmpEnsayoConsejoIgual_(ctx) { return cmpEnsayoDe_(ctx, 'consejo-escolar'); }
+function cmpEnsayoLibrosIgual_(ctx) { return cmpEnsayoDe_(ctx, 'libros'); }
 
 /* ==== HechosCargos.gs ==== */
 /* El paso propio de los cargos (fila 25), después de montar la parte que entrega el Gestor: une a cada ocupante con su ficha del personal por el nombre, dice quién ocupa cada cargo hoy y avisa de las fechas que no
@@ -5676,7 +5687,11 @@ const FRASES_AVISO_ = {
   /* El ensayo del Consejo Escolar (fila 49). */
   'ensayo-consejo-distinta': 'En «{campo}» el Consejo Escolar montado en la página nueva no sale igual que el de hoy ({n} registros).',
   'ensayo-consejo-sobran': '{n} registros salen en el Consejo Escolar montado en la página nueva y no en el de hoy.',
-  'ensayo-consejo-faltan': '{n} registros salen en el Consejo Escolar de hoy y no en el montado en la página nueva.'
+  'ensayo-consejo-faltan': '{n} registros salen en el Consejo Escolar de hoy y no en el montado en la página nueva.',
+  /* El ensayo de los libros de texto (fila 50). */
+  'ensayo-libros-distinta': 'En «{campo}» los libros de texto montados en la página nueva no salen igual que los de hoy ({n} libros).',
+  'ensayo-libros-sobran': '{n} libros salen en los libros de texto montados en la página nueva y no en los de hoy.',
+  'ensayo-libros-faltan': '{n} libros salen en los libros de texto de hoy y no en los montados en la página nueva.'
 };
 
 /* El texto de un aviso de fechas de cargos: sus dos casos tienen su palabra. */
@@ -5939,12 +5954,13 @@ const COMPROBACIONES_ = [
   { id: 'ensayo-personal-igual', fila: 47, que: 'El personal que monta la página nueva en el navegador sale igual que el de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoPersonalIgual_' },
   { id: 'ensayo-tutorias-igual', fila: 48, que: 'Las tutorías que monta la página nueva en el navegador (leyendo el PDF allí) salen iguales que las de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoTutoriasIgual_' },
   { id: 'ensayo-consejo-igual', fila: 49, que: 'El Consejo Escolar que monta la página nueva en el navegador (periodos e historial) sale igual que el de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoConsejoIgual_' },
+  { id: 'ensayo-libros-igual', fila: 50, que: 'Los libros de texto que monta la página nueva en el navegador salen iguales que los de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoLibrosIgual_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
