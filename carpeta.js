@@ -1,25 +1,29 @@
 /* La carpeta «CENTRO DE DATOS» elegida en el navegador, vista como si fuera el Drive de Apps Script (que es síncrono), para que
-   los .gs de hoy funcionen tal cual. Solo lee: nada de aquí crea, cambia ni borra un fichero de la carpeta.
+   los .gs de hoy funcionen tal cual. Aquí solo se lee; escribir (fila 45) lo añade escritura.js, en transacciones.
    Los nombres de cada carpeta y los bytes de cada fichero se piden al navegador la primera vez que hacen falta: si algo falta,
-   el .gs lanza `Falta`, `conCarga` lo carga y repite. */
+   el .gs lanza `Falta`, `conCarga` lo carga y repite. Toda `Falta` se apunta en FALTAS: una transacción mira ahí aunque el .gs se la haya tragado. */
 (function () {
   'use strict';
   var SOLO_LEE = 'Esta página solo lee la carpeta. Eso se hace en la aplicación de hoy.';
+  var C;
 
-  function Falta(cargar) { this.cargar = cargar; }
+  var FALTAS = [], RASTREAR = false;
+  function Falta(cargar) { this.cargar = cargar; if (RASTREAR) FALTAS.push(this); }
 
   function lista(l) { var i = 0; return { hasNext: function () { return i < l.length; }, next: function () { return l[i++]; } }; }
 
-  function Fichero(nombre, handle, padre) { this.nombre = nombre; this.handle = handle; this.padre = padre; this.bytes = null; }
+  /* `disco` = dónde está de verdad (carpeta y nombre): lo mueve escritura.js al guardar; `leido` = los bytes tal como se leyeron. */
+  function Fichero(nombre, handle, padre) { this.nombre = nombre; this.handle = handle; this.padre = padre; this.bytes = null; this.leido = null; this.disco = { c: padre, n: nombre }; }
   Fichero.prototype.getName = function () { return this.nombre; };
-  Fichero.prototype.getId = function () { return 'ruta:' + this.padre.ruta + this.nombre; };
+  /* Desde el navegador no se puede saber el id de Drive: el índice lo lleva vacío y la aplicación de hoy lo rellena (fila 44). */
+  Fichero.prototype.getId = function () { return ''; };
   Fichero.prototype.isTrashed = function () { return false; };
   Fichero.prototype.setContent = function () { throw new Error(SOLO_LEE); };
   Fichero.prototype.setTrashed = Fichero.prototype.setName = Fichero.prototype.moveTo = Fichero.prototype.setContent;
   Fichero.prototype.cargar = function () {
     var f = this;
     if (f.bytes) return Promise.resolve();
-    return f.handle.getFile().then(function (x) { return x.arrayBuffer(); }).then(function (b) { f.bytes = new Uint8Array(b); });
+    return f.handle.getFile().then(function (x) { return x.arrayBuffer(); }).then(function (b) { f.bytes = new Uint8Array(b); f.leido = f.bytes; });
   };
   Fichero.prototype.getBlob = function () {
     var f = this;
@@ -65,6 +69,15 @@
   Carpeta.prototype.setTrashed = Carpeta.prototype.createFile;
 
   var RAIZ = null;
+
+  /* La carpeta se vuelve a leer de cero (nombres y bytes), para ver lo que otra persona haya cambiado. */
+  function reiniciar() {
+    var r = new Carpeta('', RAIZ.handle, null);
+    r.nombre = 'CENTRO DE DATOS';
+    RAIZ = r;
+  }
+  function tomarFaltas() { var f = FALTAS; FALTAS = []; return f; }
+  function rastrear(si) { RASTREAR = si; FALTAS = []; }
 
   /* Corre `fn` (síncrona, usa los .gs) cuantas veces haga falta, cargando lo que le falte entre una y otra. */
   async function conCarga(fn) {
@@ -133,8 +146,8 @@
     window.LockService = { getScriptLock: function () { return { waitLock: function () {}, releaseLock: function () {} }; } };
     window.ScriptApp = { getService: function () { return { getUrl: function () { return ''; } }; }, getProjectTriggers: function () { return []; } };
     window.Session = { getActiveUser: function () { return { getEmail: function () { return ''; } }; }, getEffectiveUser: function () { return { getEmail: function () { return ''; } }; } };
-    window.Utilities = { formatDate: formatDate };
-    /* Esta página no escribe: lo que un .gs de lectura intente guardar (marcas sueltas de «ya visto») se queda sin guardar. */
+    window.Utilities = Object.assign({ formatDate: formatDate }, C.utilidades || {});
+    /* Fuera de una transacción esta página no escribe: lo que un .gs de lectura intente guardar (marcas sueltas de «ya visto») se queda sin guardar. */
     window.escribirJson_ = function () {};
   }
 
@@ -147,5 +160,6 @@
     return true;
   }
 
-  window.CarpetaLectura = { abrir: abrir, conCarga: conCarga, precargar: precargar, precargarBase: precargarBase, nombresDe: nombresDe, Falta: Falta, SOLO_LEE: SOLO_LEE };
+  C = window.CarpetaLectura = { abrir: abrir, conCarga: conCarga, precargar: precargar, precargarBase: precargarBase, nombresDe: nombresDe, Falta: Falta, SOLO_LEE: SOLO_LEE,
+    clases: { Fichero: Fichero, Carpeta: Carpeta }, raiz: function () { return RAIZ; }, reiniciar: reiniciar, tomarFaltas: tomarFaltas, rastrear: rastrear, escribirJsonReal: window.escribirJson_ };
 })();

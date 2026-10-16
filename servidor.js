@@ -1,10 +1,12 @@
-/* El «servidor» de esta página: contesta lo mismo que la aplicación de hoy, pero en el propio ordenador y solo leyendo la carpeta.
-   Sustituye a `servidor` de JsComun.html (se carga después). Lo que cambiaría datos no se hace aquí. */
+/* El «servidor» de esta página: contesta lo mismo que la aplicación de hoy, pero en el propio ordenador.
+   Sustituye a `servidor` de JsComun.html (se carga después). Lo que lee está aquí; lo que cambia datos lo añade acciones.js (fila 45).
+   Cada lectura vuelve a leer la carpeta (por si otra persona ha cambiado algo) y espera su turno detrás de un guardado en marcha. */
 (function () {
   'use strict';
   var C = window.CarpetaLectura;
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
   var SOLO_HOY = 'Eso solo se puede hacer en la aplicación de hoy.';
+  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
@@ -15,7 +17,7 @@
     return C.conCarga(function () {
       var r0 = raiz();
       cargarAprendido_(r0);
-      var r = { version: window.VERSION_PAGINA, correo: 'Solo lectura', esDueno: false, carpeta: { ok: true, nombre: 'CENTRO DE DATOS', url: ENLACE_CARPETA } };
+      var r = { version: window.VERSION_PAGINA, correo: 'Lee y guarda', esDueno: false, carpeta: { ok: true, nombre: 'CENTRO DE DATOS', url: ENLACE_CARPETA } };
       try { r.hechos = resumenHechosPagina_(r0); delete r.hechos.claveAviso; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
       try { r.sobrasTutorias = sobrasTutoriasPagina_(r0); } catch (e) { if (e instanceof C.Falta) throw e; r.sobrasTutorias = []; }
       r.centroNombre = '';
@@ -53,7 +55,7 @@
     }).sort(function (a, b) { return a.orden < b.orden ? 1 : -1; });
   }
 
-  var PUERTA = {
+  var PUERTA = window.PUERTA_PAGINA = {
     webEstado: function () { return estado(); },
     webAvisos: function () { return avisos(); },
     webAnteriores: function (c, v) { return anteriores(c, v); },
@@ -69,6 +71,8 @@
   window.servidor = function (nombre) {
     var args = Array.prototype.slice.call(arguments, 1);
     if (!PUERTA[nombre]) return Promise.reject(new Error(SOLO_HOY));
-    return Promise.resolve().then(function () { return PUERTA[nombre].apply(null, args); }).then(function (r) { return r === undefined ? null : JSON.parse(JSON.stringify(r)); }, function (e) { throw new Error(textoLlano(e)); });
+    var hacer = function () { return PUERTA[nombre].apply(null, args); };
+    if (LECTURAS[nombre]) { var lee = hacer; hacer = function () { return C.enCola(function () { if (C.raiz()) C.reiniciar(); return lee(); }); }; }
+    return Promise.resolve().then(hacer).then(function (r) { return r === undefined ? null : JSON.parse(JSON.stringify(r)); }, function (e) { throw new Error(textoLlano(e)); });
   };
 })();

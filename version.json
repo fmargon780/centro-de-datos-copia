@@ -1,18 +1,21 @@
 {
-  "version": "página nueva v2",
-  "commit": "ff1008b",
+  "version": "página nueva v3",
+  "commit": "a1dcd22",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
+    "acciones.js": "506ec1612abd981af699eeec1121f48fd7ebbbc19396dc63a28318c1f3a39fd4",
     "actualizar-copia.js": "8aacfacffca636cf96f2e342c23ef5cb508d618ceb2dea8c2d19bd51a80ebc0f",
-    "ajustes.js": "50d1ecd657f9e2c422179d08b3c41025b4ce742a7a34810a59b30244189aa781",
-    "arranque.js": "4a84d9a439ff86e56367e24495f184f374a5845c4ebe402bb80bd2ed7729c031",
-    "carpeta.js": "2bcebc3dd3fbe2e099f0056fc3edf28a7a320b9628e923eaff27f14c3943739c",
-    "commit.js": "9b6e9eaf1072d33b9df03068a769944116954629590b51c22ba8ea0f49dde9bd",
+    "ajustes.js": "93bc4766f6ada25ec9f9ce63bceccc19a1737b9d472e600bb4a06e4d75eb4118",
+    "arranque.js": "078217a27fd0b20c9528bf02fe95722eebc5dbe1f8616c15b930875e11741698",
+    "carpeta.js": "c22f9183067dba8fb7db83f781fa9ff1d38df6faeea950e7651513505a59f4a6",
+    "commit.js": "6a503d8ccaa331d47ce2dec9468d7613e921acaee998b520846a7427ccda6c35",
+    "escritura.js": "1e27497f5066cb23c0bcd27e1b5ba99301ac867f556fafe161cb64e2f64f0454",
     "generado/estilos.css": "c0c9822c413a06be43adb00c1cd9facb1dbf483f6e8fb9667932abebc33997a1",
     "generado/pantalla.js": "5683fc780c366248d45b8eed4c2e494506be8f54a7b2ed47879882b7b26f5d5f",
-    "generado/programa.js": "07c764a264cfee6c0a32d3e6f104be23e0f05e6666c7259adeba9c0e310f55ca",
-    "index.html": "e7a4a8b6d6768ec92786298be4ef4de46fe92fac53ad7d8995af964f425864ad",
-    "servidor.js": "e9aafdc09676d487c960f6c1d9d18afc717a6fdc706ac2f48662045aa2a9471c",
-    "version.js": "7659fddd0c7ee93ff748ca5b1f711d5bc166f691b80ab63b2d5dc2a2b360ff15"
+    "generado/programa.js": "28c8fc77a7283732f145e131fb1983ad576ba4aede32313c96ddf9894c64748f",
+    "index.html": "46ed39bf3f92ef094a471a4e63872c6c7d2c3f5f58ae22299873ced5ac1006db",
+    "servidor.js": "95c6dce6c9d452e2fb368fc5df27a8c1e70e74a9466daf1fefaa2b4eb702829d",
+    "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
+    "version.js": "1e9a43bfd0a9ede29618008b7d3432ca9615a4d79b77c7bae3d339b8d04f1be3"
   }
 }

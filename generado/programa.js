@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v39';
+const VERSION_CD = 'CD v40';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1175,7 +1175,7 @@ function colocarExpedientes_(raiz, topeMs) {
   for (let i = 0; i < lista.length; i++) {
     if (hechos && new Date().getTime() - inicio >= topeMs) return true;
     const q = lista[i];
-    const fichero = DriveApp.getFileById(q.idDrive);
+    const fichero = ficheroDePendiente_(raiz, q);
     const bytes = fichero.getBlob().getBytes();
     const rec = reconocerFichero_(q.fichero, bytes, { cursoElegido: '' });
     if (rec.clave && !rec.falta.length) {
@@ -1849,6 +1849,18 @@ function cursosElegibles_(raiz) {
   return ordenarCursos_(cursosParaElegir_().concat(extra));
 }
 
+/* El sitio de un pendiente en la carpeta: el nombre lleva la fecha de llegada delante. */
+function rutaDePendiente_(p) { return 'sin-clasificar/' + prefijoFecha_(p.llegado) + ' ' + p.fichero; }
+
+/* El fichero de un pendiente: por su `idDrive` y, si está vacío (lo guarda así la página nueva, fila 45) o ya no sirve, por su sitio. Si no está en ningún sitio, falla como DriveApp. */
+function ficheroDePendiente_(raiz, p) {
+  let fallo = null;
+  if (p.idDrive) { try { return DriveApp.getFileById(p.idDrive); } catch (x) { fallo = x; } }
+  const f = ficheroPorRuta_(raiz, rutaDePendiente_(p));
+  if (f) return f;
+  throw fallo || new Error('No encuentro el fichero ' + p.fichero + '.');
+}
+
 /* Lo que la página enseña de un pendiente (sin los trozos internos). */
 function pendienteParaPagina_(p) {
   const c = p.clave ? entradaCatalogo_(p.clave) : null;
@@ -1860,7 +1872,7 @@ function pendienteParaPagina_(p) {
       desplegables.push({ campo: 'ambito', pregunta: '¿A quién se refiere?', elegido: (p.propuesta || {}).ambito || '', opciones: c.ambitos });
     }
   });
-  return { id: p.id, fichero: p.fichero, url: 'https://drive.google.com/file/d/' + p.idDrive + '/view', llegado: fechaLegible_(p.llegado), llegadoPor: p.llegadoPor,
+  return { id: p.id, fichero: p.fichero, url: p.idDrive ? 'https://drive.google.com/file/d/' + p.idDrive + '/view' : 'https://drive.google.com/drive/search?q=' + encodeURIComponent(p.fichero), llegado: fechaLegible_(p.llegado), llegadoPor: p.llegadoPor,
     clave: p.clave, motivo: p.motivo, desplegables: desplegables, falta: p.falta || [], ficha: p.ficha || fichaVacia_(), propuesta: propuestaConCurso_(p), alumnoNombre: p.alumnoNombre || '' };
 }
 
@@ -2050,7 +2062,7 @@ function recolocarPendientes_(raiz, salvo) {
     .sort(function (a, b) { return new Date(a.llegado).getTime() - new Date(b.llegado).getTime(); });
   const colocados = [];
   lista.forEach(function (q) {
-    const fichero = DriveApp.getFileById(q.idDrive);
+    const fichero = ficheroDePendiente_(raiz, q);
     const bytes = fichero.getBlob().getBytes();
     const rec = reconocerFichero_(q.fichero, bytes, { cursoElegido: '' });
     if (rec.clave && !rec.falta.length) {
@@ -2074,7 +2086,7 @@ function webCompletarFicha(id, datos, ctx) {
   if (!p) return { estado: 'error', mensaje: 'Ese fichero ya no está pendiente.' };
   const d = fichaDeCompletar_(p, datos || {});
   if (d.nuevo) aprendido_().tipos.push(Object.assign(d.nuevo, { creado: ahoraMadrid_(), creadoPor: (ctx && ctx.correo) || '' }));
-  const fichero = DriveApp.getFileById(p.idDrive);
+  const fichero = ficheroDePendiente_(raiz, p);
   const bytes = fichero.getBlob().getBytes();
   const rec = { clave: d.c.clave, ficha: d.ficha, variante: varianteDeFicha_(d.ficha), tipo: p.tipo, cursoSupuesto: false, alumnoNombre: d.alumnoNombre || '' };
   const r = guardarListado_(p.fichero, bytes, rec, p.llegadoPor, p.via, { fichero: fichero, llegado: p.llegado });
@@ -2115,7 +2127,7 @@ function webQuitarPendiente(id, ctx) {
     const lista = leerPendientes_(raiz);
     const p = lista.pendientes.filter(function (x) { return x.id === id; })[0];
     if (!p) return { estado: 'error', mensaje: 'Ese fichero ya no está pendiente.' };
-    DriveApp.getFileById(p.idDrive).moveTo(subcarpetaPorRuta_(raiz, '_interno/descartados'));
+    ficheroDePendiente_(raiz, p).moveTo(subcarpetaPorRuta_(raiz, '_interno/descartados'));
     lista.pendientes = lista.pendientes.filter(function (x) { return x.id !== id; });
     escribirPendientes_(raiz, lista);
     apuntarMovimiento_(raiz, { quien: (ctx && ctx.correo) || '', via: 'pagina', fichero: p.fichero, que: 'sin-clasificar', mensaje: 'Quitado de «Sin clasificar». Sigue en la carpeta de datos, en «_interno/descartados».' });
@@ -2193,7 +2205,7 @@ function repasarCursos_(raiz, topeMs) {
   for (let i = 0; i < lista.length; i++) {
     if (hechos && new Date().getTime() - inicio >= topeMs) return true;
     const q = lista[i];
-    const fichero = DriveApp.getFileById(q.idDrive);
+    const fichero = ficheroDePendiente_(raiz, q);
     const bytes = fichero.getBlob().getBytes();
     const rec = reconocerFichero_(q.fichero, bytes, { cursoElegido: '' });
     let colocado = false;
@@ -2221,7 +2233,7 @@ function repasarConsejo_(raiz, topeMs) {
   for (let i = 0; i < lista.length; i++) {
     if (hechos && new Date().getTime() - inicio >= topeMs) return true;
     const q = lista[i];
-    const fichero = DriveApp.getFileById(q.idDrive);
+    const fichero = ficheroDePendiente_(raiz, q);
     const bytes = fichero.getBlob().getBytes();
     const rec = reconocerFichero_(q.fichero, bytes, { cursoElegido: '' });
     let colocado = false;
@@ -5661,12 +5673,13 @@ const COMPROBACIONES_ = [
   { id: 'diagnostico-limpio', fila: 35, que: 'El diagnóstico sin nombres que sube la aplicación no lleva nada personal: ni nombres, ni identificadores, ni correos, ni teléfonos, ni DNI/NIE (solo cuentas por clase)', funcion: 'cmpDiagnosticoLimpio_' },
   { id: 'diagnostico-envio', fila: 35, que: 'Si el diagnóstico sin nombres se ha subido, cuántos ficheros, registros y bytes lleva y cuánto hace del último intento', funcion: 'cmpDiagnosticoEnvio_' },
   { id: 'subidas-temporales', fila: 36, que: 'Cuántas carpetas de subidas a medias llevan más de una hora abandonadas en _interno/subiendo', funcion: 'cmpSubidasTemporales_' },
+  { id: 'recibidos-pendientes', fila: 45, que: 'Cuántos ficheros soltados en la página nueva llevan más de media hora en el diario _interno/recibidos sin colocar', funcion: 'cmpRecibidosPendientes_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -7568,7 +7581,7 @@ function repararFaltantes_(raiz, forzar) {
   const estan = {};
   cmpIdsDeFicheros_(subcarpetaPorRuta_(raiz, 'listados'), []).forEach(function (id) { estan[id] = true; });
   const pendientes = {};
-  leerPendientes_(raiz).pendientes.forEach(function (p) { pendientes[p.idDrive] = true; });
+  leerPendientes_(raiz).pendientes.forEach(function (p) { if (p.idDrive) pendientes[p.idDrive] = true; });
   const res = { version: VERSION_CD, cuando: ahoraMadrid_(), movidos: 0, papelera: 0, anterior: 0, sinAnterior: 0 };
   let cambia = false;
   const faltan = indice.listados.filter(function (e) { return !e.porAlumno && !estan[e.idDrive]; });
@@ -7919,6 +7932,26 @@ function subidasAbandonadas_(raiz, ahoraMs) {
 /* En la vuelta de los 10 minutos: lo abandonado a la papelera. */
 function limpiarSubidas_(raiz) {
   subidasAbandonadas_(raiz, new Date().getTime()).forEach(function (c) { c.setTrashed(true); });
+}
+
+/* Fila 45: `recibidos-pendientes`. Solo lee. La página nueva guarda en _interno/recibidos/ cada fichero soltado antes de colocarlo y lo borra cuando está colocado:
+   lo que lleve más de media hora ahí se quedó a medias (la página lo coloca al abrirse). */
+const RECIBIDOS_VIEJO_MS_ = 30 * 60 * 1000;
+
+function cmpRecibidosPendientes_(ctx) {
+  const it = ctx.raiz.getFoldersByName('_interno');
+  const dentro = it.hasNext() ? it.next().getFoldersByName('recibidos') : null;
+  let total = 0, viejos = 0;
+  if (dentro && dentro.hasNext()) {
+    const fs = dentro.next().getFiles();
+    const ahora = new Date().getTime();
+    while (fs.hasNext()) {
+      const m = /^(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)~/.exec(fs.next().getName());
+      total++;
+      if (!m || ahora - new Date(isoDePrefijo_(m)).getTime() > RECIBIDOS_VIEJO_MS_) viejos++;
+    }
+  }
+  return { estado: viejos ? 'dato' : 'bien', cifras: { 'en-el-diario': total, 'a-medias': viejos } };
 }
 
 function cmpSubidasTemporales_(ctx) {

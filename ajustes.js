@@ -1,5 +1,6 @@
-/* Lo que cambia respecto a la aplicación de hoy: nada de lo que cambia datos se hace aquí. En su sitio sale un botón que abre la aplicación de hoy.
-   El resto (tablas, cajitas, avisos, colores y textos) sale del mismo código que la de hoy. */
+/* Lo que cambia respecto a la aplicación de hoy. Desde la fila 45 se sueltan ficheros, se completa «Sin clasificar» y se cambia la ficha de un listado aquí
+   (acciones.js). Lo que sigue sin hacerse aquí («Ya lo he visto», configuración, acceso, clave de GitHub, diagnóstico) sale como un botón que abre la
+   aplicación de hoy. El resto (tablas, cajitas, avisos, colores y textos) sale del mismo código que la de hoy. */
 (function () {
   'use strict';
   /* La dirección publicada de la aplicación de hoy (docs/CONTEXTO-CORTO.md, apartado 1). */
@@ -13,15 +14,8 @@
     return b;
   }
 
-  /* La zona de soltar ficheros y la pestaña «Acceso y carpeta» se sustituyen una vez. */
+  /* La pestaña «Acceso y carpeta» se sustituye una vez. */
   function sustituirFijos() {
-    var zona = document.getElementById('zona');
-    zona.textContent = '';
-    zona.appendChild(el('span', '', 'Para soltar ficheros de Séneca, usa la aplicación de hoy'));
-    zona.appendChild(botonHoy('accion'));
-    /* Los códigos de la aplicación de hoy buscan estos dos por su nombre: se dejan escondidos. */
-    var input = el('input'); input.type = 'file'; input.id = 'elegir'; input.hidden = true; input.disabled = true; zona.appendChild(input);
-    var curso = el('select'); curso.id = 'cursoZona'; curso.hidden = true; zona.appendChild(curso);
     var acceso = document.getElementById('acceso');
     acceso.textContent = '';
     var caja = el('div', 'caja');
@@ -34,14 +28,6 @@
 
   /* Se repite cada vez que la página pinta algo nuevo (es idempotente). */
   function ajustar() {
-    Array.prototype.forEach.call(document.querySelectorAll('#sinClasificar .pend:not([data-solo-lee])'), function (fila) {
-      fila.dataset.soloLee = '1';
-      Array.prototype.slice.call(fila.children).forEach(function (h) {
-        if (!(h.tagName === 'A' || h.classList.contains('cuando') || h.classList.contains('motivo'))) fila.removeChild(h);
-      });
-      fila.appendChild(botonHoy('enlace'));
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('#filasListados .sublinea .cambiar'), function (b) { b.parentNode.replaceChild(botonHoy('enlace'), b); });
     Array.prototype.forEach.call(document.querySelectorAll('.aviso-linea button.accion:not([data-hoy])'), function (b) { b.parentNode.replaceChild(botonHoy('accion'), b); });
     Array.prototype.forEach.call(document.querySelectorAll('#configuracion input, #configuracion textarea'), function (x) { x.readOnly = true; });
   }
@@ -55,4 +41,5 @@
 
   sustituirFijos();
   window.APLICACION_HOY = APLICACION_HOY;
+  window.botonHoy = botonHoy;
 })();

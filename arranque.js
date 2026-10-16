@@ -1,4 +1,4 @@
-/* Arranque de la página nueva: elegir la carpeta (solo lectura), recordarla y pintar lo mismo que la aplicación de hoy. */
+/* Arranque de la página nueva: elegir la carpeta (leer y escribir), recordarla y pintar lo mismo que la aplicación de hoy. */
 (function () {
   'use strict';
   var C = window.CarpetaLectura;
@@ -6,7 +6,7 @@
 
   var DESDE_DISCO = location.protocol === 'file:';
   $('versionPagina').textContent = window.VERSION_PAGINA + ' · ' + (window.COMMIT_PAGINA || 'sin-marca') + (DESDE_DISCO ? ' · copia sin internet' : '');
-  $('quien').textContent = 'Solo lectura · ' + window.VERSION_PAGINA + (DESDE_DISCO ? ' · copia sin internet' : '');
+  $('quien').textContent = window.VERSION_PAGINA + (DESDE_DISCO ? ' · copia sin internet' : '');
   $('carpeta').textContent = 'Carpeta de los datos: todavía no has elegido ninguna.';
   window.SOPORTE_APP.pantalla = 'página nueva';
   window.SOPORTE_APP.version = window.VERSION_PAGINA;
@@ -19,6 +19,7 @@
   };
   document.querySelectorAll('nav button').forEach(function (b) { b.onclick = function () { window.irAPestana(b.dataset.p); }; });
   $('botonAcceso').hidden = false;
+  prepararZona();
 
   /* La carpeta elegida se recuerda en el navegador (IndexedDB). Si algo de eso falla, se pide cada vez. */
   function bd() {
@@ -59,12 +60,17 @@
     try { await guardada(handle); } catch (e) { /* sin recordarla: se pedirá otra vez */ }
     var e = await cargarEstado();
     if (e && e.carpeta && e.carpeta.ok) cargarConfiguracion();
+    /* Lo que quedó a medias en el diario de lo recibido se coloca ahora. */
+    try {
+      var n = await window.AccionesPagina.repasarDiario();
+      if (n) { avisar(n === 1 ? 'He terminado de guardar un fichero que había quedado a medias.' : 'He terminado de guardar ' + n + ' ficheros que habían quedado a medias.'); cargarEstado(); }
+    } catch (x) { /* se vuelve a intentar la próxima vez que se abra */ }
   }
 
   function pedirElegir(texto) {
     pedir(texto, 'Elegir la carpeta', async function () {
       var h;
-      try { h = await window.showDirectoryPicker({ id: 'centro-de-datos-pagina', mode: 'read' }); } catch (e) { pedirElegir('No se ha podido elegir la carpeta. Pulsa el botón y vuelve a probar.'); throw e; }
+      try { h = await window.showDirectoryPicker({ id: 'centro-de-datos-pagina', mode: 'readwrite' }); } catch (e) { pedirElegir('No se ha podido elegir la carpeta. Pulsa el botón y vuelve a probar.'); throw e; }
       await usar(h);
     });
   }
@@ -72,13 +78,13 @@
   async function empezar() {
     var h = null;
     try { h = await guardada(); } catch (e) { h = null; }
-    if (!h) { pedirElegir('Elige la carpeta «CENTRO DE DATOS» de Drive. Esta página solo la lee: nunca escribe nada en ella.'); return; }
+    if (!h) { pedirElegir('Elige la carpeta «CENTRO DE DATOS» de Drive. Chrome te pedirá permiso para leerla y para guardar en ella.'); return; }
     var permiso = 'prompt';
-    try { permiso = await h.queryPermission({ mode: 'read' }); } catch (e) { permiso = 'prompt'; }
+    try { permiso = await h.queryPermission({ mode: 'readwrite' }); } catch (e) { permiso = 'prompt'; }
     if (permiso === 'granted') { await usar(h); return; }
-    pedir('Chrome pide que vuelvas a dar permiso de lectura a la carpeta.', 'Dar permiso', async function () {
+    pedir('Chrome pide que vuelvas a dar permiso de leer y guardar en la carpeta.', 'Dar permiso', async function () {
       var r = 'denied';
-      try { r = await h.requestPermission({ mode: 'read' }); } catch (e) { r = 'denied'; }
+      try { r = await h.requestPermission({ mode: 'readwrite' }); } catch (e) { r = 'denied'; }
       if (r === 'granted') await usar(h); else pedirElegir('No has dado permiso. Elige la carpeta otra vez.');
     });
   }
