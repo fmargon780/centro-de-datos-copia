@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v38';
+const VERSION_CD = 'CD v39';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1032,7 +1032,7 @@ function nombresAlumnado_(raiz) {
   const vistos = {}, lista = [];
   if (e) {
     try {
-      const texto = bytesATexto_(DriveApp.getFileById(e.idDrive).getBlob().getBytes());
+      const texto = bytesATexto_(ficheroDeEntrada_(e).getBlob().getBytes());
       const filas = leerCsv_(texto, detectarSeparador_(texto));
       const col = (filas[0] || []).map(normalizarTitulo_).indexOf('alumno/a');
       if (col !== -1) filas.slice(1).forEach(function (f) { const n = (f[col] || '').trim(); if (n && !vistos[n]) { vistos[n] = true; lista.push(n); } });
@@ -1102,7 +1102,7 @@ function guardarDeAlumno_(nombre, bytes, rec, quien, via, existente) {
     let movido = false;
     if (previo) {
       try {
-        const viejo = DriveApp.getFileById(previo.idDrive);
+        const viejo = ficheroDeEntrada_(previo);
         viejo.moveTo(subcarpetaPorRuta_(raiz, rutaAnt));
         viejo.setName(prefijoFecha_(previo.subido) + ' ' + viejo.getName());
         movido = true;
@@ -1155,7 +1155,7 @@ function webAlumnosDe(clave, ctx) {
   return leerIndiceAlumnos_(carpetaDatos_()).listados.filter(function (e) { return e.clave === clave; })
     .sort(function (a, b) { return llaveDeNombre_(a.alumnoNombre) < llaveDeNombre_(b.alumnoNombre) ? -1 : 1; })
     .map(function (e) {
-      return { nombre: e.alumnoNombre, fecha: fechaLegible_(e.subido).split(' ')[0], url: 'https://drive.google.com/file/d/' + e.idDrive + '/view', anteriores: e.anteriores || 0, enAlumnado: e.enAlumnado !== false };
+      return { nombre: e.alumnoNombre, fecha: fechaLegible_(e.subido).split(' ')[0], url: e.idDrive ? 'https://drive.google.com/file/d/' + e.idDrive + '/view' : '', anteriores: e.anteriores || 0, enAlumnado: e.enAlumnado !== false };
     });
 }
 
@@ -1557,6 +1557,7 @@ function ponerAlDia_(raiz) {
   cargarAprendido_(raiz);
   ponerAlDiaIndice_(raiz);
   ponerAlDiaRecibe_(raiz);
+  try { rellenarIds_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }
   migrarSinReconocer_(raiz);
   try { ponerAlDiaSoporte_(raiz); } catch (e) { /* vaciar el dato viejo nunca rompe la página */ }
 }
@@ -1598,7 +1599,7 @@ function estadoListados_(raiz) {
         periodo: textoPeriodo_(e.periodo), estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
         deCuando: fechaLegible_(e.subido) + ' · ' + haceTiempo_(e.subido, ahora),
         trae: traeDeFila_(c, e.resumen), usan: c.usan, subidoPor: e.subidoPor === DUENO_CD_ ? 'Centro de datos' : (e.subidoPor || ''), anteriores: e.anteriores || 0,
-        url: 'https://drive.google.com/file/d/' + e.idDrive + '/view' });
+        url: e.idDrive ? 'https://drive.google.com/file/d/' + e.idDrive + '/view' : '' });
     });
   });
   const cursos = {};
@@ -1609,6 +1610,88 @@ function estadoListados_(raiz) {
   });
   const pendientes = leerPendientes_(raiz).pendientes.map(pendienteParaPagina_);
   return { filas: filas, movimientos: movimientos, cursoActual: actual, cursos: ordenarCursos_(Object.keys(cursos)), pendientes: pendientes };
+}
+
+/* ==== Ids.gs ==== */
+/* Fila 44: los ids de Drive que faltan. La página nueva guarda ficheros sin poder saber su id: la entrada del índice llega con `idDrive` vacío.
+   `rellenarIds_` se lo pone (por la `ruta`) y `ficheroDeEntrada_` abre por id y, si no hay o no sirve, por `ruta`. Lo que se rellena se cuenta en _interno/ids.json. */
+const ARCHIVO_IDS_ = 'ids.json';
+
+/* El fichero de una ruta («listados/alumnado/x.csv»), sin crear nada. null si no está (la papelera no cuenta). */
+function ficheroPorRuta_(raiz, ruta) {
+  const trozos = String(ruta || '').split('/').filter(function (p) { return p; });
+  const nombre = trozos.pop();
+  if (!nombre) return null;
+  let c = raiz;
+  for (let i = 0; i < trozos.length; i++) {
+    const it = c.getFoldersByName(trozos[i]);
+    if (!it.hasNext()) return null;
+    c = it.next();
+  }
+  const fs = c.getFilesByName(nombre);
+  return fs.hasNext() ? fs.next() : null;
+}
+
+/* Abre el fichero de una entrada del índice: por `idDrive` y, si está vacío o ya no existe, por `ruta`. Si no está en ningún sitio, falla como DriveApp. */
+function ficheroDeEntrada_(e) {
+  let fallo = null;
+  if (e && e.idDrive) { try { return DriveApp.getFileById(e.idDrive); } catch (x) { fallo = x; } }
+  const f = e && e.ruta ? ficheroPorRuta_(carpetaDatos_(), e.ruta) : null;
+  if (f) return f;
+  throw fallo || new Error('No encuentro el fichero ' + String((e && (e.ruta || e.fichero)) || '') + '.');
+}
+
+/* Pone `idDrive` a las entradas de una lista que lo traen vacío. Devuelve { rellenadas, sinFichero: [entrada] }. */
+function rellenarLista_(raiz, lista) {
+  const r = { rellenadas: 0, sinFichero: [] };
+  (lista || []).forEach(function (e) {
+    if (e.idDrive || e.porAlumno) return;   // el resumen de un tipo «por alumno» no es un fichero
+    const f = ficheroPorRuta_(raiz, e.ruta);
+    if (f) { e.idDrive = f.getId(); r.rellenadas++; } else r.sinFichero.push(e);
+  });
+  return r;
+}
+
+/* Recorre indice.json (listados y hechos) e indice-alumnos.json y rellena los ids vacíos. Si no hay ninguno vacío no escribe nada. El índice se escribe al final. */
+function rellenarIds_(raiz) {
+  const indice = leerJson_(raiz, 'indice.json');
+  if (!indice) return null;
+  const alumnos = leerJson_(raiz, ARCHIVO_ALUMNOS_);
+  const vacios = function (l) { return (l || []).some(function (e) { return !e.idDrive && !e.porAlumno; }); };
+  const previo = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_IDS_);
+  if (!vacios(indice.listados) && !vacios(indice.hechos) && !(alumnos && vacios(alumnos.listados))) {
+    if (previo && previo.sinFichero.length) escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_IDS_, { version: VERSION_CD, cuando: ahoraMadrid_(), habia: previo.habia, rellenadas: previo.rellenadas, sinFichero: [] });
+    return null;
+  }
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ind = leerIndice_(raiz);
+    const ia = leerJson_(raiz, ARCHIVO_ALUMNOS_);
+    const a = rellenarLista_(raiz, ind.listados), b = rellenarLista_(raiz, ind.hechos), c = ia ? rellenarLista_(raiz, ia.listados) : { rellenadas: 0, sinFichero: [] };
+    const sin = a.sinFichero.concat(b.sinFichero, c.sinFichero);
+    const res = { version: VERSION_CD, cuando: ahoraMadrid_(), habia: a.rellenadas + b.rellenadas + c.rellenadas + sin.length, rellenadas: a.rellenadas + b.rellenadas + c.rellenadas,
+      sinFichero: sin.map(function (e) { return { clave: e.clave || e.conjunto || '', variante: e.variante || e.parte || '', ruta: e.ruta || '' }; }) };
+    if (c.rellenadas) escribirIndiceAlumnos_(raiz, ia);
+    if (a.rellenadas || b.rellenadas) escribirIndice_(raiz, ind);   // el índice, lo último
+    escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_IDS_, res);
+    return res;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Una línea por entrada que sigue sin fichero, en el formato de los avisos de Avisos.gs. */
+function avisosDeIdsSinFichero_(raiz) {
+  let r = null;
+  try { r = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_IDS_); } catch (e) { r = null; }
+  return ((r && r.sinFichero) || []).map(function (s) {
+    const c = entradaCatalogo_(s.clave);
+    const donde = (c ? c.titulo : s.clave) + (s.variante ? ' · ' + s.variante : '');
+    const aviso = { tipo: 'ids-sin-fichero', id: null, datos: { listado: donde } };
+    const f = frasePlanaDeAviso_(aviso);
+    return { huella: huellaDeAviso_('listados', s.ruta, aviso), conjunto: 'listados', donde: 'Listados · ' + donde, tipo: aviso.tipo, quien: donde, que: f.texto, conocida: f.conocida };
+  });
 }
 
 /* ==== Guardar.gs ==== */
@@ -1712,7 +1795,7 @@ function guardarListado_(nombre, bytes, rec, quien, via, existente) {
     let movido = false;
     if (previo) {
       try {
-        const viejo = DriveApp.getFileById(previo.idDrive);
+        const viejo = ficheroDeEntrada_(previo);
         viejo.moveTo(subcarpetaPorRuta_(raiz, rutaAnt));
         viejo.setName(prefijoFecha_(previo.subido) + ' ' + viejo.getName());
         movido = true;
@@ -2056,7 +2139,7 @@ function webCambiarFicha(clave, variante, ctx) {
     const indice = leerIndice_(raiz);
     const e = buscarEnIndice_(indice, clave, variante);
     if (!e) return { estado: 'error', mensaje: 'Ese listado ya no está guardado.' };
-    const fichero = DriveApp.getFileById(e.idDrive);
+    const fichero = ficheroDeEntrada_(e);
     const bytes = fichero.getBlob().getBytes();
     const rec = reconocerFichero_(e.fichero, bytes, { cursoElegido: '' });
     const h = huella_(bytes);
@@ -2592,7 +2675,7 @@ function nombreDeLeido_(k) { return k.replace(/\//g, '~') + '.json'; }
 /* Abre UNA fuente (un listado del índice) y guarda lo leído. `t` = { conj, fuente, entrada, k }. */
 function leerUnaFuente_(raiz, t, avance) {
   const t0 = new Date().getTime();
-  const bytes = DriveApp.getFileById(t.entrada.idDrive).getBlob().getBytes();
+  const bytes = ficheroDeEntrada_(t.entrada).getBlob().getBytes();
   const leido = lectorDe_(t.fuente.lector)(bytes, t.fuente, huella_(bytes), t.conj, t.entrada);
   escribirJsonCompacto_(subcarpetaPorRuta_(raiz, '_interno/leido'), nombreDeLeido_(t.k), leido);
   avance.leidos[t.k] = { version: t.fuente.versionLector, huella: leido.huella };
@@ -2798,7 +2881,7 @@ function escribirParte_(raiz, conj, parte, objeto, previa, fuentes) {
   const ruta = rutaDeParte_(conj.conjunto, parte);
   if (previa) {
     let antes = null;
-    try { antes = JSON.parse(DriveApp.getFileById(previa.idDrive).getBlob().getDataAsString('UTF-8')); } catch (e) { antes = null; }
+    try { antes = JSON.parse(ficheroDeEntrada_(previa).getBlob().getDataAsString('UTF-8')); } catch (e) { antes = null; }
     if (antes && contenidoDeParte_(antes) === contenidoDeParte_(objeto)) { previa.fuentes = fuentes; return previa; }
   }
   const texto = JSON.stringify(objeto);
@@ -2807,7 +2890,7 @@ function escribirParte_(raiz, conj, parte, objeto, previa, fuentes) {
   const nombre = trozos.pop();
   const carpeta = subcarpetaPorRuta_(raiz, trozos.join('/'));
   let fichero = null;
-  if (previa) { try { fichero = DriveApp.getFileById(previa.idDrive); } catch (e) { fichero = null; } }
+  if (previa) { try { fichero = ficheroDeEntrada_(previa); } catch (e) { fichero = null; } }
   if (!fichero) { const it = carpeta.getFilesByName(nombre); fichero = it.hasNext() ? it.next() : null; }
   if (fichero) fichero.setContent(texto); else fichero = carpeta.createFile(nombre, texto, 'application/json');
   const entrada = { conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, acuerdoHecho: conj.acuerdoHecho, ruta: ruta, idDrive: fichero.getId(),
@@ -2924,7 +3007,7 @@ function ordenarCampos_(campos) {
 function montarFichaCompleta_(raiz, t, avance, cache) {
   const t0 = new Date().getTime();
   const conj = t.conj, fc = conj.fichaCompleta, indice = leerIndice_(raiz);
-  const objetos = t.plan.partes.map(function (h) { return JSON.parse(bytesATexto_(DriveApp.getFileById(h.idDrive).getBlob().getBytes())); });
+  const objetos = t.plan.partes.map(function (h) { return JSON.parse(bytesATexto_(ficheroDeEntrada_(h).getBlob().getBytes())); });
   const leido = cargarLeido_(raiz, conj.fuentes[0].clave);
   if (!leido) { avance.completa = { huellas: t.huellas, version: fc.version, cuando: ahoraMadrid_(), alumnos: 0, campos: 0, segundos: 0 }; return; }
   if (!cache['grupos:' + conj.conjunto]) cache['grupos:' + conj.conjunto] = agruparAlumnado_(leido);
@@ -2957,7 +3040,7 @@ function montarFichaCompleta_(raiz, t, avance, cache) {
   const cuentasPorApp = {};
   t.entregas.forEach(function (e) {
     let entrega = null;
-    try { entrega = JSON.parse(bytesATexto_(DriveApp.getFileById(e.entrada.idDrive).getBlob().getBytes())); } catch (x) { entrega = null; }
+    try { entrega = JSON.parse(bytesATexto_(ficheroDeEntrada_(e.entrada).getBlob().getBytes())); } catch (x) { entrega = null; }
     if (!entrega) return;
     const ac = aceptarEntrega_(entrega, publicadas, registros, huellasDeAhora);
     ac.campos.forEach(function (c) { publicadas[c.clave] = true; campos.push(c); });
@@ -2987,18 +3070,18 @@ function escribirFichaCompleta_(raiz, conj, objeto, indice) {
   const mia = !!previa && previa.subidoPor === DUENO_CD_;
   if (mia) {
     try {
-      const antes = JSON.parse(bytesATexto_(DriveApp.getFileById(previa.idDrive).getBlob().getBytes()));
+      const antes = JSON.parse(bytesATexto_(ficheroDeEntrada_(previa).getBlob().getBytes()));
       if (contenidoDeFicha_(antes) === contenidoDeFicha_(objeto)) return;
     } catch (e) { /* hay que rehacerla */ }
   }
   const texto = JSON.stringify(objeto);
   const bytes = Utilities.newBlob(texto, 'application/json').getBytes();
   let fichero = null, anteriores = previa ? previa.anteriores || 0 : 0;
-  if (mia) { try { fichero = DriveApp.getFileById(previa.idDrive); fichero.setContent(texto); } catch (e) { fichero = null; } }
+  if (mia) { try { fichero = ficheroDeEntrada_(previa); fichero.setContent(texto); } catch (e) { fichero = null; } }
   if (!fichero) {
     if (previa && !mia) {
       try {
-        const viejo = DriveApp.getFileById(previa.idDrive);
+        const viejo = ficheroDeEntrada_(previa);
         viejo.moveTo(subcarpetaPorRuta_(raiz, 'anteriores/' + fc.clave));
         viejo.setName(prefijoFecha_(previa.subido) + ' ' + viejo.getName());
         anteriores++;
@@ -3347,7 +3430,7 @@ function leerExpedientes_(raiz, t, avance, limite) {
     if (antes && antes.huella === e.huella) continue;
     if (nuevos > 0 && new Date().getTime() >= limite) break;
     try {
-      const bytes = DriveApp.getFileById(e.idDrive).getBlob().getBytes();
+      const bytes = ficheroDeEntrada_(e).getBlob().getBytes();
       leido.ficheros[e.alumno] = { huella: e.huella, r: lectorDeExpediente_(t.fuente.lector)(bytes, e.alumnoNombre, e.fichero) };
     } catch (x) {
       leido.ficheros[e.alumno] = { huella: e.huella, ilegible: true, nombre: e.alumnoNombre, fichero: e.fichero, detalle: String((x && x.message) || x).slice(0, 200) };
@@ -4138,7 +4221,7 @@ function parteVecinaTutorias_(indice, conjunto, curso, parte) {
 
 function abrirParteVecina_(h, cache) {
   const k = 'parte:' + h.ruta + ':' + h.huella;
-  if (!cache[k]) cache[k] = JSON.parse(DriveApp.getFileById(h.idDrive).getBlob().getDataAsString('UTF-8'));
+  if (!cache[k]) cache[k] = JSON.parse(ficheroDeEntrada_(h).getBlob().getDataAsString('UTF-8'));
   return cache[k];
 }
 
@@ -4513,7 +4596,7 @@ function buscarAlumnadoConsejo_(indice, cache, curso, clave) {
     const k = 'idxAlumnadoConsejo:' + h.ruta + ':' + h.huella;
     if (!cache[k]) {
       const m = {};
-      JSON.parse(DriveApp.getFileById(h.idDrive).getBlob().getDataAsString('UTF-8')).registros.forEach(function (r) {
+      JSON.parse(ficheroDeEntrada_(h).getBlob().getDataAsString('UTF-8')).registros.forEach(function (r) {
         const d = r.datos, c = claveNombreConsejo_([d.apellido1, d.apellido2, d.nombre].filter(String).join(' '));
         if (!c) return;
         (m[c] = m[c] || []).push([r.id, (d.trayectoria || []).map(function (t) { return t.ano; })]);
@@ -4978,6 +5061,7 @@ function hechosTanda_(raiz, topeMs) {
   const inicio = new Date().getTime();
   const lock = LockService.getScriptLock();
   let avance;
+  try { rellenarIds_(raiz); } catch (e) { /* las tandas abren por ruta si falta el id */ }
   lock.waitLock(30000);
   try {
     avance = leerAvance_(raiz);
@@ -5030,7 +5114,7 @@ function hacerTareaHechos_(raiz, t, indice, avance, cache, limite) {
   if (t.que === 'completa') { montarFichaCompleta_(raiz, t, avance, cache); return; }
   if (t.que === 'quitar') {
     cambiarIndiceHechos_(raiz, function (ind) { ind.hechos = (ind.hechos || []).filter(function (h) { return h.ruta !== t.entrada.ruta; }); });
-    try { DriveApp.getFileById(t.entrada.idDrive).setTrashed(true); } catch (e) { /* ya no estaba */ }
+    try { ficheroDeEntrada_(t.entrada).setTrashed(true); } catch (e) { /* ya no estaba */ }
     delete avance.montado[t.entrada.ruta]; delete avance.avisos[t.entrada.ruta];
     if (avance.dias) delete avance.dias[t.entrada.ruta];
     if (avance.libros) delete avance.libros[t.entrada.ruta];
@@ -5302,6 +5386,7 @@ const FRASES_AVISO_ = {
   'tutoria-grupo-sin-tutor': 'Este grupo tiene alumnos y no sale con ningún tutor en el listado.',
   'tutoria-hueco-hoy': 'Hoy este grupo no tiene tutor: hubo uno antes y habrá otro después.',
   'tutoria-dos-tutores-hoy': 'Hoy este grupo tiene dos tutores a la vez.',
+  'ids-sin-fichero': 'El listado {listado} figura en el índice sin número de Drive y su fichero no está en su carpeta: vuelve a soltarlo.',
   'listado-sin-fichero': 'Falta el fichero de {listado} de {fecha}: vuelve a soltarlo.',
   'libros-fichero': '{detalle}',
   'libros-repetido': 'La asignatura {materia} de {nivel} sale dos veces con el mismo libro; se ha usado la última fila.',
@@ -5393,7 +5478,7 @@ function leerAvisosDeHechos_(raiz) {
       });
     });
   });
-  avisosDeFicherosQueFaltan_(indice).forEach(function (a) { lista.push(a); });
+  avisosDeFicherosQueFaltan_(indice).concat(avisosDeIdsSinFichero_(raiz)).forEach(function (a) { lista.push(a); });
   return { avisos: lista, incompleto: incompleto, indice: indice, avance: avance };
 }
 
@@ -5576,11 +5661,12 @@ const COMPROBACIONES_ = [
   { id: 'diagnostico-limpio', fila: 35, que: 'El diagnóstico sin nombres que sube la aplicación no lleva nada personal: ni nombres, ni identificadores, ni correos, ni teléfonos, ni DNI/NIE (solo cuentas por clase)', funcion: 'cmpDiagnosticoLimpio_' },
   { id: 'diagnostico-envio', fila: 35, que: 'Si el diagnóstico sin nombres se ha subido, cuántos ficheros, registros y bytes lleva y cuánto hace del último intento', funcion: 'cmpDiagnosticoEnvio_' },
   { id: 'subidas-temporales', fila: 36, que: 'Cuántas carpetas de subidas a medias llevan más de una hora abandonadas en _interno/subiendo', funcion: 'cmpSubidasTemporales_' },
+  { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -5601,25 +5687,27 @@ function cmpIndiceYCarpetas_(ctx) {
   const enDrive = cmpIdsDeFicheros_(subcarpetaPorRuta_(ctx.raiz, 'listados'), []);
   const estan = {};
   enDrive.forEach(function (id) { estan[id] = true; });
-  const sinFichero = entradas.filter(function (e) { return !estan[e.idDrive]; });
+  const sinId = { n: 0 };
+  const idDe = function (e) { return cmpIdDeEntrada_(ctx.raiz, e, sinId); };
+  const sinFichero = entradas.filter(function (e) { return !estan[idDe(e)]; });
   const faltan = sinFichero.filter(function (e) { return !e.faltaFichero; }).length;
   const conAviso = sinFichero.length - faltan;
   const conocidos = {};
-  entradas.forEach(function (e) { conocidos[e.idDrive] = true; });
+  entradas.forEach(function (e) { conocidos[idDe(e)] = true; });
   const sobran = enDrive.filter(function (id) { return !conocidos[id]; }).length;
   const ia = leerIndiceAlumnos_(ctx.raiz).listados;
   const enAlumnos = cmpIdsDeFicheros_(subcarpetaPorRuta_(ctx.raiz, 'alumnos'), []);
   const estanA = {};
   enAlumnos.forEach(function (id) { estanA[id] = true; });
-  const faltanA = ia.filter(function (e) { return !estanA[e.idDrive]; }).length;
+  const faltanA = ia.filter(function (e) { return !estanA[idDe(e)]; }).length;
   const conocidosA = {};
-  ia.forEach(function (e) { conocidosA[e.idDrive] = true; });
+  ia.forEach(function (e) { conocidosA[idDe(e)] = true; });
   const sobranA = enAlumnos.filter(function (id) { return !conocidosA[id]; }).length;
-  const cifras = { entradas: entradas.length, ficheros: enDrive.length, faltan: faltan, 'faltan-con-aviso': conAviso, sobran: sobran, 'alumnos-entradas': ia.length, 'alumnos-ficheros': enAlumnos.length, 'alumnos-faltan': faltanA, 'alumnos-sobran': sobranA };
+  const cifras = { entradas: entradas.length, ficheros: enDrive.length, faltan: faltan, 'faltan-con-aviso': conAviso, sobran: sobran, 'alumnos-entradas': ia.length, 'alumnos-ficheros': enAlumnos.length, 'alumnos-faltan': faltanA, 'alumnos-sobran': sobranA, 'sin-id': sinId.n };
   const rep = leerReparar_(ctx.raiz);   // lo que arregló la última pasada de Reparar.gs
   if (rep) { cifras['reparados-movidos'] = rep.movidos; cifras['reparados-papelera'] = rep.papelera; cifras['reparados-con-anterior'] = rep.anterior; cifras['reparados-sin-anterior'] = rep.sinAnterior; }
   return { estado: faltan + sobran + faltanA + sobranA ? 'mal' : 'bien',
-    faltantes: sinFichero.filter(function (e) { return !e.faltaFichero; }).map(function (e) { return e.idDrive; }), cifras: cifras };
+    faltantes: sinFichero.filter(function (e) { return !e.faltaFichero; }).map(function (e) { return e.idDrive || e.ruta; }), cifras: cifras };
 }
 
 /* Una parte abierta, una sola vez por pasada: { bytes, huella, obj } o null si no se puede abrir. */
@@ -5627,7 +5715,7 @@ function cmpAbrirParte_(ctx, h) {
   if (ctx.cache[h.ruta] !== undefined) return ctx.cache[h.ruta];
   let r = null;
   try {
-    const bytes = DriveApp.getFileById(h.idDrive).getBlob().getBytes();
+    const bytes = ficheroDeEntrada_(h).getBlob().getBytes();
     r = { bytes: bytes.length, huella: huella_(bytes), obj: JSON.parse(bytesATexto_(bytes)) };
   } catch (e) { r = null; }
   ctx.cache[h.ruta] = r;
@@ -5878,7 +5966,7 @@ function cmpFichaCompleta_(ctx) {
   let mal = entradas.length === 1 ? 0 : 1, repetidos = 0, sinDueno = 0, acuerdo = true;
   if (entradas.length === 1) {
     try {
-      const f = JSON.parse(bytesATexto_(DriveApp.getFileById(entradas[0].idDrive).getBlob().getBytes()));
+      const f = JSON.parse(bytesATexto_(ficheroDeEntrada_(entradas[0]).getBlob().getBytes()));
       acuerdo = f.acuerdo === conj.fichaCompleta.acuerdo;
       const vistos = {};
       f.alumnos.forEach(function (a) { if (vistos[a.idEscolar]) repetidos++; vistos[a.idEscolar] = true; });
@@ -5901,6 +5989,26 @@ function cmpAdmisionPorNivel_(ctx) {
     return claves.indexOf(p.clave) !== -1 && (p.falta || []).indexOf('ambito') !== -1;
   }).length;
   return { estado: 'dato', cifras: cifras };
+}
+
+/* ==== ComprobIds.gs ==== */
+/* Fila 44: `ids-rellenos`. Solo lee: cuántas entradas había sin id, cuántas se han rellenado y cuántas siguen sin fichero. */
+function cmpIdsRellenos_(ctx) {
+  const vacias = function (l) { return (l || []).filter(function (e) { return !e.idDrive && !e.porAlumno; }).length; };
+  const ahora = vacias(ctx.indice.listados) + vacias(ctx.indice.hechos) + vacias(leerIndiceAlumnos_(ctx.raiz).listados);
+  let r = null;
+  try { r = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), ARCHIVO_IDS_); } catch (e) { r = null; }
+  const sin = r ? r.sinFichero.length : 0;
+  return { estado: sin ? 'mal' : 'bien', cifras: { 'sin-id-ahora': ahora, habia: r ? r.habia : 0, rellenadas: r ? r.rellenadas : 0, 'siguen-sin-fichero': sin } };
+}
+
+/* El id de una entrada para comparar con lo que hay en Drive: el suyo y, si viene vacío, el del fichero que está en su `ruta` (se cuenta en `cuenta.n`). */
+function cmpIdDeEntrada_(raiz, e, cuenta) {
+  if (e.idDrive) return e.idDrive;
+  const f = ficheroPorRuta_(raiz, e.ruta);
+  if (!f) return '';
+  cuenta.n++;
+  return f.getId();
 }
 
 /* ==== ComprobPersonal.gs ==== */
@@ -6412,7 +6520,7 @@ function cmpFichaLeer_(ctx) {
   const e = buscarEnIndice_(ctx.indice, 'alumnado-bd', '');
   if (e && e.subidoPor !== DUENO_CD_ && !ctx.avance.relevo) {
     let bd = null;
-    try { bd = JSON.parse(bytesATexto_(DriveApp.getFileById(e.idDrive).getBlob().getBytes())); } catch (x) { bd = null; }
+    try { bd = JSON.parse(bytesATexto_(ficheroDeEntrada_(e).getBlob().getBytes())); } catch (x) { bd = null; }
     if (bd && Array.isArray(bd.alumnos)) {
       const curso = parDeCursos_(parseInt(String(bd.cursoAcademico), 10));
       const h = (ctx.indice.hechos || []).filter(function (x) { return x.conjunto === 'alumnado' && x.parte === 'actuales' && x.cursoEscolar === curso; })[0];
@@ -6725,7 +6833,7 @@ function diagListados_(indice, comp) {
     const o = { tipo: DIAG_SLUG_.test(e.clave || '') ? e.clave : '', variante: DIAG_SLUG_.test(e.variante || '') ? e.variante : '', cursoEscolar: /^[0-9-]{0,9}$/.test(e.cursoEscolar || '') ? e.cursoEscolar : '',
       ambito: DIAG_SLUG_.test(e.ambito || '') ? e.ambito : '', fecha: String(e.subido || '').slice(0, 10) };
     if (!DIAG_PATRON_FECHA_.test(o.fecha)) o.fecha = '';
-    if (faltan) o.existe = !falta[e.idDrive];
+    if (faltan) o.existe = !falta[e.idDrive || e.ruta];
     return o;
   });
 }
@@ -7454,6 +7562,7 @@ function ponerAnteriorDeVigente_(raiz, e, a) {
 function repararFaltantes_(raiz, forzar) {
   const previo = leerReparar_(raiz);
   if (!forzar && previo && previo.version === VERSION_CD) return null;
+  try { rellenarIds_(raiz); } catch (x) { /* sin ids rellenos se mira por ruta */ }
   const indice = leerIndice_(raiz);
   if (indice.ocupado) return null;
   const estan = {};
@@ -7468,7 +7577,7 @@ function repararFaltantes_(raiz, forzar) {
     if (e.porAlumno) return;
     if (estan[e.idDrive]) { if (e.faltaFichero && !e.faltaFichero.desde) { delete e.faltaFichero; cambia = true; } return; }
     let f = null;
-    if (!pendientes[e.idDrive]) { try { f = DriveApp.getFileById(e.idDrive); } catch (x) { f = null; } }
+    if (!pendientes[e.idDrive]) { try { f = ficheroDeEntrada_(e); } catch (x) { f = null; } }
     if (f && !enCarpetaApartada_(f)) {
       const estabaEnPapelera = !!(f.isTrashed && f.isTrashed());
       if (estabaEnPapelera) f.setTrashed(false);
