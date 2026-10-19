@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v50';
+const VERSION_CD = 'CD v51';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -4266,6 +4266,12 @@ function hayCambiosPorVenir_(indice, avance) {
 
 function hoyMadrid_() { return ahoraMadrid_().slice(0, 10); }
 
+/* El día con que se monta cada parte. En la aplicación de hoy no hay días prestados: es el de hoy. El ensayo de la página nueva (fila 57) presta, por ruta, el `hoy` de la parte equivalente de la aplicación de hoy,
+   para que las dos decidan igual quién es el tutor, el miembro o el ocupante de hoy. */
+let DIAS_PRESTADOS_ = {};
+function prestarDias_(mapa) { DIAS_PRESTADOS_ = mapa || {}; }
+function hoyDeParte_(ruta) { return DIAS_PRESTADOS_[ruta] || hoyMadrid_(); }
+
 /* La parte de otro conjunto del mismo curso que figura en el índice, o null. */
 function parteVecinaTutorias_(indice, conjunto, curso, parte) {
   return (indice.hechos || []).filter(function (h) { return h.conjunto === conjunto && h.cursoEscolar === curso && h.parte === parte; })[0] || null;
@@ -4296,11 +4302,10 @@ function vecinasDeTutorias_(indice, curso, cache) {
 }
 
 /* Lo que cambia el montaje además de los listados: la huella de las dos partes que mira y cuántos de los días de cambio del listado han pasado ya. */
-function claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance) {
+function claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) {
   const hp = parteVecinaTutorias_(indice, 'personal', parte.cursoEscolar, 'curso'), ha = parteVecinaTutorias_(indice, 'alumnado', parte.cursoEscolar, 'actuales');
   const x = necesarias.filter(function (n) { return n.entrada.cursoEscolar === parte.cursoEscolar; })[0];
   const dias = (x && avance.leidos[x.k] && avance.leidos[x.k].cambios) || [];
-  const hoy = hoyMadrid_();
   return conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|' + (hp ? hp.huella : '') + '|' + (ha ? ha.huella : '') + '|' + dias.filter(function (d) { return d <= hoy; }).length;
 }
 
@@ -4311,7 +4316,7 @@ function montarParteDeTutorias_(raiz, t, avance, cache, indice) {
   const leido = cargarLeido_(raiz, x.k);
   if (!leido || !avance.leidos[x.k] || leido.huella !== avance.leidos[x.k].huella) { delete avance.leidos[x.k]; return; }
   const v = vecinasDeTutorias_(indice, t.parte.cursoEscolar, cache);
-  cerrarMontaje_(raiz, t, avance, montarTutorias_(t.conj, t.parte, leido, { hoy: hoyMadrid_(), personal: v.personal, alumnado: v.alumnado }), t0);
+  cerrarMontaje_(raiz, t, avance, montarTutorias_(t.conj, t.parte, leido, { hoy: hoyDeParte_(t.ruta), personal: v.personal, alumnado: v.alumnado }), t0);
 }
 
 /* ==== HechosTutoriasSobras.gs ==== */
@@ -4608,10 +4613,9 @@ function diasDeConsejo_(avance) { return diasDeConjunto_(avance, 'consejo-escola
 
 /* Lo que cambia el montaje además de los listados. Periodo: el número del montador y del lector, la huella de las partes del personal de los cursos que mira y la de las partes del alumnado.
    Historial: la huella de cada parte `periodo` y cuántos de los días de cambio han pasado ya. */
-function claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance) {
+function claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) {
   const base = conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|';
   if (parte.parte === 'historial') {
-    const hoy = hoyMadrid_();
     return base + partesDelConjunto_(indice, conj.conjunto, 'periodo').map(function (h) { return h.ruta + ':' + h.huella; }).sort().join(',') + '|' + diasDeConsejo_(avance).filter(function (d) { return d <= hoy; }).length;
   }
   const x = necesarias.filter(function (n) { return n.entrada.variante === parte.periodo; })[0];
@@ -4757,7 +4761,7 @@ function montarHistorialConsejo_(raiz, t, avance, cache, indice) {
   const t0 = new Date().getTime();
   const partes = partesDelConjunto_(indice, t.conj.conjunto, 'periodo').map(function (h) { return { periodo: h.periodo, obj: abrirParteVecina_(h, cache) }; });
   const sinPeriodo = t.necesarias.filter(function (x) { return !periodoValidoConsejo_(x.entrada.variante); }).length;
-  const objeto = montarConsejoHistorial_(t.conj, partes, sinPeriodo, hoyMadrid_());
+  const objeto = montarConsejoHistorial_(t.conj, partes, sinPeriodo, hoyDeParte_(t.ruta));
   cerrarMontaje_(raiz, t, avance, objeto, t0);
   avance.consejo = { periodos: objeto.periodos.length, nombramientos: objeto.registros.length, miembrosHoy: objeto.registros.filter(function (r) { return r.datos.miembroHoy; }).length, ultimoPeriodo: objeto.ultimoPeriodo };
 }
@@ -4793,10 +4797,10 @@ function fuentesDeEntero_(indice, conj) {
 function partesDeEntero_(necesarias, conj) { return necesarias.length ? [{ parte: conj.parteNombre || 'todas', cursoEscolar: '', anio: 0, entera: true }] : []; }
 
 /* Lo que cambia el montaje además de la entrega: el número del montador y, si el conjunto mira otros (`mira`) o tiene días de cambio (`conDias`), la huella de todas las partes de esos y cuántos días de cambio han pasado ya. */
-function claveDeMontajeEntero_(conj, indice, avance) {
+function claveDeMontajeEntero_(conj, indice, avance, hoy) {
   let c = conj.versionMontador + '|' + FUENTE_ENTREGA_.versionLector;
   (conj.mira || []).forEach(function (otro) { c += '|' + partesDelConjunto_(indice, otro).map(function (h) { return h.ruta + ':' + h.huella; }).sort().join(','); });
-  if (conj.conDias) { const hoy = hoyMadrid_(); c += '|' + diasDeConjunto_(avance, conj.conjunto).filter(function (d) { return d <= hoy; }).length; }
+  if (conj.conDias) { c += '|' + diasDeConjunto_(avance, conj.conjunto).filter(function (d) { return d <= hoy; }).length; }
   return c;
 }
 
@@ -4881,7 +4885,7 @@ function montarParteDeEntero_(raiz, t, avance, cache, indice) {
   if (!leido || !avance.leidos[x.k] || leido.huella !== avance.leidos[x.k].huella) { delete avance.leidos[x.k]; return; }
   const m = montarEntero_(t.conj, leido);
   /* El paso propio del conjunto, si lo tiene: une, calcula y añade sus campos a lo que entregó el dueño. */
-  const paso = t.conj.pasoPropio ? pasoPropioDe_(t.conj.pasoPropio)(t.conj, m.objeto, { indice: indice, cache: cache, hoy: hoyMadrid_() }) : null;
+  const paso = t.conj.pasoPropio ? pasoPropioDe_(t.conj.pasoPropio)(t.conj, m.objeto, { indice: indice, cache: cache, hoy: hoyDeParte_(t.ruta) }) : null;
   if (paso) m.objeto.campos = m.objeto.campos.concat(t.conj.camposPropios);
   cerrarMontaje_(raiz, t, avance, m.objeto, t0);
   m.cuentas.cuando = x.entrada.subido;
@@ -4930,7 +4934,8 @@ function ensayoDe_(conjunto) { return ENSAYO_CONJUNTOS_.filter(function (c) { re
 function ensayoNombres_() { return ENSAYO_CONJUNTOS_.map(function (c) { return c.conjunto; }); }
 
 /* Un paso: la primera tarea que falte (leer un listado, montar una parte o quitar una que sobra). Devuelve { quedan, hecha, conjunto } (el conjunto de lo siguiente). */
-function ensayoPaso_(raiz) {
+function ensayoPaso_(raiz, dias) {
+  prestarDias_(dias);
   const avance = leerAvance_(raiz);
   quitarLeidoViejo_(raiz, leerIndice_(raiz), avance);
   const indice = leerIndice_(raiz);
@@ -4943,13 +4948,28 @@ function ensayoPaso_(raiz) {
   return { quedan: quedan.length > 0, hecha: tareas[0].que, conjunto: quedan.length ? quedan[0].conj.conjunto : '' };
 }
 
+/* Los días que presta la aplicación de hoy al ensayo (fila 57): por ruta, el `hoy` de cada parte de hoy de un conjunto ensayado que lo guarde, siempre que se compararía con la del ensayo (misma ruta, mismos listados y al día).
+   Sin lista de conjuntos: los que guardan `hoy` (tienen `conDias` o paso propio) lo prestan solos. Si la parte del ensayo aún no existe o quedó vieja se rehará con los listados de ahora, que son los de la de hoy. `raiz` es la de verdad. */
+function ensayoDiasPrestados_(raiz) {
+  const indice = leerIndice_(raiz), dias = {}, nombres = ensayoNombres_();
+  (indice.hechos || []).forEach(function (h) {
+    const conj = CONJUNTOS_.filter(function (c) { return c.conjunto === h.conjunto; })[0];
+    if (!conj || nombres.indexOf(h.conjunto) === -1 || !(conj.conDias || conj.pasoPropio) || !ensayoAlDia_(h, indice)) return;
+    const parte = ensayoJson_(raiz, h.ruta);
+    if (parte && typeof parte.hoy === 'string' && parte.hoy) dias[h.ruta] = parte.hoy;
+  });
+  return dias;
+}
+
 /* Lo que falta por montar en el ensayo, sin escribir nada. */
-function ensayoQuedan_(raiz) {
+function ensayoQuedan_(raiz, dias) {
+  prestarDias_(dias);
   return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_()).length;
 }
 
 /* El conjunto del que es la próxima tarea del ensayo, o '' si no queda nada. */
-function ensayoSiguiente_(raiz) {
+function ensayoSiguiente_(raiz, dias) {
+  prestarDias_(dias);
   const t = tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_());
   return t.length ? t[0].conj.conjunto : '';
 }
@@ -5280,9 +5300,11 @@ function mismasFuentes_(a, b) { return JSON.stringify(a || []) === JSON.stringif
 
 /* Lo que se monta con las mismas fuentes: el número del montador y, en `antiguos`, qué cursos se publican (cambia con el día). */
 function claveDeMontaje_(conj, parte, partes, indice, avance, necesarias) {
-  if (conj.entregadoPor) return claveDeMontajeEntero_(conj, indice, avance);
-  if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance);
-  if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance);
+  /* Con un día prestado (el ensayo de la página nueva, fila 57) la clave lo lleva al final: si la aplicación de hoy monta con otro día, el ensayo se rehace. Sin día prestado, queda como siempre. */
+  const prestado = DIAS_PRESTADOS_[rutaDeParte_(conj.conjunto, parte)], hoy = prestado || hoyMadrid_(), cola = prestado ? '|hoy=' + prestado : '';
+  if (conj.entregadoPor) return claveDeMontajeEntero_(conj, indice, avance, hoy) + cola;
+  if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) + cola;
+  if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.porCursos) return conj.versionMontador + '|' + conj.fuentes[0].versionLector;
   return conj.versionMontador + '|' + (parte.anio ? '' : partes.map(function (p) { return p.cursoEscolar; }).join(','));
 }

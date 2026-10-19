@@ -173,10 +173,12 @@
     if (!real) return;
     await sanear(lazyDir(real, E));
     var raiz = raizDeEnsayo(real);
-    var queda = await C.transaccion(function () { return ensayoSiguiente_(carpetaDatos_()); }, raiz);
+    /* El día de cada parte de hoy que guarda `hoy`, para montar el ensayo con el mismo (fila 57). Una vez por montaje, leyendo la carpeta de verdad. */
+    var dias = await C.transaccion(function () { return ensayoDiasPrestados_(carpetaDatos_()); });
+    var queda = await C.transaccion(function () { return ensayoSiguiente_(carpetaDatos_(), dias); }, raiz);
     if (queda) { trabajando = true; poniendo = nombreDe(queda); pintar(); }
     for (var pasos = 0; queda && pasos < MAX_PASOS; pasos++) {
-      var r = await C.transaccion(function () { return ensayoPaso_(carpetaDatos_()); }, raiz);
+      var r = await C.transaccion(function () { return ensayoPaso_(carpetaDatos_(), dias); }, raiz);
       if (!r.quedan) break;
       if (r.conjunto) { poniendo = nombreDe(r.conjunto); pintar(); }
       await ceder();
