@@ -1,22 +1,22 @@
 {
-  "version": "página nueva v14",
-  "commit": "5eb7f4a",
+  "version": "página nueva v15",
+  "commit": "32c027b",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "ef0d0ed16845e93379cb4476be0b148ef1414fa8b2ca0b0de8878ba25a77444e",
     "actualizar-copia.js": "8aacfacffca636cf96f2e342c23ef5cb508d618ceb2dea8c2d19bd51a80ebc0f",
     "ajustes.js": "93bc4766f6ada25ec9f9ce63bceccc19a1737b9d472e600bb4a06e4d75eb4118",
     "arranque.js": "23851655bf5efa591e5fa461532d7daa08a5eaa853922043edb25e7ad7a0deb4",
-    "carpeta.js": "01db0b8187e851e7eb3466e5a5d0e8d90e7c547fe9e2b25968247df9eb24b5c9",
-    "commit.js": "aa3efe52a415d5f1503f479baf677270af3e7ed32c0c8078a1efad1fd10401e2",
-    "ensayo.js": "d3d77a0bc52db22fac48227e6c2818991b07be9f4114a73cacbc6394ac13c350",
-    "escritura.js": "9f73903ccc4960fa8db288cfb6912d182f6ae02d43ced267f40c160eaa7a8138",
+    "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
+    "commit.js": "8fa46298a8649eac5c9123d1209f411a66824fc9f432cbb1e869c6513b7fb109",
+    "ensayo.js": "59e44462674fe179b77256509272e08dfdc7a52382cd95d2812462a785610333",
+    "escritura.js": "923922b5f0125fbebd69b369cb74ffb99bfc53ca7112c4b733f2de3a3bd2cc56",
     "generado/estilos.css": "c0c9822c413a06be43adb00c1cd9facb1dbf483f6e8fb9667932abebc33997a1",
-    "generado/pantalla.js": "cfb5f3bb9eb093872bd09cb66f6a31005c65fd6337da49d96426e9db45bfdffc",
-    "generado/programa.js": "166e12b5de2a58a478069dbfd595e8577984164aee68aa75992da7dd808decca",
+    "generado/pantalla.js": "9d0d32cb46b9a2171af4bde3d13fb7bfec17e309b02cf731b2a10cc6e83c03ca",
+    "generado/programa.js": "6963c7959dc44f9d5524aa097c8d8d47891841925a73636f4fc9065474384dc7",
     "index.html": "e9efa81d98fc432dd3b87241e835600431cd21aaf65bb6f7fb6066501ac30a88",
-    "servidor.js": "2b5f49744372fffd5795cfbe4f24cf79c61fef381728af26ee6e6aefd6ccda40",
+    "servidor.js": "51972928d3a5f5f51045acf00bb9572628f03b6a8f4e2d1a0a2759f8e97767bf",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "aed02e14c102adcaa8dbb6a14d784fc7f7e14ba693bcfa7d2d35e99909e27ebb"
+    "version.js": "a1d635d07b5b4e795e0135f16d80b7ce1b4b0cabab2b0a5d145fc435e3fb1bfa"
   }
 }

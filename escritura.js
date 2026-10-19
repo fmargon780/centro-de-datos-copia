@@ -18,7 +18,7 @@
     for (var i = 0; i < x.length; i++) u[i] = x[i];
     return u;
   }
-  function aFirmados(u) { return Array.prototype.map.call(u, function (b) { return b > 127 ? b - 256 : b; }); }
+  function aFirmados(u) { var r = new Array(u.length); for (var i = 0; i < u.length; i++) r[i] = u[i] > 127 ? u[i] - 256 : u[i]; return r; }
 
   /* Lo de Google que piden los .gs al guardar: blobs, la huella y base64. */
   function newBlob(datos, mime, nombre) {
@@ -224,19 +224,30 @@
     throw new Error('Otra persona está guardando a la vez y no he podido terminar. Vuelve a probar dentro de un momento.');
   }
 
-  /* Una cosa cada vez en este navegador: guardados y lecturas hacen cola; entre pestañas, los candados del navegador si los hay. */
-  var cola = Promise.resolve();
-  function enCola(fn) {
-    var turno = cola.then(fn);
-    cola = turno.then(function () {}, function () {});
-    return turno;
+  /* Una cosa cada vez en este navegador: guardados y lecturas hacen cola; entre pestañas, los candados del navegador si los hay.
+     Lo de `baja` (los pasos del ensayo, fila 58) espera a que no haya nada normal en la cola: una lectura de pantalla se cuela por delante y solo espera al paso que ya está en marcha. */
+  var pendientes = [], corriendo = null;
+  function siguiente() {
+    if (corriendo || !pendientes.length) return;
+    var i = 0;
+    while (i < pendientes.length && pendientes[i].baja) i++;
+    var turno = pendientes.splice(i < pendientes.length ? i : 0, 1)[0];
+    corriendo = turno;
+    if (!turno.baja && C.alEsperar && turno.detras) C.alEsperar(Date.now() - turno.desde);
+    Promise.resolve().then(turno.fn).then(turno.ok, turno.mal).then(function () { corriendo = null; siguiente(); });
   }
-  function transaccion(fn, alterna) {
+  function enCola(fn, baja) {
+    return new Promise(function (ok, mal) {
+      pendientes.push({ fn: fn, baja: !!baja, ok: ok, mal: mal, desde: Date.now(), detras: !!(corriendo && corriendo.baja) });
+      siguiente();
+    });
+  }
+  function transaccion(fn, alterna, baja) {
     return enCola(function () {
       var dentro = function () { return unaVez(fn, alterna); };
       try { if (navigator.locks && navigator.locks.request) return navigator.locks.request('centro-de-datos-escritura', dentro); } catch (e) { /* sin candados: solo esta pestaña */ }
       return dentro();
-    });
+    }, baja);
   }
 
   /* Un fichero suelto (el diario de lo recibido), escrito sin pasar por los .gs. Devuelve su nombre. */

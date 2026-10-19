@@ -393,12 +393,13 @@ function textoDelEntero(c) {
 }
 
 /* Una cajita por conjunto: nombre, estado (verde al día, ámbar poniéndose al día, rojo sin avanzar) y cuántos avisos; el detalle se lee entero al pulsarla. */
-function cajitaDeHechos(nombre, clase, estado, avisos, detalle, conjunto) {
+function cajitaDeHechos(nombre, clase, estado, avisos, detalle, conjunto, nota) {
   var c = el('div', 'cajita ' + clase);
   var lleva = !!(avisos && conjunto);
   if (avisos) c.appendChild(el('span', 'nota', frasePlural(avisos, 'aviso', 'avisos')));
   c.appendChild(el('b', '', nombre));
   c.appendChild(el('span', 'estado', estado));
+  if (nota) c.appendChild(el('span', 'estado', '· ' + nota));
   c.appendChild(el('span', 'detalle', detalle));
   c.title = detalle;
   if (lleva) { c.classList.add('con-avisos'); DETALLES_CONJUNTO[conjunto] = detalle; }
@@ -434,7 +435,7 @@ function dibujarHechos(h) {
     var claseE = en.estado === 'distinta' ? 'rojo' : (en.estado === 'igual' ? 'verde' : 'ambar');
     var estadoE = en.estado === 'distinta' ? 'distinta de la de hoy' : (en.estado === 'igual' ? 'igual que la de hoy' : 'poniéndose al día');
     total += en.avisos || 0;
-    p.appendChild(cajitaDeHechos(en.cajita, claseE, estadoE, en.avisos || 0, en.linea, 'ensayo'));
+    p.appendChild(cajitaDeHechos(en.cajita, claseE, estadoE, en.avisos || 0, en.linea, 'ensayo', en.poniendose && (en.estado === 'igual' || en.estado === 'distinta') ? 'poniéndose al día…' : ''));
   });
   document.getElementById('botonAvisos').textContent = total ? 'Avisos (' + total + ')' : 'Avisos';
   if (con.length && h.comprobado) {

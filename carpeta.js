@@ -30,7 +30,7 @@
     if (!f.bytes) throw new Falta(function () { return f.cargar(); });
     return {
       getName: function () { return f.nombre; },
-      getBytes: function () { return Array.prototype.map.call(f.bytes, function (b) { return b > 127 ? b - 256 : b; }); },
+      getBytes: function () { var u = f.bytes, r = new Array(u.length); for (var i = 0; i < u.length; i++) r[i] = u[i] > 127 ? u[i] - 256 : u[i]; return r; },
       getDataAsString: function (cod) { return new TextDecoder(cod === 'ISO-8859-1' ? 'iso-8859-1' : 'utf-8').decode(f.bytes); }
     };
   };

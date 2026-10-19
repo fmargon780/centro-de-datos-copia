@@ -135,7 +135,7 @@
   }
 
   /* ---- El montaje ---- */
-  var promesa = null, otraVez = false, trabajando = false, fallo = '', poniendo = '';
+  var promesa = null, otraVez = false, trabajando = false, fallo = '', poniendo = '', pendientes = [];
   var $ = function (id) { return document.getElementById(id); };
   var nombreDe = function (conjunto) { return ensayoDe_(conjunto).poniendo; };
   var ceder = function () { return new Promise(function (ok) { setTimeout(ok, 0); }); };
@@ -168,28 +168,73 @@
     }
   }
 
-  async function montar() {
-    var real = C.handleReal();
-    if (!real) return;
-    await sanear(lazyDir(real, E));
-    var raiz = raizDeEnsayo(real);
-    /* El día de cada parte de hoy que guarda `hoy`, para montar el ensayo con el mismo (fila 57). Una vez por montaje, leyendo la carpeta de verdad. */
-    var dias = await C.transaccion(function () { return ensayoDiasPrestados_(carpetaDatos_()); });
-    var queda = await C.transaccion(function () { return ensayoSiguiente_(carpetaDatos_(), dias); }, raiz);
-    if (queda) { trabajando = true; poniendo = nombreDe(queda); pintar(); }
-    for (var pasos = 0; queda && pasos < MAX_PASOS; pasos++) {
-      var r = await C.transaccion(function () { return ensayoPaso_(carpetaDatos_(), dias); }, raiz);
-      if (!r.quedan) break;
-      if (r.conjunto) { poniendo = nombreDe(r.conjunto); pintar(); }
-      await ceder();
-    }
-    await C.transaccion(function () { ensayoGuardarVista_(carpetaDatos_()); return null; });
+  /* Fila 58: cuánto tarda en responder la página mientras el ensayo trabaja. `bloqueo` = lo más que se quedó sin atender nada (un reloj que se retrasa) y `espera` = lo más que
+     una lectura de pantalla esperó por culpa de un paso del ensayo. Se guarda en medida.json para que la aplicación de hoy lo suba como la comprobación `pagina-responde`. */
+  var medida = null;
+  function medir() {
+    var m = { bloqueo: 0, espera: 0, paso: 0, pasos: 0, ultimo: performance.now() }, PERIODO = 25;
+    m.reloj = setInterval(function () {
+      var ahora = performance.now();
+      if (!document.hidden && !m.oculta) m.bloqueo = Math.max(m.bloqueo, Math.round(ahora - m.ultimo - PERIODO));
+      m.ultimo = ahora; m.oculta = false;
+    }, PERIODO);
+    m.visible = function () { m.oculta = true; };
+    document.addEventListener('visibilitychange', m.visible);
+    C.alEsperar = function (ms) { if (!document.hidden) m.espera = Math.max(m.espera, Math.round(ms)); };
+    medida = m;
+  }
+  async function guardarMedida() {
+    var m = medida;
+    if (!m) return;
+    medida = null;
+    clearInterval(m.reloj); document.removeEventListener('visibilitychange', m.visible); C.alEsperar = null;
+    if (!m.pasos) return;
+    var ms = Math.max(m.bloqueo, m.espera);
+    try { await C.escribirSuelto(E.join('/') + '/medida.json', JSON.stringify({ ms: ms, bloqueoMs: m.bloqueo, esperaMs: m.espera, pasoMs: m.paso, pasos: m.pasos, version: window.VERSION_PAGINA })); } catch (e) { /* sin medida: no pasa nada */ }
+  }
+
+  /* Un paso del ensayo, con la prioridad más baja de la cola: lo que pida la pantalla pasa por delante. */
+  async function paso(fn, raiz) {
+    var t = performance.now(), r = await C.transaccion(fn, raiz, true);
+    if (medida) { medida.paso = Math.max(medida.paso, Math.round(performance.now() - t)); medida.pasos++; }
+    return r;
   }
 
   function refrescar() {
     if (typeof window.cargarEstado === 'function') window.cargarEstado();
     var a = $('pestanaAvisos');
     if (a && a.classList.contains('activa') && typeof window.cargarAvisos === 'function') window.cargarAvisos();
+  }
+
+  /* Cuando un conjunto termina, su comparación se guarda y la pantalla se pone al día sola (sin esperar a que acabe todo). */
+  async function terminado(conjunto) {
+    await paso(function () { ensayoGuardarVista_(carpetaDatos_(), conjunto); return null; });
+    pendientes = pendientes.filter(function (c) { return c !== conjunto; });
+    refrescar();
+  }
+
+  async function montar() {
+    var real = C.handleReal();
+    if (!real) return;
+    await sanear(lazyDir(real, E));
+    var raiz = raizDeEnsayo(real);
+    try {
+      /* El día de cada parte de hoy que guarda `hoy`, para montar el ensayo con el mismo (fila 57). Una vez por montaje, leyendo la carpeta de verdad. */
+      var dias = await paso(function () { return ensayoDiasPrestados_(carpetaDatos_()); });
+      pendientes = await paso(function () { return ensayoPendientes_(carpetaDatos_(), dias); }, raiz);
+      if (pendientes.length) { trabajando = true; poniendo = nombreDe(pendientes[0]); medir(); ensayoSinCalcular_(true); pintar(); refrescar(); }
+      for (var pasos = 0; pendientes.length && pasos < MAX_PASOS; pasos++) {
+        var r = await paso(function () { return ensayoPaso_(carpetaDatos_(), dias); }, raiz);
+        var acabados = pendientes.filter(function (c) { return r.restan.indexOf(c) === -1; });
+        for (var k = 0; k < acabados.length; k++) { await terminado(acabados[k]); await ceder(); }
+        pendientes = r.restan.slice();
+        if (!r.quedan) break;
+        if (r.conjunto) { poniendo = nombreDe(r.conjunto); pintar(); }
+        await ceder();
+      }
+      /* Lo que no tenía nada que montar pero cambió su comparación (la aplicación de hoy rehízo algo), de uno en uno. */
+      for (var i = 0; i < ENSAYO_CONJUNTOS_.length; i++) { await paso(function () { ensayoGuardarVista_(carpetaDatos_(), ENSAYO_CONJUNTOS_[i].conjunto); return null; }); await ceder(); }
+    } finally { ensayoSinCalcular_(false); await guardarMedida(); }
   }
 
   /* Monta lo que falte; si mientras tanto se pide otra vez, repite al terminar. Devuelve una promesa que no falla nunca. */
@@ -211,6 +256,7 @@
     arrancar: lanzar,
     cambio: lanzar,
     trabajando: function () { return trabajando; },
+    pendientes: function () { return pendientes.slice(); },
     raizDeEnsayo: raizDeEnsayo
   };
 })();

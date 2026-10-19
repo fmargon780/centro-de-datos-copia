@@ -21,11 +21,13 @@
       try { r.hechos = resumenHechosPagina_(r0); delete r.hechos.claveAviso; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
       /* Las líneas del ensayo (filas 46 y 47): solo esta página las lleva. */
       try {
-        var montando = window.EnsayoPagina && window.EnsayoPagina.trabajando();
+        /* Fila 58: mientras el ensayo trabaja no se compara nada: cada cajita enseña su último resultado (si lo tenía) y, si su conjunto aún se está rehaciendo, la nota «poniéndose al día…». */
+        var montando = window.EnsayoPagina && window.EnsayoPagina.trabajando(), faltan = montando ? window.EnsayoPagina.pendientes() : [];
         var ensayos = [];
         ENSAYO_CONJUNTOS_.forEach(function (def) {
-          var v = montando ? { estado: 'esperando', difs: [], sobran: [], faltan: [] } : ensayoVista_(r0, def.conjunto);
-          if (montando || v.estado !== 'sin-ensayo') ensayos.push({ conjunto: def.conjunto, cajita: def.cajita, linea: ensayoLinea_(v, montando, def.conjunto), estado: v.estado, avisos: v.difs.length + v.sobran.length + v.faltan.length });
+          var v = ensayoVista_(r0, def.conjunto), poniendose = faltan.indexOf(def.conjunto) !== -1;
+          if (poniendose && v.estado === 'sin-ensayo') v = { estado: 'esperando', difs: [], sobran: [], faltan: [] };
+          if (v.estado !== 'sin-ensayo') ensayos.push({ conjunto: def.conjunto, cajita: def.cajita, linea: ensayoLinea_(v, poniendose && v.cifra === undefined, def.conjunto), estado: v.estado, poniendose: poniendose, avisos: v.difs.length + v.sobran.length + v.faltan.length });
         });
         if (ensayos.length) r.hechos.ensayos = ensayos;
       } catch (e) { if (e instanceof C.Falta) throw e; }
