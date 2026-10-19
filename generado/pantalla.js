@@ -627,6 +627,7 @@ function lineaDeAviso(a, revisado) {
     l.appendChild(v);
     return l;
   }
+  if (a.diagnostico) return l;
   var b = el('button', 'accion', revisado ? 'Volver a pendientes' : 'Ya lo he visto');
   b.onclick = function () {
     b.disabled = true;

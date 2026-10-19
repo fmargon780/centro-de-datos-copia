@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v49';
+const VERSION_CD = 'CD v50';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -5851,7 +5851,8 @@ function webAvisos(ctx) {
     return o;
   });
   if (ctx.esDueno) {
-    const clave = avisoDeClave_(leerComprob_(raiz));
+    const comp = leerComprob_(raiz), clave = avisoDeClave_(comp);
+    avisosDeDiagnostico_(comp).reverse().forEach(function (a) { avisos.unshift({ huella: 'diag-' + a.bloque.slice(0, 11), conjunto: 'diagnostico', donde: 'Diagnóstico', quien: 'Diagnóstico sin nombres', que: a.frase, diagnostico: true }); });
     if (clave) avisos.unshift({ huella: 'clave', conjunto: 'clave', donde: 'Clave de GitHub', quien: 'Clave de GitHub', que: clave.frase, clave: { caso: clave.caso, tipo: clave.tipo } });
   }
   return { avisos: avisos, conjuntos: CONJUNTOS_.concat([CONJUNTO_LISTADOS_, CONJUNTO_ENSAYO_]).map(function (c) { return cuentas[c.conjunto]; }).filter(function (c) { return c.pendientes + c.revisados > 0; }), incompleto: r.incompleto };
@@ -7129,7 +7130,7 @@ function diagAvisos_(conj, p, ids, sal) {
   return Object.keys(por).sort().map(function (t) { return por[t]; });
 }
 
-/* Devuelve { fichero, sensibles }. El fichero entero: { version, momento, cruzable, listados, alumnosListados, conjuntos: { <conjunto>: { partes: [...] } } }. `faltantes` = idDrive que la comprobación del índice no encontró. */
+/* Devuelve { fichero, sensibles, reglas } (`reglas` = las de cada conjunto, para que la puerta sepa la forma de cada casilla). El fichero entero: { version, momento, cruzable, listados, alumnosListados, conjuntos: { <conjunto>: { partes: [...] } } }. `faltantes` = idDrive que la comprobación del índice no encontró. */
 function montarDiagnostico_(raiz, indice, comp) {
   const s = diagSal_(raiz);
   const ctx = { fase: 'contar', cuentas: {}, sal: s.sal };
@@ -7143,16 +7144,17 @@ function montarDiagnostico_(raiz, indice, comp) {
   });
   abiertas.forEach(function (x) { const rg = diagReglasDe_(x.conj, x.p); x.p.registros.forEach(function (r) { diagRegistro_(x.conj, r, rg, ctx); }); });
   ctx.fase = 'emitir';
-  const conjuntos = {};
+  const conjuntos = {}, reglasPor = {};
   abiertas.forEach(function (x) {
     const rg = diagReglasDe_(x.conj, x.p), ids = {};
+    reglasPor[x.conj.conjunto] = Object.assign(reglasPor[x.conj.conjunto] || {}, rg);
     const regs = x.p.registros.map(function (r) { const o = diagRegistro_(x.conj, r, rg, ctx); ids[r.id] = o.cod || o.grupo; return o; });
     const parte = { parte: x.h.parte, cursoEscolar: /^[0-9-]{0,9}$/.test(x.h.cursoEscolar || '') ? x.h.cursoEscolar : '', registros: regs, avisos: diagAvisos_(x.conj, x.p, ids, s.sal) };
     if (x.h.periodo && DIAG_SLUG_.test(x.h.periodo)) parte.periodo = x.h.periodo;
     (conjuntos[x.conj.conjunto] = conjuntos[x.conj.conjunto] || { partes: [] }).partes.push(parte);
   });
   return { fichero: { version: VERSION_CD, momento: ahoraMadrid_(), cruzable: s.existia, listados: diagListados_(indice, comp), alumnosListados: diagListadosAlumnos_(raiz, s.sal), conjuntos: conjuntos },
-    sensibles: diagSensibles_(abiertas, raiz) };
+    sensibles: diagSensibles_(abiertas, raiz), reglas: reglasPor };
 }
 
 function diagListados_(indice, comp) {
@@ -7184,10 +7186,15 @@ const DIAG_CAMPOS_EXACTOS_ = ['documento', 'telefono', 'telefonoPersonal', 'tele
 
 function diagPlegar_(t) { return cmpfQuitarTildes_(String(t)).toLowerCase(); }
 
-/* Lo personal de las partes abiertas: { ids: {}, palabras: {}, exactos: {} } (no viaja, no se guarda). */
+/* Lo personal de las partes abiertas: { ids: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} } (no viaja, no se guarda). `enteros` = el valor entero de un campo de nombre; `sueltas` = cada nombre o apellido por separado, de cualquier longitud. */
 function diagSensibles_(abiertas, raiz) {
-  const s = { ids: {}, palabras: {}, exactos: {} };
-  const palabras = function (t) { (diagPlegar_(t).match(/[a-zñ]{4,}/g) || []).forEach(function (w) { s.palabras[w] = true; }); };
+  const s = { ids: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} };
+  const palabras = function (t) {
+    const f = diagPlegar_(t), e = f.replace(/\s+/g, ' ').trim();
+    (f.match(/[a-zñ]{4,}/g) || []).forEach(function (w) { s.palabras[w] = true; });
+    (f.match(/[a-zñ]{2,}/g) || []).forEach(function (w) { s.sueltas[w] = true; });
+    if (e) s.enteros[e] = true;
+  };
   const exacto = function (t) { const x = diagPlegar_(String(t).trim()); if (x.length >= 5) s.exactos[x] = true; };
   const mirar = function (d) {
     if (!d || typeof d !== 'object') return;
@@ -7222,16 +7229,155 @@ function diagRevisar_(texto, s) {
 
 function diagTotal_(cuentas) { return Object.keys(cuentas).reduce(function (n, k) { return n + cuentas[k]; }, 0); }
 
+/* ==== DiagnosticoBloques.gs ==== */
+/* La puerta del diagnóstico por bloques (fila 56). Los bloques son nueve: la cabecera (cabecera, índice de listados y ficheros de un solo alumno) y cada conjunto entero.
+   Cada bloque se repasa solo y la puerta cuenta lo que encuentra por clase (n nombres, e exactos, i ids, c correos, t teléfonos, d documentos), bloque y campo: solo cifras y nombres de campo, nunca la palabra.
+   Cada casilla se repasa según la forma que le obliga el montaje: un texto de lista (cat) solo salta si su valor ENTERO es un nombre o un apellido; las fechas, números, códigos y demás formas fijas no llevan letras de un nombre. */
+const DIAG_MODO_ = { cat: 'cat', lista: 'cat', grupo: 'forma', grupo5: 'forma', num: 'forma', sino: 'forma', hay: 'forma', periodo: 'forma', fecha: 'fecha', cod: 'cod', ficha: 'cod' };
+const DIAG_FIJAS_ = { cod: 'cod', grupo: 'forma', matriculado: 'forma', tieneTutorHoy: 'forma' };
+const DIAG_REGLAS_CABECERA_ = { version: 'periodo', momento: 'periodo', cruzable: 'sino', listados: { tabla: { tipo: 'cat', variante: 'cat', ambito: 'cat', cursoEscolar: 'periodo', fecha: 'fecha', existe: 'sino' } },
+  alumnosListados: { tabla: { tipo: 'cat', cod: 'cod', fecha: 'fecha' } } };
+const DIAG_CLASES_ = { c: 'correos', t: 'telefonos', d: 'documentos', i: 'ids', n: 'nombres', e: 'exactos' };
+const DIAG_MAX_SITIOS_ = 20;
+const DIAG_FRASES_BLOQUE_ = { alumnado: 'de la ficha del alumno', personal: 'del personal', libros: 'de los libros de texto', tutorias: 'de las tutorías', 'consejo-escolar': 'del Consejo Escolar', cargos: 'de los cargos',
+  empresas: 'de las empresas', administraciones: 'de las Administraciones' };
+
+function diagCampoLimpio_(c) { return String(c).toLowerCase().replace(/[^a-z]/g, '') || 'otros'; }
+
+/* Los bloques: [{ bloque, conjunto, objeto }]. */
+function diagBloques_(fichero) {
+  const cab = Object.assign({}, fichero);
+  delete cab.conjuntos;
+  const lista = [{ bloque: 'cabecera', conjunto: '', objeto: cab }];
+  Object.keys(fichero.conjuntos).forEach(function (c) { lista.push({ bloque: c, conjunto: c, objeto: fichero.conjuntos[c] }); });
+  return lista;
+}
+
+/* Una casilla (o lo que haya dentro de ella) a la lista de cosas que se repasan: { campo, texto, modo }. `regla` es la de la lista blanca; sin regla, se repasa como texto libre. */
+function diagRecorrer_(items, campo, regla, v) {
+  if (v === null || v === undefined) return;
+  if (regla && regla.tabla) {
+    (Array.isArray(v) ? v : []).forEach(function (f) { if (f && typeof f === 'object') Object.keys(f).forEach(function (k) { diagRecorrer_(items, campo + k, regla.tabla[k], f[k]); }); });
+    return;
+  }
+  if (Array.isArray(v)) { v.forEach(function (x) { diagRecorrer_(items, campo, regla, x); }); return; }
+  if (typeof v === 'object') {
+    Object.keys(v).forEach(function (k) { items.push({ campo: 'nombredeclave', texto: k, modo: 'libre' }); diagRecorrer_(items, campo, null, v[k]); });
+    return;
+  }
+  items.push({ campo: diagCampoLimpio_(campo), texto: String(v), modo: (typeof regla === 'string' && DIAG_MODO_[regla]) || 'libre' });
+}
+
+function diagItemsRegistro_(items, r, reglas, entidad) {
+  Object.keys(r).forEach(function (k) {
+    if (k === 'claves') { (r.claves || []).forEach(function (x) { items.push({ campo: 'nombredeclave', texto: String(x), modo: entidad ? 'libre' : 'programa' }); }); return; }
+    if (DIAG_FIJAS_[k]) { diagRecorrer_(items, k, DIAG_FIJAS_[k] === 'cod' ? 'cod' : 'sino', r[k]); return; }
+    if (entidad && k !== 'clase') items.push({ campo: 'nombredeclave', texto: k, modo: 'libre' });
+    diagRecorrer_(items, k, reglas[k], r[k]);
+  });
+}
+
+function diagItems_(b, reglasEntidad) {
+  const items = [];
+  if (b.bloque === 'cabecera') {
+    Object.keys(b.objeto).forEach(function (k) { diagRecorrer_(items, k, DIAG_REGLAS_CABECERA_[k], b.objeto[k]); });
+    return items;
+  }
+  const entidad = !DIAG_REGLAS_[b.conjunto], reglas = entidad ? (reglasEntidad || {}) : DIAG_REGLAS_[b.conjunto].campos;
+  (b.objeto.partes || []).forEach(function (p) {
+    ['parte', 'cursoEscolar', 'periodo'].forEach(function (k) { diagRecorrer_(items, k, 'periodo', p[k]); });
+    (p.registros || []).forEach(function (r) { diagItemsRegistro_(items, r, reglas, entidad); });
+    (p.avisos || []).forEach(function (a) {
+      diagRecorrer_(items, 'aviso', 'periodo', a.tipo); diagRecorrer_(items, 'aviso', 'num', a.n);
+      (a.cods || []).forEach(function (c) { diagRecorrer_(items, 'aviso', 'cod', c); });
+    });
+  });
+  return items;
+}
+
+const DIAG_RE_CORREO_ = /[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z0-9.-]+/g;
+const DIAG_RE_TELEFONO_ = /(?<![0-9a-z])(?:\+34[ .-]?)?[6-9]\d{2}[ .-]?\d{3}[ .-]?\d{3}(?![0-9a-z])/g;
+const DIAG_RE_DOCUMENTO_ = /(?<![0-9a-z])(?:\d{8}[a-z]|[xyz]\d{7}[a-z])(?![0-9a-z])/g;
+
+/* Las cuentas de un bloque: { '<clase>|<campo>': n }. Correos, teléfonos y documentos se buscan en todo; los ids en todo salvo en los códigos; los nombres según el modo; los exactos en todo salvo en las fechas. */
+function diagContarItems_(items, s) {
+  const cuentas = {};
+  const suma = function (clase, campo, n) { if (n) cuentas[clase + '|' + campo] = (cuentas[clase + '|' + campo] || 0) + n; };
+  items.forEach(function (it) {
+    const t = it.t = diagPlegar_(it.texto);
+    suma('c', it.campo, (t.match(DIAG_RE_CORREO_) || []).length);
+    suma('t', it.campo, (t.match(DIAG_RE_TELEFONO_) || []).length);
+    suma('d', it.campo, (t.match(DIAG_RE_DOCUMENTO_) || []).length);
+    if (it.modo !== 'cod') (t.match(/[a-z0-9]{5,}/g) || []).forEach(function (w) { if (s.ids[w]) suma('i', it.campo, 1); });
+    if (it.modo === 'libre') (t.match(/[a-zñ]{4,}/g) || []).forEach(function (w) { if (s.palabras[w]) suma('n', it.campo, 1); });
+    else if (it.modo === 'cat') { const e = t.replace(/\s+/g, ' ').trim(); if (e !== '(pocos)' && (s.enteros[e] || s.sueltas[e])) suma('n', it.campo, 1); }
+  });
+  const buscables = items.filter(function (it) { return it.modo !== 'fecha'; });
+  const todo = buscables.map(function (it) { return it.t; }).join('\u0001');
+  Object.keys(s.exactos).forEach(function (x) {
+    if (todo.indexOf(x) === -1) return;
+    let n = 0;
+    buscables.forEach(function (it) { if (it.t.indexOf(x) !== -1) { suma('e', it.campo, 1); n++; } });
+    if (!n) suma('e', 'otros', 1);
+  });
+  return cuentas;
+}
+
+/* Repasa cada bloque por separado. Devuelve [{ bloque, conjunto, cuentas, total }]. `reglas` = las reglas de los campos de las entidades, por conjunto (las que usó el montaje). */
+function diagRevisarBloques_(fichero, s, reglas) {
+  return diagBloques_(fichero).map(function (b) {
+    const cuentas = diagContarItems_(diagItems_(b, (reglas || {})[b.conjunto]), s);
+    return { bloque: b.bloque, conjunto: b.conjunto, cuentas: cuentas, total: diagTotal_(cuentas) };
+  });
+}
+
+/* Las cifras de diagnostico-limpio: los totales por clase y el reparto por bloque y campo (`n-libros-editorial`), con los 20 sitios que más cuentan y una cuenta del resto. */
+function diagCifrasBloques_(bloques) {
+  const cifras = { correos: 0, telefonos: 0, documentos: 0, ids: 0, nombres: 0, exactos: 0 }, por = {};
+  bloques.forEach(function (b) {
+    Object.keys(b.cuentas).forEach(function (k) {
+      const p = k.split('|');
+      cifras[DIAG_CLASES_[p[0]]] += b.cuentas[k];
+      const nombre = (p[0] + '-' + b.bloque + '-' + p[1]).slice(0, 40);
+      por[nombre] = (por[nombre] || 0) + b.cuentas[k];
+    });
+  });
+  const orden = Object.keys(por).sort(function (a, c) { return por[c] - por[a] || (a < c ? -1 : 1); });
+  orden.slice(0, DIAG_MAX_SITIOS_).forEach(function (k) { cifras[k] = por[k]; });
+  if (orden.length > DIAG_MAX_SITIOS_) cifras['resto-coincidencias'] = orden.slice(DIAG_MAX_SITIOS_).reduce(function (n, k) { return n + por[k]; }, 0);
+  return cifras;
+}
+
+/* Los ficheros que saldrán: cada conjunto limpio en el suyo y diagnostico/ultimo.json con la cabecera y, por conjunto, dónde está o que se ha retenido. Último, el índice. [{ ruta, texto }] */
+function diagFicheros_(fichero, retenidos) {
+  const cabecera = Object.assign({}, fichero, { conjuntos: {} });
+  const lista = [];
+  Object.keys(fichero.conjuntos).forEach(function (c) {
+    if (retenidos.indexOf(c) !== -1) { cabecera.conjuntos[c] = { retenido: true }; return; }
+    cabecera.conjuntos[c] = { enFichero: 'diagnostico/' + c + '.json' };
+    lista.push({ ruta: 'diagnostico/' + c + '.json', texto: JSON.stringify({ version: fichero.version, conjunto: c, partes: fichero.conjuntos[c].partes }) });
+  });
+  return lista.concat([{ ruta: DIAG_RUTA_, texto: JSON.stringify(cabecera, null, 1) }]);
+}
+
+/* Una línea por bloque retenido, solo para el dueño: [{ bloque, frase }]. Desaparece cuando el bloque se sube limpio. */
+function avisosDeDiagnostico_(comp) {
+  const d = comp.diag;
+  if (!d || !Array.isArray(d.retenidos)) return [];
+  return d.retenidos.filter(function (b) { return b === 'cabecera' || DIAG_FRASES_BLOQUE_[b]; }).map(function (b) {
+    return { bloque: b, frase: b === 'cabecera' ? 'El diagnóstico no se ha subido: la primera parte parece llevar algún nombre.' : 'El diagnóstico ' + DIAG_FRASES_BLOQUE_[b] + ' no se ha subido: parece llevar algún nombre.' };
+  });
+}
+
 /* ==== DiagnosticoSubir.gs ==== */
-/* Subir diagnostico/ultimo.json a este repositorio (fila 35), por el mismo camino y con la misma clave que comprobaciones/ultima.json. Se manda cuando se manda ultima.json (al acabar una pasada de
-   comprobaciones) y solo si algo ha cambiado: la huella son las de las partes y los listados del índice (ninguna se abre para saberlo). Si la puerta (DiagnosticoPuerta.gs) ve algo personal, no se sube.
-   Si pasa de 900 KB, cada conjunto va en su fichero, diagnostico/<conjunto>.json, y ultimo.json dice cuáles. */
+/* Subir el diagnóstico a este repositorio (fila 35, por bloques desde la fila 56), por el mismo camino y con la misma clave que comprobaciones/ultima.json. Se manda cuando se manda ultima.json (al acabar una pasada de
+   comprobaciones) y solo si algo ha cambiado: la huella son las de las partes y los listados del índice (ninguna se abre para saberlo). La puerta (DiagnosticoBloques.gs) repasa cada bloque por separado: el que
+   sale limpio se sube, en diagnostico/<conjunto>.json; el que no, se queda en la aplicación (y se borra su fichero de GitHub si había uno). diagnostico/ultimo.json dice cuál es cuál. Si la cabecera no sale limpia, no se sube nada. */
 const DIAG_RUTA_ = 'diagnostico/ultimo.json';
-const DIAG_MAX_BYTES_ = 900000;
 const DIAG_ESPERA_MS_ = 30 * 60 * 1000;
 
 function leerDiag_(comp) {
-  comp.diag = Object.assign({ estado: 'todavia-no', hash: '', hashMalo: '', version: '', dia: '', ultimaMs: 0, limpio: 'sin-datos', cuentas: {}, ficheros: 0, registros: 0, bytes: 0, partido: false }, comp.diag || {});
+  comp.diag = Object.assign({ estado: 'todavia-no', hash: '', hashMalo: '', version: '', dia: '', ultimaMs: 0, limpio: 'sin-datos', cuentas: {}, ficheros: 0, registros: 0, bytes: 0, partido: false, retenidos: [], subidos: 0, borrados: 0, borradoFalla: 0 }, comp.diag || {});
   return comp.diag;
 }
 
@@ -7253,19 +7399,6 @@ function diagToca_(comp, indice, forzar) {
   return true;
 }
 
-/* Los ficheros que saldrán: [{ ruta, texto }]. */
-function diagFicheros_(fichero) {
-  const todo = JSON.stringify(fichero);
-  if (todo.length <= DIAG_MAX_BYTES_) return [{ ruta: DIAG_RUTA_, texto: JSON.stringify(fichero, null, 1) }];
-  const cabecera = Object.assign({}, fichero, { conjuntos: {} });
-  const lista = [];
-  Object.keys(fichero.conjuntos).forEach(function (c) {
-    cabecera.conjuntos[c] = { enFichero: 'diagnostico/' + c + '.json' };
-    lista.push({ ruta: 'diagnostico/' + c + '.json', texto: JSON.stringify({ version: fichero.version, conjunto: c, partes: fichero.conjuntos[c].partes }) });
-  });
-  return [{ ruta: DIAG_RUTA_, texto: JSON.stringify(cabecera, null, 1) }].concat(lista);
-}
-
 function contarRegistrosDiag_(fichero) {
   let n = 0;
   Object.keys(fichero.conjuntos).forEach(function (c) { fichero.conjuntos[c].partes.forEach(function (p) { n += p.registros.length; }); });
@@ -7281,21 +7414,53 @@ function subirDiagnostico_(raiz, comp, limiteMs, forzar) {
   }
 }
 
+/* Borra un fichero de GitHub (si está). Devuelve 'bien', 'no-estaba', 'sin-permiso', 'caducada' o 'sin-red'. */
+function borrarEnGitHub_(clave, mensaje, ruta) {
+  const url = 'https://api.github.com/repos/' + GH_USUARIO + '/' + GH_REPO + '/contents/' + ruta.split('/').map(encodeURIComponent).join('/');
+  const rama = PropertiesService.getScriptProperties().getProperty('GH_RAMA') || 'main';
+  try {
+    const actual = UrlFetchApp.fetch(url + '?ref=' + encodeURIComponent(rama), { method: 'get', muteHttpExceptions: true, headers: cabecerasGitHub_(clave) });
+    const cod = actual.getResponseCode();
+    if (cod === 404) return 'no-estaba';
+    if (cod === 401) return 'caducada';
+    if (cod === 403) return 'sin-permiso';
+    if (cod !== 200) return 'sin-red';
+    const resp = UrlFetchApp.fetch(url, { method: 'delete', contentType: 'application/json', payload: JSON.stringify({ message: mensaje, sha: JSON.parse(actual.getContentText()).sha, branch: rama }), muteHttpExceptions: true, headers: cabecerasGitHub_(clave) });
+    const c = resp.getResponseCode();
+    if (c === 200) return 'bien';
+    if (c === 401) return 'caducada';
+    if (c === 403 || c === 404) return 'sin-permiso';
+    return 'sin-red';
+  } catch (e) {
+    return 'sin-red';
+  }
+}
+
 function subirDiagnosticoSeguro_(raiz, comp, limiteMs, forzar) {
   const indice = leerIndice_(raiz);
   if (!diagToca_(comp, indice, forzar)) return;
   const d = leerDiag_(comp), hoy = ahoraMadrid_().slice(0, 10), h = huellaDiag_(indice, comp);
   const m = montarDiagnostico_(raiz, indice, comp);
-  const ficheros = diagFicheros_(m.fichero);
-  const cuentas = diagRevisar_(ficheros.map(function (f) { return f.texto; }).join('\n'), m.sensibles);
-  d.cuentas = cuentas; d.limpio = diagTotal_(cuentas) ? 'mal' : 'bien'; d.registros = contarRegistrosDiag_(m.fichero); d.ficheros = ficheros.length;
-  d.bytes = ficheros.reduce(function (n, f) { return n + f.texto.length; }, 0); d.partido = ficheros.length > 1; d.version = VERSION_CD; d.ultimaMs = new Date().getTime(); d.dia = hoy;
-  if (d.limpio === 'mal') { d.estado = 'no-limpio'; d.hashMalo = h; escribirComprob_(raiz, comp); return; }
+  const bloques = diagRevisarBloques_(m.fichero, m.sensibles, m.reglas);
+  const retenidos = bloques.filter(function (b) { return b.total > 0; }).map(function (b) { return b.bloque; });
+  d.cuentas = diagCifrasBloques_(bloques); d.retenidos = retenidos; d.limpio = retenidos.length ? 'mal' : 'bien'; d.registros = contarRegistrosDiag_(m.fichero);
+  d.version = VERSION_CD; d.ultimaMs = new Date().getTime(); d.dia = hoy; d.subidos = 0; d.borrados = 0; d.borradoFalla = 0;
+  if (retenidos.indexOf('cabecera') !== -1) { d.estado = 'no-limpio'; d.hashMalo = h; d.ficheros = 0; d.bytes = 0; d.partido = false; escribirComprob_(raiz, comp); return; }
+  const ficheros = diagFicheros_(m.fichero, retenidos);
+  d.ficheros = ficheros.length; d.partido = true; d.bytes = ficheros.reduce(function (n, f) { return n + f.texto.length; }, 0);
   const clave = PropertiesService.getScriptProperties().getProperty('GH_CLAVE');
   let r = 'bien';
   for (let i = 0; i < ficheros.length && r === 'bien'; i++) r = escribirEnGitHub_(clave, ficheros[i].texto, 'Diagnóstico sin nombres, ' + VERSION_CD, false, {}, ficheros[i].ruta);
-  d.estado = r;
-  if (r === 'bien') { d.hash = h; d.hashMalo = ''; }
+  if (r === 'bien') {
+    d.subidos = bloques.length - retenidos.length;
+    retenidos.forEach(function (c) {
+      const x = borrarEnGitHub_(clave, 'Diagnóstico sin nombres: bloque retenido, ' + VERSION_CD, 'diagnostico/' + c + '.json');
+      if (x === 'bien') d.borrados++; else if (x !== 'no-estaba') d.borradoFalla++;
+    });
+  }
+  d.estado = r === 'bien' && retenidos.length ? 'parcial' : r;
+  if (r === 'bien' && !retenidos.length) { d.hash = h; d.hashMalo = ''; }
+  else if (r === 'bien' && !d.borradoFalla) { d.hash = ''; d.hashMalo = h; }
   escribirComprob_(raiz, comp);
 }
 
@@ -7353,8 +7518,8 @@ function cmpDiagnosticoLimpio_(ctx) {
 function cmpDiagnosticoEnvio_(ctx) {
   const d = ctx.comp.diag;
   if (!d || !d.ultimaMs) return { estado: 'sin datos', cifras: { ficheros: 0 } };
-  return { estado: 'dato', cifras: { subido: d.estado === 'bien', 'no-limpio': d.estado === 'no-limpio', 'con-error': d.estado === 'error', 'sin-permiso': d.estado === 'sin-permiso' || d.estado === 'caducada', 'sin-red': d.estado === 'sin-red',
-    ficheros: d.ficheros, partido: !!d.partido, registros: d.registros, bytes: d.bytes, 'minutos-desde-el-intento': Math.max(0, Math.round((ctx.ahoraMs - d.ultimaMs) / 60000)) } };
+  return { estado: 'dato', cifras: { subido: d.estado === 'bien' || d.estado === 'parcial', 'no-limpio': d.estado === 'no-limpio', 'con-error': d.estado === 'error', 'sin-permiso': d.estado === 'sin-permiso' || d.estado === 'caducada', 'sin-red': d.estado === 'sin-red',
+    ficheros: d.ficheros, partido: !!d.partido, 'bloques-subidos': d.subidos || 0, 'bloques-retenidos': (d.retenidos || []).length, 'ficheros-borrados': d.borrados || 0, 'borrados-que-fallan': d.borradoFalla || 0, registros: d.registros, bytes: d.bytes, 'minutos-desde-el-intento': Math.max(0, Math.round((ctx.ahoraMs - d.ultimaMs) / 60000)) } };
 }
 
 /* ==== ComprobEjecutar.gs ==== */
