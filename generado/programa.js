@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v53';
+const VERSION_CD = 'CD v54';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -7209,7 +7209,7 @@ function diagSal_(raiz) {
 }
 
 /* ==== DiagnosticoMontar.gs ==== */
-/* Diagnóstico sin nombres (fila 35): de los datos ya hechos al fichero que sube la aplicación. Dos pasadas: la primera cuenta cuántos registros comparten cada texto (un texto que no comparten al menos
+/* Diagnóstico sin nombres (fila 35): de los datos ya hechos al fichero que sube la aplicación. Dos pasadas: la primera cuenta cuántas personas distintas (por id de registro) comparten cada texto (un texto que no comparten al menos
    DIAG_MIN_ sale como «(pocos)»); la segunda escribe solo lo que dice la lista blanca de DiagnosticoCampos.gs. Solo lee. */
 const DIAG_PATRON_GRUPO_ = /^\d\s?º?\s?[A-Z]{1,5}(\s?-?\s?[A-Z]{1,5})?$/;
 const DIAG_PATRON_PERIODO_ = /^\d{2,4}-\d{2,4}$/;
@@ -7242,8 +7242,8 @@ function diagValor_(regla, v, clave, ctx, registro) {
     if (!t || t.length > 60 || t === '?') return undefined;
     if (regla !== 'cat' && !DIAG_PATRON_GRUPO_.test(t)) return DIAG_POCOS_;
     if (regla === 'grupo') return t;
-    if (ctx.fase === 'contar') { const c = ctx.cuentas[clave] = ctx.cuentas[clave] || {}; c[t] = (c[t] || 0) + 1; return undefined; }
-    return (ctx.cuentas[clave] || {})[t] >= DIAG_MIN_ ? t : DIAG_POCOS_;
+    if (ctx.fase === 'contar') { const c = ctx.cuentas[clave] = ctx.cuentas[clave] || {}; (c[t] = c[t] || {})[String(registro && registro.id)] = true; return undefined; }
+    return Object.keys((ctx.cuentas[clave] || {})[t] || {}).length >= DIAG_MIN_ ? t : DIAG_POCOS_;
   }
   if (regla && regla.tabla) {
     if (!Array.isArray(v)) return undefined;
@@ -7357,9 +7357,9 @@ const DIAG_CAMPOS_EXACTOS_ = ['documento', 'telefono', 'telefonoPersonal', 'tele
 
 function diagPlegar_(t) { return cmpfQuitarTildes_(String(t)).toLowerCase(); }
 
-/* Lo personal de las partes abiertas: { ids: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} } (no viaja, no se guarda). `enteros` = el valor entero de un campo de nombre; `sueltas` = cada nombre o apellido por separado, de cualquier longitud. */
+/* Lo personal de las partes abiertas: { ids: {}, idsDe: {}, idsLibro: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} } (no viaja, no se guarda). `idsDe` = de qué conjunto viene cada id (solo para contar); `idsLibro` = ids de libros, que no son de nadie y no cuentan. `enteros` = el valor entero de un campo de nombre; `sueltas` = cada nombre o apellido por separado, de cualquier longitud. */
 function diagSensibles_(abiertas, raiz) {
-  const s = { ids: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} };
+  const s = { ids: {}, idsDe: {}, idsLibro: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} };
   const palabras = function (t) {
     const f = diagPlegar_(t), e = f.replace(/\s+/g, ' ').trim();
     (f.match(/[a-zñ]{4,}/g) || []).forEach(function (w) { s.palabras[w] = true; });
@@ -7372,13 +7372,20 @@ function diagSensibles_(abiertas, raiz) {
     DIAG_CAMPOS_NOMBRE_.forEach(function (k) { if (typeof d[k] === 'string') palabras(d[k]); });
     DIAG_CAMPOS_EXACTOS_.forEach(function (k) { if (typeof d[k] === 'string') exacto(d[k]); });
   };
+  const anota = function (id, conjunto) {
+    const k = diagPlegar_(id);
+    if (conjunto === 'libros') { s.idsLibro[k] = true; return; }
+    s.ids[k] = true;
+    if (!s.idsDe[k]) s.idsDe[k] = conjunto;
+  };
   abiertas.forEach(function (x) {
     x.p.registros.forEach(function (r) {
-      if (typeof r.id === 'string' && r.id.length >= 5 && !DIAG_PATRON_GRUPO_.test(r.id)) { s.ids[diagPlegar_(r.id)] = true; }
+      if (typeof r.id === 'string' && r.id.length >= 5 && !DIAG_PATRON_GRUPO_.test(r.id)) { anota(r.id, x.conj.conjunto); }
       mirar(r.datos);
-      ((r.datos && r.datos.tutores) || []).forEach(function (t) { mirar(t); if (t && typeof t.id === 'string') s.ids[diagPlegar_(t.id)] = true; });
+      ((r.datos && r.datos.tutores) || []).forEach(function (t) { mirar(t); if (t && typeof t.id === 'string') anota(t.id, 'tutorias'); });
     });
   });
+  Object.keys(s.idsLibro).forEach(function (k) { if (s.ids[k]) delete s.idsLibro[k]; });
   return s;
 }
 
@@ -7457,7 +7464,11 @@ function diagItems_(b, reglasEntidad) {
   const entidad = !DIAG_REGLAS_[b.conjunto], reglas = entidad ? (reglasEntidad || {}) : DIAG_REGLAS_[b.conjunto].campos;
   (b.objeto.partes || []).forEach(function (p) {
     ['parte', 'cursoEscolar', 'periodo'].forEach(function (k) { diagRecorrer_(items, k, 'periodo', p[k]); });
-    (p.registros || []).forEach(function (r) { diagItemsRegistro_(items, r, reglas, entidad); });
+    (p.registros || []).forEach(function (r) {
+      const desde = items.length, quien = String(r.cod || r.grupo || '');
+      diagItemsRegistro_(items, r, reglas, entidad);
+      for (let i = desde; i < items.length; i++) items[i].quien = quien;
+    });
     (p.avisos || []).forEach(function (a) {
       diagRecorrer_(items, 'aviso', 'periodo', a.tipo); diagRecorrer_(items, 'aviso', 'num', a.n);
       (a.cods || []).forEach(function (c) { diagRecorrer_(items, 'aviso', 'cod', c); });
@@ -7470,18 +7481,35 @@ const DIAG_RE_CORREO_ = /[a-z0-9._%+-]+@[a-z0-9-]+\.[a-z0-9.-]+/g;
 const DIAG_RE_TELEFONO_ = /(?<![0-9a-z])(?:\+34[ .-]?)?[6-9]\d{2}[ .-]?\d{3}[ .-]?\d{3}(?![0-9a-z])/g;
 const DIAG_RE_DOCUMENTO_ = /(?<![0-9a-z])(?:\d{8}[a-z]|[xyz]\d{7}[a-z])(?![0-9a-z])/g;
 
-/* Las cuentas de un bloque: { '<clase>|<campo>': n }. Correos, teléfonos y documentos se buscan en todo; los ids en todo salvo en los códigos; los nombres según el modo; los exactos en todo salvo en las fechas. */
-function diagContarItems_(items, s) {
-  const cuentas = {};
+/* Las cuentas de un bloque: { '<clase>|<campo>': n }. Correos, teléfonos y documentos se buscan en todo; los ids en todo salvo en los códigos; los nombres según el modo; los exactos en todo salvo en las fechas.
+   `extra` (si se pasa) recoge cifras de apoyo: de qué clase viene cada salto de nombre, de qué conjunto cada id, y cuántas coincidencias se dieron por catálogo (compartidas por 5 personas o más). Solo cuentas. */
+function diagContarItems_(items, s, extra) {
+  const cuentas = {}, ex = extra || {}, idsDe = s.idsDe || {}, idsLibro = s.idsLibro || {};
   const suma = function (clase, campo, n) { if (n) cuentas[clase + '|' + campo] = (cuentas[clase + '|' + campo] || 0) + n; };
+  const mas = function (k) { ex[k] = (ex[k] || 0) + 1; };
+  const compartidos = {};
+  items.forEach(function (it) {
+    if (it.modo !== 'cat' || !it.quien) return;
+    const k = it.campo + '\u0001' + diagPlegar_(it.texto).replace(/\s+/g, ' ').trim();
+    (compartidos[k] = compartidos[k] || {})[it.quien] = true;
+  });
   items.forEach(function (it) {
     const t = it.t = diagPlegar_(it.texto);
     suma('c', it.campo, (t.match(DIAG_RE_CORREO_) || []).length);
     suma('t', it.campo, (t.match(DIAG_RE_TELEFONO_) || []).length);
     suma('d', it.campo, (t.match(DIAG_RE_DOCUMENTO_) || []).length);
-    if (it.modo !== 'cod') (t.match(/[a-z0-9]{5,}/g) || []).forEach(function (w) { if (s.ids[w]) suma('i', it.campo, 1); });
+    if (it.modo !== 'cod') (t.match(/[a-z0-9]{5,}/g) || []).forEach(function (w) {
+      if (s.ids[w]) { suma('i', it.campo, 1); mas('ids-de-' + (idsDe[w] || 'otros')); } else if (idsLibro[w]) mas('ids-de-libros-sin-contar');
+    });
     if (it.modo === 'libre') (t.match(/[a-zñ]{4,}/g) || []).forEach(function (w) { if (s.palabras[w]) suma('n', it.campo, 1); });
-    else if (it.modo === 'cat') { const e = t.replace(/\s+/g, ' ').trim(); if (e !== '(pocos)' && (s.enteros[e] || s.sueltas[e])) suma('n', it.campo, 1); }
+    else if (it.modo === 'cat') {
+      const e = t.replace(/\s+/g, ' ').trim();
+      if (e === '(pocos)' || !(s.enteros[e] || s.sueltas[e])) return;
+      if (s.enteros[e] && e.indexOf(' ') !== -1) { suma('n', it.campo, 1); mas('nombres-enteros'); return; }
+      if (Object.keys(compartidos[it.campo + '\u0001' + e] || {}).length >= DIAG_MIN_) { mas('coincidencias-de-catalogo'); return; }
+      suma('n', it.campo, 1); mas('nombres-sueltos');
+      if (e.length <= 3) mas('nombres-sueltos-cortos');
+    }
   });
   const buscables = items.filter(function (it) { return it.modo !== 'fecha'; });
   const todo = buscables.map(function (it) { return it.t; }).join('\u0001');
@@ -7497,8 +7525,8 @@ function diagContarItems_(items, s) {
 /* Repasa cada bloque por separado. Devuelve [{ bloque, conjunto, cuentas, total }]. `reglas` = las reglas de los campos de las entidades, por conjunto (las que usó el montaje). */
 function diagRevisarBloques_(fichero, s, reglas) {
   return diagBloques_(fichero).map(function (b) {
-    const cuentas = diagContarItems_(diagItems_(b, (reglas || {})[b.conjunto]), s);
-    return { bloque: b.bloque, conjunto: b.conjunto, cuentas: cuentas, total: diagTotal_(cuentas) };
+    const extra = {}, cuentas = diagContarItems_(diagItems_(b, (reglas || {})[b.conjunto]), s, extra);
+    return { bloque: b.bloque, conjunto: b.conjunto, cuentas: cuentas, extra: extra, total: diagTotal_(cuentas) };
   });
 }
 
@@ -7513,6 +7541,7 @@ function diagCifrasBloques_(bloques) {
       por[nombre] = (por[nombre] || 0) + b.cuentas[k];
     });
   });
+  bloques.forEach(function (b) { Object.keys(b.extra || {}).forEach(function (k) { cifras[k] = (cifras[k] || 0) + b.extra[k]; }); });
   const orden = Object.keys(por).sort(function (a, c) { return por[c] - por[a] || (a < c ? -1 : 1); });
   orden.slice(0, DIAG_MAX_SITIOS_).forEach(function (k) { cifras[k] = por[k]; });
   if (orden.length > DIAG_MAX_SITIOS_) cifras['resto-coincidencias'] = orden.slice(DIAG_MAX_SITIOS_).reduce(function (n, k) { return n + por[k]; }, 0);
