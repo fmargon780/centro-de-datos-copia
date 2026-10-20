@@ -234,6 +234,11 @@
       }
       /* Lo que no tenía nada que montar pero cambió su comparación (la aplicación de hoy rehízo algo), de uno en uno. */
       for (var i = 0; i < ENSAYO_CONJUNTOS_.length; i++) { await paso(function () { ensayoGuardarVista_(carpetaDatos_(), ENSAYO_CONJUNTOS_[i].conjunto); return null; }); await ceder(); }
+      /* Fila 59: lo que ya salía igual se publica de verdad (pagina/publicar.js). */
+      if (window.PublicarPagina) {
+        await window.PublicarPagina.publicar({ paso: paso, ceder: ceder, refrescar: refrescar,
+          empieza: function () { trabajando = true; poniendo = 'los datos que publica esta página'; if (!medida) medir(); ensayoSinCalcular_(true); pintar(); } });
+      }
     } finally { ensayoSinCalcular_(false); await guardarMedida(); }
   }
 

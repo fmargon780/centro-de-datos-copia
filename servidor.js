@@ -24,7 +24,7 @@
         /* Fila 58: mientras el ensayo trabaja no se compara nada: cada cajita enseña su último resultado (si lo tenía) y, si su conjunto aún se está rehaciendo, la nota «poniéndose al día…». */
         var montando = window.EnsayoPagina && window.EnsayoPagina.trabajando(), faltan = montando ? window.EnsayoPagina.pendientes() : [];
         var ensayos = [];
-        ENSAYO_CONJUNTOS_.forEach(function (def) {
+        ensayoActivos_(r0).forEach(function (def) {
           var v = ensayoVista_(r0, def.conjunto), poniendose = faltan.indexOf(def.conjunto) !== -1;
           if (poniendose && v.estado === 'sin-ensayo') v = { estado: 'esperando', difs: [], sobran: [], faltan: [] };
           if (v.estado !== 'sin-ensayo') ensayos.push({ conjunto: def.conjunto, cajita: def.cajita, linea: ensayoLinea_(v, poniendose && v.cifra === undefined, def.conjunto), estado: v.estado, poniendose: poniendose, avisos: v.difs.length + v.sobran.length + v.faltan.length });

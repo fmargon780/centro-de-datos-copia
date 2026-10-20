@@ -429,7 +429,7 @@ function dibujarHechos(h) {
     var estado = c.atascado ? 'sin avanzar' : (c.trabajando || !c.alDia ? 'poniéndose al día' : 'al día');
     if (AVISOS_PENDIENTES) c = Object.assign({}, c, { avisos: AVISOS_PENDIENTES[c.conjunto] || 0 });
     total += c.avisos || 0;
-    p.appendChild(cajitaDeHechos(c.etiqueta, clase, estado, c.avisos || 0, textoDeUnConjunto(c), c.conjunto));
+    p.appendChild(cajitaDeHechos(c.etiqueta, clase, estado, c.avisos || 0, textoDeUnConjunto(c), c.conjunto, c.monta === 'pagina' ? 'lo monta la página nueva' : (c.monta ? 'lo monta la aplicación' : '')));
   });
   (h.ensayos || []).forEach(function (en) {
     var claseE = en.estado === 'distinta' ? 'rojo' : (en.estado === 'igual' ? 'verde' : 'ambar');

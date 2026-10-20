@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v52';
+const VERSION_CD = 'CD v53';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -4934,7 +4934,9 @@ const ENSAYO_CONJUNTOS_ = [
 ];
 
 function ensayoDe_(conjunto) { return ENSAYO_CONJUNTOS_.filter(function (c) { return c.conjunto === (conjunto || ENSAYO_CONJUNTO_); })[0]; }
-function ensayoNombres_() { return ENSAYO_CONJUNTOS_.map(function (c) { return c.conjunto; }); }
+/* Fila 59: los conjuntos que ya publica la página (Turno.gs) dejan de ensayarse; el resto sigue en ensayo. */
+function ensayoActivos_(raiz) { const fuera = turnoPublicados_(raiz); return ENSAYO_CONJUNTOS_.filter(function (c) { return fuera.indexOf(c.conjunto) === -1; }); }
+function ensayoNombres_(raiz) { return ensayoActivos_(raiz).map(function (c) { return c.conjunto; }); }
 
 /* Un paso: la primera tarea que falte (leer un listado, montar una parte o quitar una que sobra). Devuelve { quedan, hecha, conjunto, conjuntoHecho, restan } (el conjunto de lo siguiente, el de lo que se acaba de hacer y los que aún tienen algo por montar). */
 function ensayoPaso_(raiz, dias) {
@@ -4942,12 +4944,12 @@ function ensayoPaso_(raiz, dias) {
   const avance = leerAvance_(raiz);
   quitarLeidoViejo_(raiz, leerIndice_(raiz), avance);
   const indice = leerIndice_(raiz);
-  const tareas = tareasDeHechos_(indice, avance, ensayoNombres_());
+  const tareas = tareasDeHechos_(indice, avance, ensayoNombres_(raiz));
   if (!tareas.length) return { quedan: false, hecha: '', conjunto: '', conjuntoHecho: '', restan: [] };
   hacerTareaHechos_(raiz, tareas[0], indice, avance, {}, new Date().getTime() + ENSAYO_TOPE_MS_);
   avance.ultima = ahoraMadrid_();
   escribirAvance_(raiz, avance);
-  const quedan = tareasDeHechos_(leerIndice_(raiz), avance, ensayoNombres_()), restan = [];
+  const quedan = tareasDeHechos_(leerIndice_(raiz), avance, ensayoNombres_(raiz)), restan = [];
   quedan.forEach(function (q) { if (restan.indexOf(q.conj.conjunto) === -1) restan.push(q.conj.conjunto); });
   return { quedan: quedan.length > 0, hecha: tareas[0].que, conjunto: quedan.length ? quedan[0].conj.conjunto : '', conjuntoHecho: tareas[0].conj.conjunto, restan: restan };
 }
@@ -4955,7 +4957,7 @@ function ensayoPaso_(raiz, dias) {
 /* Los días que presta la aplicación de hoy al ensayo (fila 57): por ruta, el `hoy` de cada parte de hoy de un conjunto ensayado que lo guarde, siempre que se compararía con la del ensayo (misma ruta, mismos listados y al día).
    Sin lista de conjuntos: los que guardan `hoy` (tienen `conDias` o paso propio) lo prestan solos. Si la parte del ensayo aún no existe o quedó vieja se rehará con los listados de ahora, que son los de la de hoy. `raiz` es la de verdad. */
 function ensayoDiasPrestados_(raiz) {
-  const indice = leerIndice_(raiz), dias = {}, nombres = ensayoNombres_();
+  const indice = leerIndice_(raiz), dias = {}, nombres = ensayoNombres_(raiz);
   (indice.hechos || []).forEach(function (h) {
     const conj = CONJUNTOS_.filter(function (c) { return c.conjunto === h.conjunto; })[0];
     if (!conj || nombres.indexOf(h.conjunto) === -1 || !(conj.conDias || conj.pasoPropio) || !ensayoAlDia_(h, indice)) return;
@@ -4968,21 +4970,21 @@ function ensayoDiasPrestados_(raiz) {
 /* Lo que falta por montar en el ensayo, sin escribir nada. */
 function ensayoQuedan_(raiz, dias) {
   prestarDias_(dias);
-  return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_()).length;
+  return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_(raiz)).length;
 }
 
 /* Los conjuntos que todavía tienen algo que montar en el ensayo, en el orden en que se montarán. */
 function ensayoPendientes_(raiz, dias) {
   prestarDias_(dias);
   const vistos = {}, lista = [];
-  tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_()).forEach(function (t) { if (!vistos[t.conj.conjunto]) { vistos[t.conj.conjunto] = true; lista.push(t.conj.conjunto); } });
+  tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_(raiz)).forEach(function (t) { if (!vistos[t.conj.conjunto]) { vistos[t.conj.conjunto] = true; lista.push(t.conj.conjunto); } });
   return lista;
 }
 
 /* El conjunto del que es la próxima tarea del ensayo, o '' si no queda nada. */
 function ensayoSiguiente_(raiz, dias) {
   prestarDias_(dias);
-  const t = tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_());
+  const t = tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), ensayoNombres_(raiz));
   return t.length ? t[0].conj.conjunto : '';
 }
 
@@ -5106,7 +5108,7 @@ function ensayoVista_(raiz, conjunto) {
 
 /* Lo que hace la página al terminar de montar un conjunto (o todos, sin `conjunto`): guarda su vista junto al ensayo. */
 function ensayoGuardarVista_(raiz, conjunto) {
-  ENSAYO_CONJUNTOS_.filter(function (def) { return !conjunto || def.conjunto === conjunto; }).forEach(function (def) {
+  ensayoActivos_(raiz).filter(function (def) { return !conjunto || def.conjunto === conjunto; }).forEach(function (def) {
     const firma = ensayoFirma_(raiz, def.conjunto);
     let guardada = null;
     try { guardada = ensayoJson_(raiz, ensayoDeLaRuta_(def.fichero)); } catch (e) { guardada = null; }
@@ -5141,7 +5143,7 @@ function quienDeMas_(def, deMas) {
 /* Los avisos de las diferencias, como los de las partes de hecho/ (solo campo y cuenta). */
 function ensayoAvisos_(raiz) {
   const lista = [];
-  ENSAYO_CONJUNTOS_.forEach(function (def) {
+  ensayoActivos_(raiz).forEach(function (def) {
     const v = ensayoVista_(raiz, def.conjunto);
     const poner = function (tipo, parte, datos, quien) {
       const a = { tipo: tipo, id: null, datos: datos }, f = frasePlanaDeAviso_(a);
@@ -5161,6 +5163,7 @@ function ensayoCifras_(v) {
 }
 
 function cmpEnsayoDe_(ctx, conjunto) {
+  if (turnoPublicados_(ctx.raiz).indexOf(conjunto) !== -1) return { estado: 'sin datos', cifras: { 'publicado-por-la-pagina': 1 } };   // ya no se ensaya (fila 59; la fila 60 retira lo que sobra)
   const v = ensayoVista_(ctx.raiz, conjunto), cifras = ensayoCifras_(v);
   if (v.estado === 'sin-ensayo') return { estado: 'sin datos', cifras: cifras };
   return { estado: v.estado === 'distinta' ? 'mal' : (v.estado === 'igual' ? 'bien' : 'sin datos'), cifras: cifras };
@@ -5185,6 +5188,108 @@ function cmpPaginaResponde_(ctx) {
   if (!m || typeof m.ms !== 'number') return { estado: 'bien', cifras: { 'sin-medida': 1 } };
   const n = function (x) { return typeof x === 'number' ? x : 0; };
   return { estado: m.ms > RESPONDE_TOPE_MS_ ? 'mal' : 'bien', cifras: { 'sin-medida': 0, ms: m.ms, 'bloqueo-ms': n(m.bloqueoMs), 'espera-ms': n(m.esperaMs), 'paso-ms': n(m.pasoMs), pasos: n(m.pasos) } };
+}
+
+/* ==== Turno.gs ==== */
+/* El turno de montaje (fila 59). Entre la página nueva y la aplicación de hoy solo monta una a la vez: _interno/turno-montaje.json dice quién y hasta cuándo.
+   { quien: 'pagina' | 'aplicacion', pestana, persona, desde, hasta (milisegundos), publicados: [conjuntos que publica la página], caducados, choques, soloAplicacion }.
+   Lo escribe solo la página (pagina/publicar.js); la aplicación de hoy lo lee. Con `soloAplicacion: true` (a mano, la marcha atrás) la página deja de publicar y vuelve a ensayar.
+   Mientras el turno de la página vale, la aplicación de hoy no monta los conjuntos de `publicados`; si caducó, los monta ella como siempre. Con los mismos .gs sale lo mismo, monte quien monte. */
+const TURNO_FICHERO_ = 'turno-montaje.json';
+const TURNO_VALIDEZ_MS_ = 10 * 60 * 1000;   // con margen: Drive para ordenador puede tardar minutos en subir lo que escribe la página (no medido con datos reales)
+let QUIEN_MONTA_ = 'aplicacion';
+function quienMonta_(q) { QUIEN_MONTA_ = q || 'aplicacion'; }
+let EXCLUIDOS_MONTAJE_ = [];
+function excluirMontaje_(lista) { EXCLUIDOS_MONTAJE_ = lista || []; }
+
+/* El turno guardado ({} si no hay o está a medias). La excepción con la que la página pide leer un fichero no se traga. */
+function turnoLeer_(raiz) {
+  try {
+    const t = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), TURNO_FICHERO_);
+    return t && typeof t === 'object' ? t : {};
+  } catch (e) { if (e && typeof e.cargar === 'function') throw e; return {}; }
+}
+
+function turnoVigente_(t, ahoraMs) { return t.quien === 'pagina' && typeof t.hasta === 'number' && t.hasta > ahoraMs; }
+
+/* Los conjuntos que publica la página (ninguno con la marcha atrás puesta). */
+function turnoPublicados_(raiz) {
+  const t = turnoLeer_(raiz);
+  if (t.soloAplicacion) return [];
+  return (t.publicados || []).filter(function (c) { return CONJUNTOS_.some(function (x) { return x.conjunto === c; }); });
+}
+
+/* Lo que la aplicación de hoy no monta ahora: lo que publica la página mientras su turno vale. */
+function turnoExcluidos_(raiz) {
+  const t = turnoLeer_(raiz);
+  return !t.soloAplicacion && turnoVigente_(t, new Date().getTime()) ? turnoPublicados_(raiz) : [];
+}
+
+/* Quién monta cada conjunto con partes: lo que apuntó el montaje; sin apunte, la aplicación de hoy. */
+function quienMontaConjunto_(avance, conjunto) { return (avance.quien || {})[conjunto] || 'aplicacion'; }
+
+/* Los conjuntos del ensayo que ya salen «igual que la de hoy» (su última comparación guardada, de lo de ahora) y aún no se publican. */
+function ensayoPublicables_(raiz) {
+  const lista = [];
+  ensayoActivos_(raiz).forEach(function (def) {
+    let g = null;
+    try { g = ensayoJson_(raiz, ensayoDeLaRuta_(def.fichero)); } catch (e) { if (e && typeof e.cargar === 'function') throw e; g = null; }
+    if (g && g.estado === 'igual' && g.firma === ensayoFirma_(raiz, def.conjunto)) lista.push(def.conjunto);
+  });
+  return lista;
+}
+
+/* Cuántas tareas faltan por hacer en los conjuntos que publica la página, sin escribir nada (con el día de verdad). */
+function publicarQuedan_(raiz, conjuntos) {
+  prestarDias_({});
+  return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), conjuntos).length;
+}
+
+/* Desde que un conjunto pasa a publicarlo la página, es suyo aunque no haya nada que rehacer: así queda dicho en el avance. */
+function publicarAdoptar_(raiz, conjuntos) {
+  const avance = leerAvance_(raiz);
+  avance.quien = avance.quien || {};
+  conjuntos.forEach(function (c) { avance.quien[c] = 'pagina'; });
+  escribirAvance_(raiz, avance);
+}
+
+/* Un paso de la publicación: lo mismo que `ensayoPaso_`, pero en la raíz de verdad, con el día de verdad y solo con los conjuntos publicados. Solo lo corre la página.
+   Devuelve { quedan, ocupada, restan }. Si una tanda de la aplicación de hoy sigue en marcha, espera. */
+function publicarPaso_(raiz, conjuntos) {
+  prestarDias_({});
+  quienMonta_('pagina');
+  try {
+    const avance = leerAvance_(raiz);
+    if (avance.enMarcha && new Date().getTime() - avance.enMarcha < HECHOS_EXCLUSIVA_MS_) return { quedan: true, ocupada: true, restan: [] };
+    quitarLeidoViejo_(raiz, leerIndice_(raiz), avance);
+    const indice = leerIndice_(raiz), tareas = tareasDeHechos_(indice, avance, conjuntos);
+    if (!tareas.length) return { quedan: false, ocupada: false, restan: [] };
+    hacerTareaHechos_(raiz, tareas[0], indice, avance, {}, new Date().getTime() + ENSAYO_TOPE_MS_);
+    avance.ultima = ahoraMadrid_();
+    escribirAvance_(raiz, avance);
+    const quedan = tareasDeHechos_(leerIndice_(raiz), avance, conjuntos), restan = [];
+    quedan.forEach(function (q) { if (restan.indexOf(q.conj.conjunto) === -1) restan.push(q.conj.conjunto); });
+    if (!quedan.length) escribirEstadoHechos_(raiz);
+    return { quedan: quedan.length > 0, ocupada: false, restan: restan, siguiente: quedan.length ? quedan[0].que + ':' + (quedan[0].ruta || quedan[0].k || quedan[0].conj.conjunto) : '' };
+  } finally { quienMonta_('aplicacion'); }
+}
+
+/* La comprobación `quien-monta` (fila 59): quién montó la última parte de cada conjunto, los turnos vigentes y caducados y los choques (la página vio que otro se llevó su turno). Solo cuentas.
+   `mal` si hubo choques; si no, `dato`. */
+function cmpQuienMonta_(ctx) {
+  const t = turnoLeer_(ctx.raiz), publicados = turnoPublicados_(ctx.raiz), cifras = { 'conjuntos-pagina': 0, 'conjuntos-aplicacion': 0 };
+  CONJUNTOS_.forEach(function (conj) {
+    if (!(ctx.indice.hechos || []).some(function (h) { return h.conjunto === conj.conjunto; })) return;
+    const q = quienMontaConjunto_(ctx.avance, conj.conjunto);
+    cifras['conjuntos-' + q]++;
+    cifras['pagina-' + conj.conjunto] = q === 'pagina' ? 1 : 0;
+  });
+  cifras['publicados-por-la-pagina'] = publicados.length;
+  cifras['turnos-vigentes'] = turnoVigente_(t, ctx.ahoraMs) ? 1 : 0;
+  cifras['turnos-caducados'] = t.caducados || 0;
+  cifras.choques = t.choques || 0;
+  cifras['solo-aplicacion'] = t.soloAplicacion ? 1 : 0;
+  return { estado: cifras.choques > 0 ? 'mal' : 'dato', cifras: cifras };
 }
 
 /* ==== HechosCargos.gs ==== */
@@ -5340,6 +5445,7 @@ function tareasDeHechos_(indice, avance, soloConj) {
   if (indice.ocupado) return tareas;
   CONJUNTOS_.forEach(function (conj) {
     if (soloConj && [].concat(soloConj).indexOf(conj.conjunto) === -1) return;
+    if (!soloConj && EXCLUIDOS_MONTAJE_.indexOf(conj.conjunto) !== -1) return;   // lo está montando la página nueva con su turno vigente (fila 59, Turno.gs)
     const necesarias = fuentesNecesarias_(indice, avance, conj);
     if (!necesarias) return;
     if (sinListadoPropio_(conj) && !necesarias.length && !(indice.hechos || []).some(function (h) { return h.conjunto === conj.conjunto; })) return;
@@ -5366,6 +5472,11 @@ function tareasDeHechos_(indice, avance, soloConj) {
 
 /* ¿Queda algo por leer, quitar o montar? (Las comprobaciones no cuentan.) */
 function hechosHayTrabajo_(raiz) {
+  excluirMontaje_(turnoExcluidos_(raiz));
+  try { return hechosHayTrabajoInterno_(raiz); } finally { excluirMontaje_([]); }
+}
+
+function hechosHayTrabajoInterno_(raiz) {
   const indice = leerIndice_(raiz);
   if (indice.ocupado) return false;
   const avance = leerAvance_(raiz);
@@ -5397,6 +5508,11 @@ function cambiarIndiceHechos_(raiz, cambio) {
 
 /* Una tanda de como mucho `topeMs` (la primera tarea se hace siempre). Devuelve { quedan, ocupada }. Nunca dos a la vez. */
 function hechosTanda_(raiz, topeMs) {
+  excluirMontaje_(turnoExcluidos_(raiz));
+  try { return hechosTandaInterna_(raiz, topeMs); } finally { excluirMontaje_([]); }
+}
+
+function hechosTandaInterna_(raiz, topeMs) {
   const inicio = new Date().getTime();
   const lock = LockService.getScriptLock();
   let avance;
@@ -5447,7 +5563,13 @@ function hechosTanda_(raiz, topeMs) {
   return { quedan: quedan || hayComprobacionesDebidas_(raiz) };
 }
 
+/* Quien monta una parte (fila 59) queda apuntado por conjunto en el avance: `avance.quien[conjunto]` es 'pagina' o 'aplicacion'. */
 function hacerTareaHechos_(raiz, t, indice, avance, cache, limite) {
+  hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite);
+  if (t.que === 'montar') { avance.quien = avance.quien || {}; avance.quien[t.conj.conjunto] = QUIEN_MONTA_; }
+}
+
+function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   const conj = t.conj;
   if (t.que === 'leer') { if (t.fuente.porAlumno) leerExpedientes_(raiz, t, avance, limite); else leerUnaFuente_(raiz, t, avance); return; }
   if (t.que === 'completa') { montarFichaCompleta_(raiz, t, avance, cache); return; }
@@ -5651,7 +5773,7 @@ function resumenHechosPagina_(raiz) {
       alDia: partes.length > 0 && !hay && partes.every(function (p) { return p.alDia; }),
       trabajando: hay && !atascado, atascado: atascado && hay, porLeer: fuentesPorLeer_(conj, indice, avance), totalFicheros: (fuentesNecesarias_(indice, avance, conj) || []).length,
       avisos: Math.max(0, partes.reduce(function (n, p) { return n + sumaAvisos_((avance.avisos || {})[p.ruta]); }, 0) - (revisados[conj.conjunto] || 0)), conjunto: conj.conjunto,
-      entrega: entregaParaPagina_(conj, avance)
+      entrega: entregaParaPagina_(conj, avance), monta: partes.length ? quienMontaConjunto_(avance, conj.conjunto) : ''
     };
     if (conj.porPeriodos) salida.consejo = resumenConsejoParaPagina_(partes, avance);
     if (conj.conjunto === 'libros') salida.libros = resumenLibrosParaPagina_(partes, avance);
@@ -6040,13 +6162,14 @@ const COMPROBACIONES_ = [
   { id: 'ensayo-empresas-igual', fila: 51, que: 'Las empresas que monta la página nueva en el navegador salen iguales que las de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoEmpresasIgual_' },
   { id: 'ensayo-administraciones-igual', fila: 51, que: 'Las Administraciones que monta la página nueva en el navegador salen iguales que las de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoAdministracionesIgual_' },
   { id: 'ensayo-cargos-igual', fila: 51, que: 'Los cargos que monta la página nueva en el navegador salen iguales que los de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoCargosIgual_' },
+  { id: 'quien-monta', fila: 59, que: 'Quién montó la última parte de cada conjunto (la página nueva o la aplicación de hoy), qué conjuntos publica la página, turnos de montaje vigentes y caducados y choques (mal si la página vio que otro se llevaba su turno; solo cuentas)', funcion: 'cmpQuienMonta_' },
   { id: 'pagina-responde', fila: 58, que: 'La página nueva responde al momento mientras el ensayo trabaja: lo más lento que tardó en responder, en milisegundos (bien si no pasa de 500); sin medida si el ensayo no trabajó', funcion: 'cmpPaginaResponde_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }

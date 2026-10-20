@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v15",
-  "commit": "426e9bc",
+  "version": "página nueva v16",
+  "commit": "506eaa8",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "ef0d0ed16845e93379cb4476be0b148ef1414fa8b2ca0b0de8878ba25a77444e",
@@ -8,15 +8,16 @@
     "ajustes.js": "93bc4766f6ada25ec9f9ce63bceccc19a1737b9d472e600bb4a06e4d75eb4118",
     "arranque.js": "23851655bf5efa591e5fa461532d7daa08a5eaa853922043edb25e7ad7a0deb4",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "ce84df86742b64e236e3977a9512e5b4029886e4fb2f1a328f2f6010c091687f",
-    "ensayo.js": "59e44462674fe179b77256509272e08dfdc7a52382cd95d2812462a785610333",
+    "commit.js": "e9598beac484afb71b2e9767ed3b85f352e37cf1d985117344ed8e59c8441366",
+    "ensayo.js": "c298ef74b8a0a78a7d0f5b0a22a947a8137d82dbd7ef340cb4fd6c6700dea507",
     "escritura.js": "923922b5f0125fbebd69b369cb74ffb99bfc53ca7112c4b733f2de3a3bd2cc56",
     "generado/estilos.css": "c0c9822c413a06be43adb00c1cd9facb1dbf483f6e8fb9667932abebc33997a1",
-    "generado/pantalla.js": "9d0d32cb46b9a2171af4bde3d13fb7bfec17e309b02cf731b2a10cc6e83c03ca",
-    "generado/programa.js": "6963c7959dc44f9d5524aa097c8d8d47891841925a73636f4fc9065474384dc7",
-    "index.html": "e9efa81d98fc432dd3b87241e835600431cd21aaf65bb6f7fb6066501ac30a88",
-    "servidor.js": "51972928d3a5f5f51045acf00bb9572628f03b6a8f4e2d1a0a2759f8e97767bf",
+    "generado/pantalla.js": "a2e2b28b57671b0a9b6f1b8d6ac1a608410c9f78ad954902c54b68fd81f3fe78",
+    "generado/programa.js": "c19627176d4e5c8c8990e7db542a783d0da4ce143608485b4f5196987ac8ea02",
+    "index.html": "312eb2b468d7df606500460d7b9f12caf52f66e2320159bce13228d110098ae6",
+    "publicar.js": "c7d0fc31c9ddebc0ced17275307f694c09903d9ed3436f5bc9552f2b0ef77008",
+    "servidor.js": "40c5e5a96dc23c5035e59ba17e4173c0eb3ab1dcfb40f8a6e98d033176849748",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "a1d635d07b5b4e795e0135f16d80b7ce1b4b0cabab2b0a5d145fc435e3fb1bfa"
+    "version.js": "1e4bfb8e4649a6b1a3460b7a7ebbcf57b4bc99fe1eda305013ed9ab0e0efae19"
   }
 }
