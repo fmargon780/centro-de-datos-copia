@@ -52,12 +52,12 @@
   }
 
   /* Cada cosa de esta lista se hace con una transacción; lo que cambia los datos ya hechos deja el testigo para la vuelta de los 10 minutos. */
-  function hacer(quien, fn, testigo) {
+  function hacer(quien, fn, testigo, sinEnsayo) {
     return C.transaccion(function () {
       var r = fn(ctxDe(quien));
       if (testigo && r && (r.estado === 'guardado' || r.estado === 'ok' || r.estado === 'sin-clasificar')) ajustarTestigo_(carpetaDatos_(), true);
       return r;
-    }).then(function (r) { if (window.EnsayoPagina) window.EnsayoPagina.cambio(); return r; });
+    }).then(function (r) { if (!sinEnsayo && window.EnsayoPagina) window.EnsayoPagina.cambio(); return r; });
   }
 
   function colocar(nombre, u8, quien, curso) {
@@ -81,14 +81,8 @@
     await C.escribirSuelto(diario, u8);
     var r = await colocar(nombre, u8, quien, curso);
     await C.borrarSuelto(diario);   // si algo se corta antes de llegar aquí, el diario sigue y se coloca al abrir
-    if (r.ocupado) mostrarBotonHoy();
-    else if (window.EnsayoPagina) window.EnsayoPagina.cambio();   // fila 46: el ensayo de la ficha del alumno se pone al día con lo nuevo
+    if (!r.ocupado && window.EnsayoPagina) window.EnsayoPagina.cambio();   // fila 46: el ensayo de la ficha del alumno se pone al día con lo nuevo
     return r;
-  }
-
-  function mostrarBotonHoy() {
-    var z = document.getElementById('zona');
-    if (!z.querySelector('[data-hoy]') && window.botonHoy) z.appendChild(window.botonHoy('accion'));
   }
 
   /* Lo mismo que Subida.gs: los trozos que manda JsSubir.html se juntan aquí y, con el último, se guarda. */
@@ -140,6 +134,14 @@
     return hechos;
   }
 
-  Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar });
+  /* Fila 65: la configuración del centro y «Ya lo he visto». Como el resto, dentro de una transacción; `quien` es el nombre que pide la página. */
+  function guardarConfiguracion(grupo, campo, valor) {
+    return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webConfiguracionGuardar(grupo, campo, valor, ctx); }, false, true); }); });
+  }
+  function avisoVisto(huella, conjunto, visto) {
+    return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webAvisoVisto(huella, conjunto, visto, ctx); }, false, true); }); });
+  }
+
+  Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto });
   window.AccionesPagina = { repasarDiario: repasarDiario, quienEres: quienEres };
 })();

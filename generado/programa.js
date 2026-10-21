@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v54';
+const VERSION_CD = 'CD v55';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -7357,7 +7357,7 @@ const DIAG_CAMPOS_EXACTOS_ = ['documento', 'telefono', 'telefonoPersonal', 'tele
 
 function diagPlegar_(t) { return cmpfQuitarTildes_(String(t)).toLowerCase(); }
 
-/* Lo personal de las partes abiertas: { ids: {}, idsDe: {}, idsLibro: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} } (no viaja, no se guarda). `idsDe` = de qué conjunto viene cada id (solo para contar); `idsLibro` = ids de libros, que no son de nadie y no cuentan. `enteros` = el valor entero de un campo de nombre; `sueltas` = cada nombre o apellido por separado, de cualquier longitud. */
+/* Lo personal de las partes abiertas: { ids: {}, idsDe: {}, idsLibro: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} } (no viaja, no se guarda). `idsDe` = de qué conjunto viene cada id (solo para contar); `idsLibro` = ids de libros y de cargos (claves de catálogo, no de una persona; fila 65, tras ver 174 saltos con datos reales), que no cuentan. `enteros` = el valor entero de un campo de nombre; `sueltas` = cada nombre o apellido por separado, de cualquier longitud. */
 function diagSensibles_(abiertas, raiz) {
   const s = { ids: {}, idsDe: {}, idsLibro: {}, palabras: {}, exactos: {}, enteros: {}, sueltas: {} };
   const palabras = function (t) {
@@ -7374,7 +7374,7 @@ function diagSensibles_(abiertas, raiz) {
   };
   const anota = function (id, conjunto) {
     const k = diagPlegar_(id);
-    if (conjunto === 'libros') { s.idsLibro[k] = true; return; }
+    if (conjunto === 'libros' || conjunto === 'cargos') { s.idsLibro[k] = conjunto; return; }
     s.ids[k] = true;
     if (!s.idsDe[k]) s.idsDe[k] = conjunto;
   };
@@ -7499,7 +7499,7 @@ function diagContarItems_(items, s, extra) {
     suma('t', it.campo, (t.match(DIAG_RE_TELEFONO_) || []).length);
     suma('d', it.campo, (t.match(DIAG_RE_DOCUMENTO_) || []).length);
     if (it.modo !== 'cod') (t.match(/[a-z0-9]{5,}/g) || []).forEach(function (w) {
-      if (s.ids[w]) { suma('i', it.campo, 1); mas('ids-de-' + (idsDe[w] || 'otros')); } else if (idsLibro[w]) mas('ids-de-libros-sin-contar');
+      if (s.ids[w]) { suma('i', it.campo, 1); mas('ids-de-' + (idsDe[w] || 'otros')); } else if (idsLibro[w]) mas('ids-de-' + (idsLibro[w] === 'cargos' ? 'cargos' : 'libros') + '-sin-contar');
     });
     if (it.modo === 'libre') (t.match(/[a-zñ]{4,}/g) || []).forEach(function (w) { if (s.palabras[w]) suma('n', it.campo, 1); });
     else if (it.modo === 'cat') {
@@ -7675,10 +7675,17 @@ function diagNombreDe_(r, t) {
 
 function webDiagnosticoBuscar(codigo, ctx) {
   if (!ctx.esDueno) throw new Error('Esto solo lo puede hacer el dueño.');
+  return diagBuscar_(codigo, carpetaDatos_(), function () { return diagSal_(carpetaDatos_()).sal; });
+}
+
+/* La búsqueda en sí. `dameSal` devuelve la sal o null si aún no hay diagnóstico (la página nueva solo la lee; la aplicación de hoy la crea si falta). */
+function diagBuscar_(codigo, raiz, dameSal) {
   const m = /^([APCEN])-([0-9a-fA-F]{8})$/.exec(String(codigo || '').trim());
   if (!m) return { ok: false, mensaje: 'Un código tiene esta forma: A-1b2c3d4e (una letra, un guion y ocho cifras o letras).' };
   const cod = m[1].toUpperCase() + '-' + m[2].toLowerCase();
-  const raiz = carpetaDatos_(), indice = leerIndice_(raiz), sal = diagSal_(raiz).sal;
+  const sal = dameSal();
+  if (!sal) return { ok: false, mensaje: 'Todavía no hay diagnóstico: aún no se ha creado la clave con la que se hacen los códigos.' };
+  const indice = leerIndice_(raiz);
   const donde = [];
   let nombre = '', ficheros = 0;
   if (m[1].toUpperCase() === 'N') {
@@ -8733,9 +8740,17 @@ function webSoporteVisto(cargado, ctx) {
   return { ok: true };
 }
 
+/* Lo que mide la página nueva (fila 65) lo apunta ella en `_interno/ensayo-pagina/<nombre>`; si eso no es de esta versión, vale lo que apuntó la aplicación de hoy en `_interno/<nombreHoy>`. */
+function medidaPantalla_(raiz, nombre, nombreHoy) {
+  let m = null;
+  try { m = ensayoJson_(raiz, ensayoDeLaRuta_(nombre)); } catch (e) { m = null; }
+  if (m && m.version === VERSION_CD) return m;
+  return leerJson_(subcarpetaPorRuta_(raiz, '_interno'), nombreHoy);
+}
+
 /* Solo lee. `bien` si la última visita con esta versión vio el botón; `mal` si no. */
 function cmpSoporteBotonUnico_(ctx) {
-  const v = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), 'soporte.json');
+  const v = medidaPantalla_(ctx.raiz, 'soporte.json', 'soporte.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'abierta-con-esta-version': false } };
   return { estado: v.cargado ? 'bien' : 'mal', cifras: { 'abierta-con-esta-version': true, 'boton-cargado': !!v.cargado } };
 }
@@ -8760,7 +8775,7 @@ function webSoporteEnvio(bien, ctx) {
 
 /* Solo lee. `bien` si el último envío hecho con esta versión salió bien; `mal` si no. Sin envíos con esta versión, `sin datos`. */
 function cmpSoporteEnvio_(ctx) {
-  const v = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), 'soporte-envio.json');
+  const v = medidaPantalla_(ctx.raiz, 'soporte-envio.json', 'soporte-envio.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'envios-bien': 0, 'envios-mal': 0 } };
   return { estado: v.ultimoBien ? 'bien' : 'mal', cifras: { 'ultimo-envio-bien': !!v.ultimoBien, 'envios-bien': v.bien, 'envios-mal': v.mal } };
 }
@@ -8780,7 +8795,7 @@ function webListadosMedidas(medidas, ctx) {
 
 /* Solo lee. `bien` si la última vez que se midió con esta versión nada se solapaba ni se salía; `mal` si algo sí. */
 function cmpListadosSinSolapes_(ctx) {
-  const v = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), 'listados-pantalla.json');
+  const v = medidaPantalla_(ctx.raiz, 'listados-pantalla.json', 'listados-pantalla.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
   return { estado: v.solapes + v.desbordes ? 'mal' : 'bien', cifras: { filas: v.filas, cajitas: v.cajitas, solapes: v.solapes, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
 }

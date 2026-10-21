@@ -5,11 +5,23 @@
   'use strict';
   var C = window.CarpetaLectura;
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
-  var SOLO_HOY = 'Eso solo se puede hacer en la aplicación de hoy.';
+  var NO_AQUI = 'Eso no se puede hacer desde esta página.';
+  var CLAVE_VISTA = 'centro-de-datos-clave-funciona';
   var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
+  /* Aquí no hay «dueño»: quien tiene la carpeta ve también el aviso de la clave, los del diagnóstico y busca códigos. */
+  function ctxCarpeta() { return { correo: '', esDueno: true, lanzador: 2 }; }
+
+  /* «La clave funciona»: la marca `recuperada` la deja la vuelta de fondo; aquí solo se lee y se recuerda en este navegador que ya se enseñó. */
+  function claveFunciona(r0) {
+    var c = (leerComprob_(r0).subida || {}).clave || {};
+    if (!c.recuperada) return false;
+    var marca = String(c.mirada || 'sin-marca');
+    try { if (localStorage.getItem(CLAVE_VISTA) === marca) return false; localStorage.setItem(CLAVE_VISTA, marca); } catch (e) { /* sin recordarlo se enseña otra vez */ }
+    return true;
+  }
 
   /* webEstado de Web.gs, sin lo que escribe o recoge: el programa lee y ya está. */
   async function estado() {
@@ -18,7 +30,7 @@
       var r0 = raiz();
       cargarAprendido_(r0);
       var r = { version: window.VERSION_PAGINA, correo: 'Lee y guarda', esDueno: false, carpeta: { ok: true, nombre: 'CENTRO DE DATOS', url: ENLACE_CARPETA } };
-      try { r.hechos = resumenHechosPagina_(r0); delete r.hechos.claveAviso; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
+      try { r.hechos = resumenHechosPagina_(r0); r.avisoClave = r.hechos.claveAviso; delete r.hechos.claveAviso; if (!r.avisoClave) delete r.avisoClave; if (claveFunciona(r0)) r.claveFunciona = true; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
       /* Las líneas del ensayo (filas 46 y 47): solo esta página las lleva. */
       try {
         /* Fila 58: mientras el ensayo trabaja no se compara nada: cada cajita enseña su último resultado (si lo tenía) y, si su conjunto aún se está rehaciendo, la nota «poniéndose al día…». */
@@ -50,7 +62,7 @@
       return (i.hechos || []).filter(function (h) { return sumaAvisos_((a.avisos || {})[h.ruta]) > 0; }).map(function (h) { return h.ruta; });
     });
     await C.precargar(rutas);
-    return C.conCarga(function () { return webAvisos(ctx()); });
+    return C.conCarga(function () { return webAvisos(ctxCarpeta()); });
   }
 
   /* Las versiones anteriores de un listado: el nombre y la fecha (el enlace de Drive no se puede saber desde el navegador: se busca por el nombre). */
@@ -67,22 +79,37 @@
     }).sort(function (a, b) { return a.orden < b.orden ? 1 : -1; });
   }
 
+  /* Buscar un código de diagnóstico (fila 65): la sal solo se lee; si falta, aún no hay diagnóstico. Trae antes las partes donde puede salir. */
+  async function diagnosticoBuscar(codigo) {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () { return (leerIndice_(raiz()).hechos || []).map(function (h) { return h.ruta; }); });
+    await C.precargar(rutas);
+    return C.conCarga(function () {
+      var r0 = raiz();
+      return diagBuscar_(codigo, r0, function () {
+        var a = leerJson_(subcarpetaPorRuta_(r0, '_interno'), 'clave-diagnostico.json');
+        return a && /^[0-9a-f]{64}$/.test(String(a.sal || '')) ? a.sal : null;
+      });
+    });
+  }
+
   var PUERTA = window.PUERTA_PAGINA = {
     webEstado: function () { return estado(); },
     webAvisos: function () { return avisos(); },
     webAnteriores: function (c, v) { return anteriores(c, v); },
     webAlumnosDe: function (c) { return C.conCarga(function () { return webAlumnosDe(c, ctx()); }); },
     webConfiguracionLeer: function () { return C.conCarga(function () { return webConfiguracionLeer(ctx()); }); },
+    webDiagnosticoBuscar: function (c) { return C.enCola(function () { return diagnosticoBuscar(c); }); },
     webNombresAlumnado: function () { return Promise.resolve([]); },
-    webListadosMedidas: function () { return Promise.resolve(null); },
-    webSoporteVisto: function () { return Promise.resolve(null); },
-    webSoporteEnvio: function () { return Promise.resolve(null); }
+    webListadosMedidas: function (m) { return window.MedidasPagina.listadosMedidas(m); },
+    webSoporteVisto: function (b) { return window.MedidasPagina.soporteVisto(b); },
+    webSoporteEnvio: function (b) { return window.MedidasPagina.soporteEnvio(b); }
   };
 
   /* Lo mismo que JsComun.html: una promesa con el resultado, sin pasar por JSON. */
   window.servidor = function (nombre) {
     var args = Array.prototype.slice.call(arguments, 1);
-    if (!PUERTA[nombre]) return Promise.reject(new Error(SOLO_HOY));
+    if (!PUERTA[nombre]) return Promise.reject(new Error(NO_AQUI));
     var hacer = function () { return PUERTA[nombre].apply(null, args); };
     if (LECTURAS[nombre]) { var lee = hacer; hacer = function () { return C.enCola(function () { if (C.raiz()) C.reiniciar(); return lee(); }); }; }
     return Promise.resolve().then(hacer).then(function (r) { return r === undefined ? null : JSON.parse(JSON.stringify(r)); }, function (e) { throw new Error(textoLlano(e)); });
