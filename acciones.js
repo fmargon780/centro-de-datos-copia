@@ -143,5 +143,9 @@
   }
 
   Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto });
-  window.AccionesPagina = { repasarDiario: repasarDiario, quienEres: quienEres };
+  /* Fila 66: sin pantalla antigua, el disparador de la aplicación de Google solo arranca si hay un fichero en entrada/. Al abrir la carpeta se deja el testigo de la vuelta de fondo (Fondo.gs), que no se quita. */
+  function asegurarFondo() {
+    return conCarpeta(function () { return C.transaccion(function () { asegurarTestigoFondo_(carpetaDatos_()); }); });
+  }
+  window.AccionesPagina = { repasarDiario: repasarDiario, quienEres: quienEres, asegurarFondo: asegurarFondo };
 })();

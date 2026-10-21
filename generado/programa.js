@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v55';
+const VERSION_CD = 'CD v56';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6150,6 +6150,7 @@ const COMPROBACIONES_ = [
   { id: 'listados-sin-solapes', fila: 31, que: 'La tabla de Listados de la página: cuántas filas y cuántas cajitas tiene y si algún elemento se solapa con otro o se sale por la derecha', funcion: 'cmpListadosSinSolapes_' },
   { id: 'avisos-pantalla', fila: 32, que: 'La pestaña Avisos: cuántos avisos hay en los datos, cuántos esperan, cuántos están revisados, cuántas marcas huérfanas se han borrado y cuántos avisos no tienen frase llana', funcion: 'cmpAvisosPantalla_' },
   { id: 'clave-github', fila: 33, que: 'La clave de GitHub: si escribe, de qué tipo es y cuántos días faltan para que caduque (solo cifras y estados, nunca la clave)', funcion: 'cmpClaveGithub_' },
+  { id: 'antigua-sin-pantalla', fila: 66, que: 'La aplicación de Google sin pantalla sigue trabajando sola: cuántas cosas de fondo se hicieron en las últimas 24 horas, si el disparador de 10 minutos existe y cuántas horas pasaron entre dos vueltas', funcion: 'cmpAntiguaSinPantalla_' },
   { id: 'diagnostico-limpio', fila: 35, que: 'El diagnóstico sin nombres que sube la aplicación no lleva nada personal: ni nombres, ni identificadores, ni correos, ni teléfonos, ni DNI/NIE (solo cuentas por clase)', funcion: 'cmpDiagnosticoLimpio_' },
   { id: 'diagnostico-envio', fila: 35, que: 'Si el diagnóstico sin nombres se ha subido, cuántos ficheros, registros y bytes lleva y cuánto hace del último intento', funcion: 'cmpDiagnosticoEnvio_' },
   { id: 'subidas-temporales', fila: 36, que: 'Cuántas carpetas de subidas a medias llevan más de una hora abandonadas en _interno/subiendo', funcion: 'cmpSubidasTemporales_' },
@@ -6169,7 +6170,7 @@ const COMPROBACIONES_ = [
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -7945,6 +7946,15 @@ function revisarClave_(raiz, cadaMs) {
   escribirComprob_(raiz, comp);
 }
 
+/* ¿Toca mirar la clave? Lo usa el testigo de entrada/ para que el disparador siga arrancando aunque no llegue nada. */
+function claveTocaMirar_(raiz, cadaMs) {
+  if (!PropertiesService.getScriptProperties().getProperty('GH_CLAVE')) return false;
+  if (!leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'comprobaciones.json')) return false;
+  const s = leerComprob_(raiz).subida, c = s.clave || {};
+  const rota = s.estado === 'sin-permiso' || s.estado === 'caducada';
+  return !c.mirada || new Date().getTime() - c.mirada >= (rota ? CLAVE_ESPERA_ROTA_MS_ : cadaMs);
+}
+
 /* Una sola vez tras volver a funcionar: la página dice «La clave funciona» y se apaga la marca. */
 function claveRecuperada_(raiz) {
   const comp = leerComprob_(raiz);
@@ -8484,6 +8494,91 @@ function cmpLibrosUnaFicha_(ctx) {
   return { estado: malos ? 'mal' : 'bien', cifras: { cursos: d.length, registros: registros, 'repetidos-o-vacios': malos } };
 }
 
+/* ==== Fondo.gs ==== */
+/* La vuelta de fondo (fila 66): lo que antes se hacía al abrir la pantalla antigua y ahora se hace solo, cada vez que el disparador de 10 minutos arranca recogerEntrada_.
+   Lo que se hizo y cuándo queda en _interno/fondo.json, solo con marcas de tiempo: lo lee la comprobación `antigua-sin-pantalla`. */
+const FONDO_TOPE_MS_ = 20 * 1000;
+const FONDO_HUECO_MAX_MS_ = 24 * 3600 * 1000;
+const FONDO_VUELTA_CADA_MS_ = 3600 * 1000;
+const NOMBRE_FONDO_ = '_fondo.txt';
+const TEXTO_FONDO_ = 'Esto no es un listado: es el aviso que hace que el disparador de 10 minutos arranque aunque no llegue nada. Lo deja el Centro de datos y no se quita.';
+const FONDO_COSAS_ = ['vuelta', 'expedientes', 'cursos', 'consejo', 'clave', 'tanda'];
+
+function leerFondo_(raiz) {
+  const a = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'fondo.json');
+  return Object.assign({ cosas: {}, sigue: false, disparador: false, hueco: 0 }, a || {});
+}
+
+function escribirFondo_(raiz, fondo) { escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), 'fondo.json', fondo); }
+
+/* El testigo de la vuelta de fondo: un fichero que siempre está en entrada/. Sin él, el lanzador (que no se toca) vería la carpeta vacía y no arrancaría nada: ni comprobaciones, ni la clave, ni los repasos. */
+function asegurarTestigoFondo_(raiz) {
+  const entrada = subcarpetaPorRuta_(raiz, 'entrada');
+  if (!entrada.getFilesByName(NOMBRE_FONDO_).hasNext()) entrada.createFile(NOMBRE_FONDO_, TEXTO_FONDO_, 'text/plain');
+}
+
+/* ¿Existe el disparador de 10 minutos? Fuera de Apps Script (no hay ScriptApp) se fía de lo apuntado. */
+function hayDisparador_() {
+  return ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'recogerEntradaProgramada'; });
+}
+
+/* Lo que la pantalla antigua hacía al abrirse, con como mucho FONDO_TOPE_MS_ cada cosa. Nada de esto rompe la vuelta. Devuelve { hecho: [cosas], sigue }. */
+function vueltaDeFondo_(raiz) {
+  const hecho = [];
+  let sigue = false;
+  try { asegurarDisparador_(); } catch (e) { /* si no se puede crear, la comprobación lo dice */ }
+  try { revisarClave_(raiz, CLAVE_MIRAR_PAGINA_MS_); hecho.push('clave'); } catch (e) { /* mirar la clave nunca rompe la vuelta */ }
+  try { sigue = colocarExpedientes_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('expedientes'); } catch (e) { /* se reintenta en la próxima vuelta */ }
+  try { sigue = repasarCursos_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('cursos'); } catch (e) { /* idem */ }
+  try { sigue = repasarConsejo_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('consejo'); } catch (e) { /* idem */ }
+  return { hecho: hecho, sigue: !!sigue };
+}
+
+/* Al acabar la vuelta: apunta qué se hizo y cuándo, y cuánto pasó desde la vuelta anterior. `tanda` dice si también hubo una tanda de datos ya hechos. */
+function cerrarFondo_(raiz, vuelta, tanda) {
+  const fondo = leerFondo_(raiz), ahora = new Date().getTime();
+  const antes = fondo.cosas.vuelta || 0;
+  fondo.hueco = antes ? ahora - antes : 0;
+  vuelta.hecho.concat(['vuelta'], tanda ? ['tanda'] : []).forEach(function (c) { fondo.cosas[c] = ahora; });
+  fondo.sigue = vuelta.sigue;
+  try { fondo.disparador = hayDisparador_(); } catch (e) { fondo.disparador = false; }
+  fondo.version = VERSION_CD;
+  escribirFondo_(raiz, fondo);
+}
+
+/* ¿Hay comprobaciones por hacer que justifiquen una vuelta? Las «sin datos» (que se repiten cada 10 minutos en cuanto hay una vuelta) no: bastan las de cada 6 horas. */
+function comprobacionesPorHacerFondo_(raiz) {
+  const comp = leerComprob_(raiz), ahora = new Date().getTime();
+  const toca = COMPROBACIONES_.some(function (c) {
+    const r = comp.resultados[c.id];
+    return !r || r.estado === 'sin tiempo' || r.hechaCon !== VERSION_CD || ahora - new Date(r.cuando).getTime() > COMPROB_VIGENCIA_MS_;
+  });
+  return toca || diagToca_(comp, leerIndice_(raiz), false);
+}
+
+/* ¿Toca una vuelta de fondo entera? Sí si quedaba algo, si hay comprobaciones que repetir, si toca mirar la clave o si hace más de una hora que no se hace. Si no, la vuelta del disparador sale enseguida. */
+function fondoPendiente_(raiz) {
+  const f = leerFondo_(raiz);
+  return !!f.sigue || new Date().getTime() - (f.cosas.vuelta || 0) >= FONDO_VUELTA_CADA_MS_ || comprobacionesPorHacerFondo_(raiz) || claveTocaMirar_(raiz, CLAVE_MIRAR_PAGINA_MS_);
+}
+
+/* `antigua-sin-pantalla`: solo cifras. `mal` si el disparador no existe o si pasó más de un día entre dos vueltas. */
+function cmpAntiguaSinPantalla_(ctx) {
+  const f = leerFondo_(ctx.raiz), ahora = ctx.ahoraMs;
+  if (!f.cosas.vuelta) return { estado: 'sin datos', cifras: { 'vueltas-apuntadas': false } };
+  const reciente = function (ms) { return !!ms && ahora - ms <= FONDO_HUECO_MAX_MS_; };
+  const hechas = FONDO_COSAS_.filter(function (c) { return reciente(f.cosas[c]); }).length;
+  const comp = ctx.comp, s = comp.subida || {};
+  const comprobadas = COMPROBACIONES_.filter(function (c) { const r = comp.resultados[c.id]; return r && reciente(new Date(r.cuando).getTime()); }).length;
+  let disparador = f.disparador;
+  try { disparador = hayDisparador_(); } catch (e) { /* fuera de Apps Script: lo apuntado */ }
+  const hueco = Math.round(f.hueco / 3600000);
+  return {
+    estado: disparador && f.hueco <= FONDO_HUECO_MAX_MS_ ? 'bien' : 'mal',
+    cifras: { 'cosas-de-fondo-24h': hechas, 'cosas-de-fondo': FONDO_COSAS_.length, 'comprobaciones-24h': comprobadas, 'subida-24h': reciente(s.ultimaMs) ? 1 : 0, disparador: !!disparador, 'horas-entre-vueltas': hueco, sigue: !!f.sigue }
+  };
+}
+
 /* ==== Entrada.gs ==== */
 /* El buzón entrada/: lo que se deja ahí se recoge como si se hubiera soltado en la página. */
 const ENTRADA_TOPE_MS_ = 4 * 60 * 1000;   // a los 4 minutos se para y se sigue en la próxima vuelta
@@ -8498,7 +8593,7 @@ function hayEntrada_(raiz) {
 }
 
 /* Lo que no es un fichero para recoger: el testigo de las tandas y los temporales `.crswap` que escribe el navegador mientras guarda (el fichero entero aparece con su nombre al terminar). */
-function esTemporalDeEntrada_(nombre) { return nombre === NOMBRE_TESTIGO_ || /\.crswap$/i.test(nombre); }
+function esTemporalDeEntrada_(nombre) { return nombre === NOMBRE_TESTIGO_ || nombre === NOMBRE_FONDO_ || /\.crswap$/i.test(nombre); }
 
 function origenDeEntrada_(fichero, bytes) {
   if (/\.json$/i.test(fichero.getName())) {
@@ -8515,8 +8610,14 @@ function recogerEntrada_(ctx) {
   const raiz = carpetaDatos_();
   const entrada = subcarpetaPorRuta_(raiz, 'entrada');
   ponerAlDia_(raiz);
-  if (recolocarSiToca_(raiz, ENTRADA_TOPE_MS_)) return 0;   // primero se termina de recolocar
-  if (repasarAdmision_(raiz, ENTRADA_TOPE_MS_)) return 0;
+  const deFondo = !!(ctx && ctx.correo === 'entrada');   // la arranca el disparador: sin pantalla antigua, también hace la vuelta de fondo (Fondo.gs)
+  if (recolocarSiToca_(raiz, ENTRADA_TOPE_MS_) || repasarAdmision_(raiz, ENTRADA_TOPE_MS_)) {   // primero se termina de recolocar
+    if (deFondo) ajustarTestigo_(raiz, true);   // sin pantalla que lo siga, el disparador tiene que volver
+    return 0;
+  }
+  /* Sin ficheros, sin testigo de tandas y sin nada de fondo que hacer, no hay nada más que mirar (el disparador arranca cada 10 minutos). */
+  if (deFondo && !hayEntrada_(raiz) && !testigoDe_(raiz) && !fondoPendiente_(raiz)) return 0;
+  const vuelta = deFondo ? vueltaDeFondo_(raiz) : null;
   try { limpiarSubidas_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }
   try { repararFaltantes_(raiz, false); } catch (e) { /* se reintenta en la próxima vuelta */ }
   const ficheros = [];
@@ -8534,8 +8635,9 @@ function recogerEntrada_(ctx) {
     if (r.estado === 'guardado' || r.estado === 'ya' || r.estado === 'sin-clasificar') f.setTrashed(true);
     recogidos++;
   }
-  if (ctx && ctx.correo === 'entrada') {
+  if (deFondo) {
     const queda = ENTRADA_TOPE_MS_ - (new Date().getTime() - inicio);
+    try { cerrarFondo_(raiz, vuelta, queda > 0); } catch (e) { /* se apunta en la próxima vuelta */ }   // antes de la tanda: su testigo ya cuenta si queda fondo
     try {
       if (queda > 0) hechosTanda_(raiz, queda);
       else ajustarTestigo_(raiz, hechosHayTrabajo_(raiz));   // sin tiempo para una tanda: el testigo hace que el disparador siga

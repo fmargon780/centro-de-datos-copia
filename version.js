@@ -1,1 +1,1 @@
-window.VERSION_PAGINA = 'página nueva v17';
+window.VERSION_PAGINA = 'página nueva v18';
