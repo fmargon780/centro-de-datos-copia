@@ -1,1 +1,1 @@
-window.COMMIT_PAGINA = 'a95620a';
+window.COMMIT_PAGINA = '6d3d7b9';
