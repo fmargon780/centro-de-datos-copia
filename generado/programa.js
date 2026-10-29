@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v61';
+const VERSION_CD = 'CD v62';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -432,6 +432,8 @@ const NIVELES_ = [
   { valor: 'bac1c', texto: '1º Bachillerato de Ciencias y Tecnología' }, { valor: 'bac1h', texto: '1º Bachillerato de Humanidades y Ciencias Sociales' },
   { valor: 'bac2c', texto: '2º Bachillerato de Ciencias y Tecnología' }, { valor: 'bac2h', texto: '2º Bachillerato de Humanidades y Ciencias Sociales' }
 ];
+/* La matrícula del aula específica (fila 104): un fichero por edad, «FBO 6 años» a «FBO 21 años». Va aparte de NIVELES_ para que la admisión, la planificación y los libros sigan igual. */
+const AMBITOS_MATRICULA_ = NIVELES_.concat(Array.from({ length: 16 }, function (_, i) { return { valor: 'aula-especifica-fbo' + (i + 6), texto: 'Aula específica · FBO ' + (i + 6) + ' años' }; }));
 /* A quién se refiere cada fichero de admisión, de planificación y de matrícula provisional (fila 19). */
 const AMBITOS_GRADO_ = ['eso1', 'eso2', 'eso3', 'eso4', 'bac1h', 'bac1c', 'bac2h', 'bac2c'].map(function (v) { return NIVELES_.filter(function (n) { return n.valor === v; })[0]; })
   .concat([{ valor: 'aula-especifica', texto: 'Aula específica' }]);
@@ -450,7 +452,7 @@ const CATALOGO_ = [
     cuenta: { modo: 'distintos', columna: 'Nº Id. Escolar', uno: 'alumno', varios: 'alumnos' } },
   { clave: 'matricula', titulo: 'Matrícula', tipo: 'csv', usan: 'BD Alumnado', dias: 30, siempre: true, queEs: 'una matrícula',
     nombre: ['matomcmatr'], columnas: ['Alumno/a', 'Unidad'], ficha: { curso: 'nombre', ambito: 'nivel' },
-    ambitos: NIVELES_, preguntaAmbito: 'de qué nivel es',
+    ambitos: AMBITOS_MATRICULA_, preguntaAmbito: 'de qué nivel es',
     cuenta: { modo: 'filas', uno: 'alumno', varios: 'alumnos' } },
   { clave: 'personal', titulo: 'Personal del centro', tipo: 'csv', usan: 'Gestor de asuntos', dias: 90, siempre: true, queEs: 'personal del centro',
     columnas: ['Empleado/a', 'DNI/Pasaporte', 'Puesto'], ficha: { curso: 'nombre', ambito: 'personal' },
@@ -690,7 +692,7 @@ function fichaVacia_() { return { cursoEscolar: '', ambito: '', periodo: '', alu
    Devuelve { ficha, falta, cursoSupuesto, propuesta } con `falta` ⊂ ['cursoEscolar', 'ambito']. */
 function sacarFicha_(c, nombre, filas, opciones) {
   const reglas = c.ficha || {}, ficha = fichaVacia_(), falta = [], propuesta = {};
-  let supuesto = false;
+  let supuesto = false, aula = false;
   if (reglas.curso) {
     let curso = reglas.curso === 'nombre' ? cursoDelNombre_(nombre) : cursoPorFechas_(filas, reglas.curso.fechas);
     if (!curso && opciones.cursoElegido) { curso = opciones.cursoElegido; supuesto = true; }
@@ -698,6 +700,8 @@ function sacarFicha_(c, nombre, filas, opciones) {
   }
   if (reglas.ambito === 'nivel') {
     ficha.ambito = nivelDelNombre_(nombre);
+    /* Fila 104: si el nombre dice aula específica (FBO), el ámbito es su edad; sin edad, se pregunta. */
+    if (!ficha.ambito && c.clave === 'matricula' && diceAulaEspecifica_(nombre)) { ficha.ambito = ambitoFboDelNombre_(nombre); aula = true; }
     if (!ficha.ambito) falta.push('ambito');
   } else if (reglas.ambito === 'personal') {
     if (/no ?docente/.test(normalizarNombre_(nombre))) ficha.ambito = 'no-docentes';
@@ -723,13 +727,13 @@ function sacarFicha_(c, nombre, filas, opciones) {
     ficha.alumno = claveDeAlumno_(alumnoNombre);
     if (!ficha.alumno) falta.push('alumno');
   }
-  return { ficha: ficha, falta: falta, cursoSupuesto: supuesto, propuesta: propuesta, alumnoNombre: ficha.alumno ? alumnoNombre : '' };
+  return { ficha: ficha, falta: falta, cursoSupuesto: supuesto, propuesta: propuesta, alumnoNombre: ficha.alumno ? alumnoNombre : '', aulaEspecifica: aula };
 }
 
-/* «Es personal del centro, pero no sé de qué curso es ni si es docente o no docente.» */
-function motivoDeFalta_(c, falta) {
-  const partes = falta.map(function (f) { return f === 'cursoEscolar' ? 'de qué curso es' : f === 'periodo' ? 'de qué periodo es' : f === 'alumno' ? 'de qué alumno es' : c.preguntaAmbito; });
-  return 'Es ' + (c.queEs || c.titulo) + ', pero no sé ' + partes.join(' ni ') + '.';
+/* «Es personal del centro, pero no sé de qué curso es ni si es docente o no docente.» Con `aulaEspecifica`: «Es una matrícula del aula específica, pero no sé de qué edad es.» */
+function motivoDeFalta_(c, falta, aulaEspecifica) {
+  const partes = falta.map(function (f) { return f === 'cursoEscolar' ? 'de qué curso es' : f === 'periodo' ? 'de qué periodo es' : f === 'alumno' ? 'de qué alumno es' : aulaEspecifica ? 'de qué edad es' : c.preguntaAmbito; });
+  return 'Es ' + (c.queEs || c.titulo) + (aulaEspecifica ? ' del aula específica' : '') + ', pero no sé ' + partes.join(' ni ') + '.';
 }
 
 /* ==== FichaAdmision.gs ==== */
@@ -860,6 +864,86 @@ function repasarAdmision_(raiz, topeMs) {
   if (est.total) apuntarMovimiento_(raiz, { quien: 'recolocado', via: 'recolocado', fichero: '', que: 'guardado',
     mensaje: 'Repasados los ficheros de admisión, planificación y matrícula provisional: ' + frasePlural_(est.sitio, 'fichero', 'ficheros') + ' en su sitio y ' + est.sinClasificar + ' en «Sin clasificar».' });
   return null;
+}
+
+/* ==== AulaEspecifica.gs ==== */
+/* La matrícula del aula específica (fila 104). Séneca da un fichero por edad («MatOMCMatrFBO13años», «MatOMCMatrFB015 años», con un cero en vez de la O).
+   Cada edad es un ámbito de la matrícula: «aula-especifica-fbo13», de 6 a 21 años (AMBITOS_MATRICULA_). La edad sale del nombre; si no viene, se pregunta y se recuerda. */
+const EDAD_FBO_ = /(?:fb[o0]|aula[ _.-]*espec[a-z]*)[ _.-]*(\d{1,2})(?!\d)/;
+const DICE_AULA_ = /fb[o0](?![a-z])|aula[ _.-]*espec/;
+
+/* ¿Dice el nombre que es del aula específica (FBO o «aula específica»), con edad o sin ella? */
+function diceAulaEspecifica_(nombre) {
+  return DICE_AULA_.test(normalizarNombre_(nombre));
+}
+
+/* La edad que dice el nombre, de 6 a 21; 0 si no dice ninguna o dice otra cosa. */
+function edadFboDelNombre_(nombre) {
+  const m = EDAD_FBO_.exec(normalizarNombre_(nombre));
+  const edad = m ? +m[1] : 0;
+  return edad >= 6 && edad <= 21 ? edad : 0;
+}
+
+function esAmbitoFbo_(ambito) { return /^aula-especifica-fbo\d+$/.test(String(ambito || '')); }
+
+function edadDeAmbitoFbo_(ambito) { return +String(ambito).replace('aula-especifica-fbo', ''); }
+
+/* Las edades que se ofrecen cuando el nombre dice aula específica pero no la edad. */
+function opcionesEdadesFbo_() { return AMBITOS_MATRICULA_.filter(function (a) { return esAmbitoFbo_(a.valor); }); }
+
+/* El ámbito de una matrícula cuyo nombre dice aula específica: la edad del nombre; si no, lo contestado una vez para un fichero con ese nombre; si no, ''. */
+function ambitoFboDelNombre_(nombre) {
+  const edad = edadFboDelNombre_(nombre);
+  if (edad) return 'aula-especifica-fbo' + edad;
+  const recordado = (aprendido_().valores['matricula|ambito'] || {})[normalizarNombre_(nombre)] || '';
+  return esAmbitoFbo_(recordado) && opcionesEdadesFbo_().some(function (a) { return a.valor === recordado; }) ? recordado : '';
+}
+
+/* «Listados»: una sola línea de texto para todas las edades del aula específica de un curso. `entradas` son las del índice (todas FBO del mismo curso). */
+function filaDeAulaEspecifica_(c, entradas, ahora) {
+  const porEdad = entradas.slice().sort(function (a, b) { return edadDeAmbitoFbo_(a.ambito) - edadDeAmbitoFbo_(b.ambito); });
+  const reciente = entradas.slice().sort(function (a, b) { return new Date(b.subido).getTime() - new Date(a.subido).getTime(); })[0];
+  const viejo = (ahora.getTime() - new Date(reciente.subido).getTime()) / 86400000 > (reciente.caducaDias || c.dias);
+  const alumnos = entradas.reduce(function (n, e) { return n + (e.filas || 0); }, 0);
+  const edades = porEdad.map(function (e) { return 'FBO ' + edadDeAmbitoFbo_(e.ambito) + ' años'; });
+  return { clave: c.clave, variante: '', cursoEscolar: reciente.cursoEscolar || '', nombre: c.tituloFila || c.titulo, ambito: 'Aula específica · ' + edades.join(', '), ambitoCorto: 'Aula específica',
+    soloTexto: true, ficheros: entradas.length, periodo: '', estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
+    deCuando: fechaLegible_(reciente.subido) + ' · ' + haceTiempo_(reciente.subido, ahora), trae: numeroLegible_(alumnos) + (alumnos === 1 ? ' alumno' : ' alumnos'),
+    usan: c.usan, subidoPor: '', anteriores: 0, url: '' };
+}
+
+/* Repaso de una sola vez: la matrícula del aula específica que esperaba en «Sin clasificar» porque no había nivel para ella («Es una matrícula, pero no sé de qué nivel es»)
+   se vuelve a mirar, con el curso que ya tenía el pendiente. Se coloca la que ahora sabe su edad; las demás se dejan como estaban. Cada pendiente lleva su marca `aulaRepasada`.
+   Como mucho `topeMs` por llamada. Devuelve true si quedan por mirar. */
+function repasarAulaEspecifica_(raiz, topeMs) {
+  const lista = leerPendientes_(raiz).pendientes.filter(function (p) {
+    return p.clave === 'matricula' && (p.falta || []).indexOf('ambito') !== -1 && !p.aulaRepasada && diceAulaEspecifica_(p.fichero);
+  }).sort(function (a, b) { return new Date(a.llegado).getTime() - new Date(b.llegado).getTime(); });
+  if (!lista.length) return false;
+  const inicio = new Date().getTime();
+  let hechos = 0;
+  for (let i = 0; i < lista.length; i++) {
+    if (hechos && new Date().getTime() - inicio >= topeMs) return true;
+    const q = lista[i];
+    const fichero = ficheroDePendiente_(raiz, q);
+    const bytes = fichero.getBlob().getBytes();
+    const rec = reconocerFichero_(q.fichero, bytes, { cursoElegido: (q.ficha || {}).cursoEscolar || '' });
+    let colocado = false;
+    if (rec.clave === 'matricula' && !rec.falta.length) {
+      rec.variante = varianteDeFicha_(rec.ficha);
+      colocado = guardarListado_(q.fichero, bytes, rec, q.llegadoPor, q.via, { fichero: fichero, llegado: q.llegado }).estado !== 'sin-clasificar';
+    }
+    if (colocado) quitarPendiente_(raiz, q.id); else actualizarPendiente_(raiz, q.id, { aulaRepasada: true });
+    hechos++;
+  }
+  return false;
+}
+
+/* Comprobación `matricula-aula-especifica`: solo cuentas. */
+function cmpMatriculaAulaEspecifica_(ctx) {
+  const suyas = ctx.indice.listados.filter(function (e) { return e.clave === 'matricula' && esAmbitoFbo_(e.ambito) && e.cursoEscolar === cursoActual_(); });
+  const esperan = leerPendientes_(ctx.raiz).pendientes.filter(function (p) { return p.clave === 'matricula' && diceAulaEspecifica_(p.fichero); }).length;
+  return { estado: 'dato', cifras: { edades: suyas.length, alumnos: suyas.reduce(function (n, e) { return n + (e.filas || 0); }, 0), 'esperan-sin-edad': esperan } };
 }
 
 /* ==== Aprendido.gs ==== */
@@ -1253,7 +1337,7 @@ function reconocerFichero_(nombre, bytes, opciones) {
   if (c.clave === 'alumnado-bd' && relevoHecho_(carpetaDatos_())) { base.motivo = MOTIVO_YA_LO_GENERA_; return base; }
   const f = c.aprendido ? sacarFichaAprendida_(c, nombre, opciones) : sacarFicha_(c, nombre, filas, opciones);
   base.clave = c.clave; base.ficha = f.ficha; base.falta = f.falta; base.cursoSupuesto = f.cursoSupuesto; base.propuesta = f.propuesta; base.alumnoNombre = f.alumnoNombre || '';
-  if (f.falta.length) base.motivo = motivoDeFalta_(c, f.falta);
+  if (f.falta.length) base.motivo = motivoDeFalta_(c, f.falta, f.aulaEspecifica);
   return base;
 }
 
@@ -1596,7 +1680,16 @@ function estadoListados_(raiz) {
       filas.push({ clave: c.clave, variante: '', cursoEscolar: actual, nombre: c.tituloFila || c.titulo, ambito: '', periodo: '', estado: 'gris', etiqueta: 'Nunca subido',
         deCuando: '', trae: c.traeFila || '', usan: c.usan, subidoPor: '', anteriores: 0, url: '' });
     }
+    const aulaVista = {};
     suyos.forEach(function (e) {
+      if (c.clave === 'matricula' && esAmbitoFbo_(e.ambito)) {
+        /* Fila 104: todas las edades del aula específica de un curso son una sola línea de texto. */
+        const curso = e.cursoEscolar || '';
+        if (aulaVista[curso]) return;
+        aulaVista[curso] = true;
+        filas.push(filaDeAulaEspecifica_(c, suyos.filter(function (x) { return esAmbitoFbo_(x.ambito) && (x.cursoEscolar || '') === curso; }), ahora));
+        return;
+      }
       const viejo = (ahora.getTime() - new Date(e.subido).getTime()) / 86400000 > (e.caducaDias || c.dias);
       filas.push({ clave: e.clave, variante: e.variante || '', cursoEscolar: e.cursoEscolar || '', nombre: c.tituloFila || c.titulo, ambito: textoAmbito_(e.clave, e.ambito),
         periodo: textoPeriodo_(e.periodo), estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
@@ -1908,15 +2001,17 @@ function ficheroDePendiente_(raiz, p) {
 function pendienteParaPagina_(p) {
   const c = p.clave ? entradaCatalogo_(p.clave) : null;
   const desplegables = [];
+  const aula = !!c && c.clave === 'matricula' && diceAulaEspecifica_(p.fichero);   // fila 104: sin edad en el nombre, se pregunta la edad
   (p.falta || []).forEach(function (campo) {
     if (campo === 'cursoEscolar') {
       desplegables.push({ campo: 'cursoEscolar', pregunta: '¿De qué curso?', elegido: (p.ficha || {}).cursoEscolar || cursoDelNombre_(p.fichero), opciones: cursosParaElegir_().map(function (x) { return { valor: x, texto: x }; }) });
     } else if (campo === 'ambito' && c && c.ambitos) {
-      desplegables.push({ campo: 'ambito', pregunta: '¿A quién se refiere?', elegido: (p.propuesta || {}).ambito || '', opciones: c.ambitos });
+      desplegables.push({ campo: 'ambito', pregunta: aula ? '¿De qué edad?' : '¿A quién se refiere?', elegido: (p.propuesta || {}).ambito || '', opciones: aula ? opcionesEdadesFbo_() : c.clave === 'matricula' ? NIVELES_ : c.ambitos });
     }
   });
   return { id: p.id, fichero: p.fichero, url: p.idDrive ? 'https://drive.google.com/file/d/' + p.idDrive + '/view' : 'https://drive.google.com/drive/search?q=' + encodeURIComponent(p.fichero), llegado: fechaLegible_(p.llegado), llegadoPor: p.llegadoPor,
-    clave: p.clave, motivo: p.motivo, desplegables: desplegables, falta: p.falta || [], ficha: p.ficha || fichaVacia_(), propuesta: propuestaConCurso_(p), alumnoNombre: p.alumnoNombre || '' };
+    clave: p.clave, motivo: p.motivo, desplegables: desplegables, falta: p.falta || [], ficha: p.ficha || fichaVacia_(), propuesta: propuestaConCurso_(p), alumnoNombre: p.alumnoNombre || '',
+    ambitosPropios: aula ? opcionesEdadesFbo_() : null, preguntaAmbito: aula ? '¿De qué edad?' : '' };
 }
 
 /* Quita un pendiente de la lista o le cambia los datos (con el cerrojo puesto). */
@@ -2024,7 +2119,7 @@ function tiposParaPagina_(raiz) {
   const relevo = relevoHecho_(raiz);
   return todosLosTipos_().filter(function (c) { return !c.oculta && !(c.clave === 'alumnado' && hayAlumnado) && !(c.clave === 'alumnado-bd' && relevo); }).map(function (c) {
     return {
-      clave: c.clave, titulo: c.titulo, aprendido: !!c.aprendido, ambitos: c.ambitos || [], alumno: !!c.porAlumno,
+      clave: c.clave, titulo: c.titulo, aprendido: !!c.aprendido, ambitos: c.clave === 'matricula' ? NIVELES_ : c.ambitos || [], alumno: !!c.porAlumno,
       curso: c.aprendido ? c.usaCurso : !!(c.ficha || {}).curso,
       ambito: !(c.ambitos || []).length ? '' : c.aprendido ? 'abierta' : 'lista',
       periodo: c.aprendido ? (c.usaPeriodo ? 'evaluaciones' : '') : ((c.ficha || {}).periodo === 'anios' ? 'anios' : '')
@@ -2137,6 +2232,7 @@ function webCompletarFicha(id, datos, ctx) {
   const frase = p.clave && p.clave === d.c.clave ? '' : aprenderQueEs_(p, d.c.clave, d.alumnoNombre || '');
   if (d.c.clave === 'personal' && (p.falta || []).indexOf('ambito') !== -1) aprenderPuestos_(bytes, d.ficha.ambito);
   if ((d.c.clave === 'admision' || d.c.clave === 'planificacion' || d.c.clave === 'libros') && (p.falta || []).indexOf('ambito') !== -1) aprenderAmbitoDeNombre_(d.c.clave, p.fichero, d.ficha.ambito);
+  if (d.c.clave === 'matricula' && esAmbitoFbo_(d.ficha.ambito) && (p.falta || []).indexOf('ambito') !== -1) aprenderAmbitoDeNombre_('matricula', p.fichero, d.ficha.ambito);
   escribirAprendido_(raiz);
   const otros = recolocarPendientes_(raiz, id);
   const lock = LockService.getScriptLock();
@@ -3187,6 +3283,7 @@ function tareaDeFichaCompleta_(indice, avance, conj) {
 
 /* «eso1» → «1º»; «bac1c» → «1º BACH» (o lo que diga el grupo). */
 function cursoDeMatricula_(nivel, unidad) {
+  if (esAmbitoFbo_(nivel)) return 'Aula específica';   // fila 104: un solo curso para cualquier edad
   if (/^eso/.test(nivel)) return nivel.charAt(3) + 'º';
   const m = String(unidad || '').trim().match(/^([12])\s*º\s*BACH/i);
   return m ? m[1] + 'º BACH' : nivel.charAt(3) + 'º BACH';
@@ -3203,6 +3300,7 @@ function datosDeMatricula_(o) {
   const pend = [];
   celdas.forEach(function (c) {
     if (c.valor !== 'PEND') return;
+    if (esAmbitoFbo_(l.nivel)) return;   // el aula específica no lleva pendientes
     if (bac) { if (esPendienteDeTitulo_(c.columna)) pend.push(siglaBac_(pendienteDeBachillerato_(c.columna) || c.columna) + ' 1º'); return; }
     const m = c.columna.match(/^(.*?)\s*\(([1-4])º de E\.S\.O\.\)$/);
     if (m) pend.push(siglaEso_(m[1].trim()) + ' ' + m[2] + 'º');
@@ -6409,6 +6507,7 @@ const COMPROBACIONES_ = [
   { id: 'sin-clasificar', fila: 14, que: 'Cuántos ficheros esperan en «Sin clasificar» y qué les falta', funcion: 'cmpSinClasificar_' },
   { id: 'matricula-cruce', fila: 15, que: 'Cuántas filas trae la matrícula de cada nivel y cuántas se han emparejado con un alumno', funcion: 'cmpMatriculaCruce_' },
   { id: 'matricula-una-ficha', fila: 15, que: 'Ninguna fila de matrícula está en dos fichas y ninguna ficha tiene dos filas', funcion: 'cmpMatriculaUnaFicha_' },
+  { id: 'matricula-aula-especifica', fila: 104, que: 'Cuántas edades del aula específica hay guardadas en el curso de hoy, cuántos alumnos suman y cuántos ficheros suyos esperan en «Sin clasificar» sin saberse su edad (solo cifras)', funcion: 'cmpMatriculaAulaEspecifica_' },
   { id: 'expedientes-cruce', fila: 16, que: 'Cuántos expedientes hay de cada tipo y a cuántos alumnos se han asignado', funcion: 'cmpExpedientesCruce_' },
   { id: 'historia-sin-negativos', fila: 16, que: 'Ninguna cuenta de repeticiones es negativa y ninguna repetición estimada de Primaria pasa de una', funcion: 'cmpHistoriaSinNegativos_' },
   { id: 'censo-cruce', fila: 17, que: 'Cuántas fichas trae el censo NEAE, cuántas se han asignado y si trae cada nivel', funcion: 'cmpCensoCruce_' },
@@ -6467,7 +6566,7 @@ const COMPROBACIONES_ = [
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
-    cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
+    cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -8883,6 +8982,7 @@ function vueltaDeFondo_(raiz) {
   try { sigue = colocarExpedientes_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('expedientes'); } catch (e) { /* se reintenta en la próxima vuelta */ }
   try { sigue = repasarCursos_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('cursos'); } catch (e) { /* idem */ }
   try { sigue = repasarConsejo_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('consejo'); } catch (e) { /* idem */ }
+  try { sigue = repasarAulaEspecifica_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('aula'); } catch (e) { /* idem */ }
   return { hecho: hecho, sigue: !!sigue };
 }
 
@@ -10619,6 +10719,7 @@ function webEstado(ctx) {
   try { if (!r.recolocando) r.sigue = repasarAdmision_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar la admisión y la planificación ya guardadas.'; }
   try { if (!r.recolocando) r.sigue = repasarCursos_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar lo que esperaba en «Sin clasificar».'; }
   try { if (!r.recolocando) r.sigue = repasarConsejo_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar lo que esperaba en «Sin clasificar».'; }
+  try { if (!r.recolocando) r.sigue = repasarAulaEspecifica_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar lo que esperaba en «Sin clasificar».'; }
   try { if (!r.recolocando && hayEntrada_(raiz)) recogerEntrada_(); } catch (e) { r.avisoEntrada = 'No he podido recoger la carpeta de entrada.'; }
   try { r.hechos = resumenHechosPagina_(raiz); r.hechosQuedan = !r.recolocando && r.hechos.quedan; r.avisoClave = ctx.esDueno ? r.hechos.claveAviso : null; delete r.hechos.claveAviso; if (ctx.esDueno && claveRecuperada_(raiz)) r.claveFunciona = true; } catch (e) { r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
   try { r.sobrasTutorias = sobrasTutoriasPagina_(raiz); } catch (e) { r.sobrasTutorias = []; }

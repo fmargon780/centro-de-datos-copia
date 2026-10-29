@@ -118,7 +118,7 @@ function pintarTabla() {
   var reales = 0, viejos = 0, expedientes = 0, grupos = [], porClave = {};
   filas.forEach(function (f) {
     if (f.alumnos) expedientes += f.alumnos;
-    else if (f.estado !== 'gris') reales++;
+    else if (f.estado !== 'gris') reales += f.ficheros || 1;
     if (f.estado === 'ambar' && !esHistorico(f)) viejos++;
     if (!porClave[f.clave]) { porClave[f.clave] = []; grupos.push(porClave[f.clave]); }
     porClave[f.clave].push(f);
@@ -134,7 +134,7 @@ function pintarTabla() {
 function etiquetaDe(f) { return esHistorico(f) ? 'Histórico' : f.etiqueta; }
 
 function filaDeGrupo(g) {
-  var f = g[0], n = g.length;
+  var f = g[0], n = g.reduce(function (s, x) { return s + (x.ficheros || 1); }, 0);   // el aula específica es una línea, pero cuenta un listado por edad
   var ambar = g.some(function (x) { return x.estado === 'ambar' && !esHistorico(x); });
   var reales = g.filter(function (x) { return x.estado !== 'gris'; });
   var clase = esHistorico(f) && !ambar ? 'fila-historico' : 'fila-' + (ambar ? 'ambar' : (reales.length ? 'verde' : 'gris'));
@@ -143,7 +143,7 @@ function filaDeGrupo(g) {
   td.textContent = f.nombre + (n > 1 ? ' · ' + n + ' listados' : (f.ambito || f.periodo ? ' · ' + [f.ambito, f.periodo].filter(Boolean).join(' · ') : ''));
   var etiqueta = ambar ? 'Se ha quedado viejo' : (reales.length ? etiquetaDe(reales[0]) : f.etiqueta);
   if (etiqueta) td.appendChild(el('span', 'etiqueta', etiqueta));
-  var trae = n > 1 ? frasePlural(n, 'listado', 'listados') + ': ' + g.map(function (x) { return [x.ambito, x.periodo].filter(Boolean).join(' · '); }).filter(Boolean).join(', ') : f.trae;
+  var trae = n > 1 ? frasePlural(n, 'listado', 'listados') + ': ' + g.map(function (x) { return x.ambitoCorto || [x.ambito, x.periodo].filter(Boolean).join(' · '); }).filter(Boolean).join(', ') : f.trae;
   tr.appendChild(td);
   tr.appendChild(el('td', '', f.deCuando));
   tr.appendChild(el('td', '', trae));
@@ -168,13 +168,15 @@ function alternarGrupo(tr, lista) {
 function lineaDeListado(f) {
   var l = el('div', 'sublinea');
   var nom = el('span', 'nom');
-  var a = el('a', '', [f.ambito, f.periodo].filter(Boolean).join(' · ') || f.nombre); a.href = f.url; a.target = '_blank';
-  nom.appendChild(a);
+  var texto = [f.ambito, f.periodo].filter(Boolean).join(' · ') || f.nombre;
+  if (f.soloTexto) nom.appendChild(document.createTextNode(texto));   // el aula específica: solo texto, sin enlace
+  else { var a = el('a', '', texto); a.href = f.url; a.target = '_blank'; nom.appendChild(a); }
   var etiqueta = etiquetaDe(f);
   if (etiqueta) nom.appendChild(el('span', 'etiqueta', etiqueta));
   l.appendChild(nom);
   l.appendChild(el('span', '', f.deCuando));
   l.appendChild(el('span', '', f.trae));
+  if (f.soloTexto) return l;
   if (f.subidoPor) l.appendChild(el('span', '', 'Lo subió ' + f.subidoPor));
   if (f.anteriores) {
     var b = el('button', 'enlace', frasePlural(f.anteriores, 'anterior', 'anteriores'));
@@ -1859,12 +1861,13 @@ function lineaPendiente(p) {
     var ambito = deUno ? '' : nuevo ? 'abierta' : (t ? t.ambito : '');
     selAmbito.hidden = !ambito;
     if (ambito && !conservar) {
-      var lista = (nuevo ? [] : t.ambitos).map(function (x) { return [x.valor, x.texto]; });
+      var propias = !nuevo && selTipo.value === 'matricula' && p.ambitosPropios;   // aula específica sin edad: solo las edades
+      var lista = (nuevo ? [] : propias || t.ambitos).map(function (x) { return [x.valor, x.texto]; });
       var propuesta = (p.ficha || {}).ambito || (p.propuesta || {}).ambito || '';
       var sabido = lista.some(function (x) { return x[0] === propuesta; });
       if (ambito === 'abierta') lista = lista.concat([['', 'Todo el centro'], [OTRO_VALOR, 'Otro…']]);
       var pregunta = (p.falta || []).indexOf('ambito') !== -1 && !sabido && ambito === 'lista';
-      if (pregunta || (ambito === 'abierta' && !sabido && propuesta)) lista.unshift([SIN_ELEGIR, '¿A quién se refiere?']);
+      if (pregunta || (ambito === 'abierta' && !sabido && propuesta)) lista.unshift([SIN_ELEGIR, propias && p.preguntaAmbito ? p.preguntaAmbito : '¿A quién se refiere?']);
       llenar(selAmbito, lista, pregunta ? SIN_ELEGIR : (sabido || ambito === 'abierta' ? (sabido ? propuesta : '') : lista[0][0]));
     }
     cajaAmbito.hidden = selAmbito.hidden || selAmbito.value !== OTRO_VALOR;
