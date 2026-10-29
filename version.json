@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v20",
-  "commit": "02e84b6",
+  "version": "página nueva v22",
+  "commit": "5dd41b3",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "d922439ef02a27a6ee244a218d133c9400692e6ab112b09b221560de6c424797",
@@ -8,17 +8,17 @@
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "7a6157b9a0a37fed8e11d6872e47aa150baadcd5fc258a8f27cd1075c684c75d",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "a06ed8b38c223757af9efb38d5ba9a405d06df28caeb445bb9d47b4d3de18112",
+    "commit.js": "dce3d3bea0869069272acc711f49f759f26eb0ce64fb9d4cfd65fec4b0500773",
     "ensayo.js": "c298ef74b8a0a78a7d0f5b0a22a947a8137d82dbd7ef340cb4fd6c6700dea507",
     "escritura.js": "923922b5f0125fbebd69b369cb74ffb99bfc53ca7112c4b733f2de3a3bd2cc56",
-    "generado/estilos.css": "a8e2c893a80c62cbcb1c4eea45d736ae530a8906f44f1c6347719bf76444f1f0",
-    "generado/pantalla.js": "38b6bf6e6c1ea48f9361fa1574b011c42c7e33f605b7e72ade25af3d2a16c9f0",
-    "generado/programa.js": "b020896216b0f9d4f7676fec81605f54db2ef9a40340c76cc17d0e2381df1b9e",
-    "index.html": "1c8ff87d015f6ba9683ad152a58626c9d92a14839b8d7f9244076708863cd2ff",
-    "medidas.js": "e5e12161a8d483f551d7bd103c1638309f3e4b6670de55944a9e73401954be55",
+    "generado/estilos.css": "8a1e8d75a10354d4b970d4c38d8ac7527734cf8f6ffc1a5c2a7b8f69e3eb97ed",
+    "generado/pantalla.js": "1540006fe4ecb2f51fac4f4276173bf80d061896f1fb5ddd0a64f30709cdab40",
+    "generado/programa.js": "2a526d84cacb1ded44035fdf6f90891b1ae18fc5db99a7f71ad7815d4f3f2dc1",
+    "index.html": "7e2170d137945d592d2b90073200c005de8387f15fab07d18acb9ae96f40ef4f",
+    "medidas.js": "aa37eb932f3b64459e27ed9aee82dc57a282643ce58c0b4ccd4b38dff7bc0491",
     "publicar.js": "c7d0fc31c9ddebc0ced17275307f694c09903d9ed3436f5bc9552f2b0ef77008",
-    "servidor.js": "6c8d85e3da5dcfc3f92c329ad613abd2ec09382c6a467fa5c4069351cbf12233",
+    "servidor.js": "76a2951c8b8731d267794226ff7a55d1b180ae83f7243d214f3286fde54ddf9f",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "75eb47344bf164b808f4475ec57f43e02cea2a3e9304e972bb3bb6a961d7af66"
+    "version.js": "95847227535ca3d47f458131641380f13825fe4bf4102b12c3b94461eaf55508"
   }
 }

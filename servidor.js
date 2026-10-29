@@ -7,7 +7,7 @@
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
   var NO_AQUI = 'Eso no se puede hacer desde esta página.';
   var CLAVE_VISTA = 'centro-de-datos-clave-funciona';
-  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1, webConsultarLeer: 1 };
+  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1, webConsultarLeer: 1, webConsultarTodos: 1, webConsultarEnlaces: 1, webConsultarEnlacesTodas: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
@@ -111,7 +111,37 @@
     return C.conCarga(function () { return consultaCarga_(raiz(), id, curso, periodo); });
   }
 
+  /* Consultar, recuento (fila 100): todas las partes de un conjunto, para el eje del curso escolar. */
+  async function consultarTodas(id) {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () {
+      var def = consultaDefinicion_(id);
+      return !def || def.modo === 'unica' ? [] : (leerIndice_(raiz()).hechos || []).filter(function (h) { return h.conjunto === def.conjunto && (def.modo === 'curso' ? h.parte === def.parte : h.parte === 'periodo'); }).map(function (h) { return h.ruta; });
+    });
+    await C.precargar(rutas);
+    return C.conCarga(function () { return consultaCargaTodas_(raiz(), id); });
+  }
+
+  /* Consultar, cruzar conjuntos (fila 101): trae antes las partes de los otros conjuntos que enlazan con la consulta que se está viendo (`dia`: el día elegido, si lo hay). */
+  async function consultarEnlaces(id, curso, periodo, dia) {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () { return consultaEnlacesPartes_(leerIndice_(raiz()), id, curso, periodo, dia); });
+    await C.precargar(rutas);
+    return C.conCarga(function () { return consultaEnlaces_(raiz(), id, curso, periodo, dia); });
+  }
+
+  /* Lo mismo para todas las partes de un conjunto (eje «Curso escolar» o «Periodo»). */
+  async function consultarEnlacesTodas(id) {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () { return consultaEnlacesTodasPartes_(leerIndice_(raiz()), id); });
+    await C.precargar(rutas);
+    return C.conCarga(function () { return consultaEnlacesTodas_(raiz(), id); });
+  }
+
   var PUERTA = window.PUERTA_PAGINA = {
+    webConsultarEnlaces: function (id, curso, periodo, dia) { return consultarEnlaces(id, curso, periodo, dia); },
+    webConsultarEnlacesTodas: function (id) { return consultarEnlacesTodas(id); },
+    webConsultarTodos: function (id) { return consultarTodas(id); },
     webConsultarLeer: function (id, curso, periodo) { return consultar(id, curso, periodo); },
     webConsultarMedidas: function (m) { return window.MedidasPagina.consultarMedidas(m); },
     webContactosLeer: function () { return contactos(); },

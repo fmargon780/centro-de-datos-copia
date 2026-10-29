@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v58';
+const VERSION_CD = 'CD v60';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6441,7 +6441,7 @@ const COMPROBACIONES_ = [
   { id: 'soporte-boton-unico', fila: 20, que: 'El botón único de soporte carga en la página', funcion: 'cmpSoporteBotonUnico_' },
   { id: 'soporte-envio', fila: 30, que: 'El último envío de un aviso desde el botón de soporte de esta página salió bien o mal, con cuántos van de cada', funcion: 'cmpSoporteEnvio_' },
   { id: 'listados-sin-solapes', fila: 31, que: 'La tabla de Listados de la página: cuántas filas y cuántas cajitas tiene y si algún elemento se solapa con otro o se sale por la derecha', funcion: 'cmpListadosSinSolapes_' },
-  { id: 'consultar-pantalla', fila: 99, que: 'La pestaña Consultar de la página: si cargó con su primera consulta, cuántas columnas y líneas sacó y si la página se sale por la derecha', funcion: 'cmpConsultarPantalla_' },
+  { id: 'consultar-pantalla', fila: 99, que: 'La pestaña Consultar de la página: si abrió en el recuento con su primera consulta, cuántas columnas y líneas sacó, si dibujó el gráfico, cuántas pastillas de otros datos enlazados ofrece y si la página se sale por la derecha', funcion: 'cmpConsultarPantalla_' },
   { id: 'avisos-pantalla', fila: 32, que: 'La pestaña Avisos: cuántos avisos hay en los datos, cuántos esperan, cuántos están revisados, cuántas marcas huérfanas se han borrado y cuántos avisos no tienen frase llana', funcion: 'cmpAvisosPantalla_' },
   { id: 'clave-github', fila: 33, que: 'La clave de GitHub: si escribe, de qué tipo es y cuántos días faltan para que caduque (solo cifras y estados, nunca la clave)', funcion: 'cmpClaveGithub_' },
   { id: 'antigua-sin-pantalla', fila: 66, que: 'La aplicación de Google sin pantalla sigue trabajando sola: cuántas cosas de fondo se hicieron en las últimas 24 horas, si el disparador de 10 minutos existe y cuántas horas pasaron entre dos vueltas', funcion: 'cmpAntiguaSinPantalla_' },
@@ -9260,10 +9260,10 @@ function cmpListadosSinSolapes_(ctx) {
 function webConsultarMedidas(medidas, ctx) {
   const m = medidas || {};
   const n = function (x) { return Math.max(0, Math.min(100000, Math.floor(Number(x) || 0))); };
-  const v = { version: VERSION_CD, cargada: m.cargada === true, columnas: n(m.columnas), lineas: n(m.lineas), desbordes: n(m.desbordes), ancho: n(m.ancho), cuando: ahoraMadrid_() };
+  const v = { version: VERSION_CD, cargada: m.cargada === true, recuento: m.recuento === true, grafico: m.grafico === true, enlaces: n(m.enlaces), columnas: n(m.columnas), lineas: n(m.lineas), desbordes: n(m.desbordes), ancho: n(m.ancho), cuando: ahoraMadrid_() };
   const interno = subcarpetaPorRuta_(carpetaDatos_(), '_interno');
   const antes = leerJson_(interno, 'consultar-pantalla.json');
-  if (antes && ['version', 'cargada', 'columnas', 'lineas', 'desbordes', 'ancho'].every(function (k) { return antes[k] === v[k]; })) return { ok: true };
+  if (antes && ['version', 'cargada', 'recuento', 'grafico', 'enlaces', 'columnas', 'lineas', 'desbordes', 'ancho'].every(function (k) { return antes[k] === v[k]; })) return { ok: true };
   escribirJson_(interno, 'consultar-pantalla.json', v);
   return { ok: true };
 }
@@ -9272,7 +9272,7 @@ function webConsultarMedidas(medidas, ctx) {
 function cmpConsultarPantalla_(ctx) {
   const v = medidaPantalla_(ctx.raiz, 'consultar-pantalla.json', 'consultar-pantalla.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
-  return { estado: !v.cargada || v.desbordes ? 'mal' : 'bien', cifras: { cargada: v.cargada, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
+  return { estado: !v.cargada || !v.recuento || v.desbordes ? 'mal' : 'bien', cifras: { cargada: v.cargada, recuento: v.recuento === true, grafico: v.grafico === true, enlaces: v.enlaces || 0, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
 }
 
 /* ==== Consultar.gs ==== */
@@ -9282,17 +9282,18 @@ function cmpConsultarPantalla_(ctx) {
 
 /* `modo`: `curso` (una parte por curso), `periodo` (el Consejo: una por periodo y el historial) o `unica` (una sola parte). `grupo`: la clave que agrupa («Una hoja por grupo»).
    `vigencia`: cómo se saca «quién estaba ese día»: `registro` (fechas en el propio registro), `tabla` (en las líneas de una tabla), `consejo` o `cargo`.
-   `nombresTabla`/`titulos`: nombres cortos de una tabla y de columnas concretas en la cabecera. `ver`: columnas con las que abre; `unidad`: cómo se cuenta («18 grupos»). */
+   `nombresTabla`/`titulos`: nombres cortos de una tabla y de columnas concretas en la cabecera. `ver`: columnas con las que abre; `unidad`: cómo se cuenta («18 grupos»).
+   Fila 100: `eje` son los ejes con los que abre el recuento (filas y columnas; si alguno no existe, se cambia por el primero que haya) y `ejeNombres` el nombre de un eje distinto del de la columna. */
 const CONSULTA_CONJUNTOS_ = [
-  { id: 'alumnado', nombre: 'Alumnado', conjunto: 'alumnado', parte: 'actuales', modo: 'curso', soloPropio: true, grupo: 'unidad', unidad: ['alumno', 'alumnos'], ver: ['apellido1', 'apellido2', 'nombre', 'unidad'] },
-  { id: 'personal', nombre: 'Personal', conjunto: 'personal', parte: 'curso', modo: 'curso', unidad: ['persona', 'personas'], vigencia: { tipo: 'registro', desde: 'fechaTomaPosesion', hasta: 'fechaCese' }, ver: ['empleado', 'tipoPersonal', 'puesto'] },
+  { id: 'alumnado', nombre: 'Alumnado', conjunto: 'alumnado', parte: 'actuales', modo: 'curso', soloPropio: true, grupo: 'unidad', unidad: ['alumno', 'alumnos'], ver: ['apellido1', 'apellido2', 'nombre', 'unidad'], eje: { filas: ['curso'], cols: ['sexo'] }, ejeNombres: { curso: 'Nivel' } },
+  { id: 'personal', nombre: 'Personal', conjunto: 'personal', parte: 'curso', modo: 'curso', unidad: ['persona', 'personas'], vigencia: { tipo: 'registro', desde: 'fechaTomaPosesion', hasta: 'fechaCese' }, ver: ['empleado', 'tipoPersonal', 'puesto'], eje: { filas: ['tipoPersonal'], cols: [] } },
   { id: 'tutorias', nombre: 'Tutorías', conjunto: 'tutorias', parte: 'curso', modo: 'curso', grupo: 'unidad', unidad: ['grupo', 'grupos'], vigencia: { tipo: 'tabla', tabla: 'tutores', desde: 'desde', hasta: 'hasta' },
-    nombresTabla: { tutores: 'Tutores' }, titulos: { 'tutores.empleado': 'Tutor/a' }, ver: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'] },
-  { id: 'consejo-escolar', nombre: 'Consejo Escolar', conjunto: 'consejo-escolar', modo: 'periodo', unidad: ['miembro', 'miembros'], vigencia: { tipo: 'consejo' }, ver: ['miembro', 'sector', 'cargo', 'nombramiento', 'cese'] },
-  { id: 'libros', nombre: 'Libros de texto', conjunto: 'libros', parte: 'curso', modo: 'curso', unidad: ['asignatura', 'asignaturas'], ver: ['nivelTexto', 'materia', 'titulo', 'editorial'] },
+    nombresTabla: { tutores: 'Tutores' }, titulos: { 'tutores.empleado': 'Tutor/a' }, ver: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'], eje: { filas: ['unidad'], cols: ['tutores.empleado'] } },
+  { id: 'consejo-escolar', nombre: 'Consejo Escolar', conjunto: 'consejo-escolar', modo: 'periodo', unidad: ['miembro', 'miembros'], vigencia: { tipo: 'consejo' }, ver: ['miembro', 'sector', 'cargo', 'nombramiento', 'cese'], eje: { filas: ['sector'], cols: [] } },
+  { id: 'libros', nombre: 'Libros de texto', conjunto: 'libros', parte: 'curso', modo: 'curso', unidad: ['asignatura', 'asignaturas'], ver: ['nivelTexto', 'materia', 'titulo', 'editorial'], eje: { filas: ['nivelTexto'], cols: [] } },
   { id: 'empresas', nombre: 'Empresas', conjunto: 'empresas', parte: 'todas', modo: 'unica', unidad: ['empresa', 'empresas'], ver: ['razonSocial', 'nombreComercial', 'contacto'] },
-  { id: 'administraciones', nombre: 'Administraciones', conjunto: 'administraciones', parte: 'todas', modo: 'unica', unidad: ['administración', 'administraciones'], ver: ['nombreCorto', 'clase', 'dependeDe'] },
-  { id: 'cargos', nombre: 'Cargos', conjunto: 'cargos', parte: 'todos', modo: 'unica', unidad: ['registro', 'registros'], vigencia: { tipo: 'cargo' }, ver: ['cargoNombre', 'persona', 'desde', 'hasta'] },
+  { id: 'administraciones', nombre: 'Administraciones', conjunto: 'administraciones', parte: 'todas', modo: 'unica', unidad: ['administración', 'administraciones'], ver: ['nombreCorto', 'clase', 'dependeDe'], eje: { filas: ['clase'], cols: [] } },
+  { id: 'cargos', nombre: 'Cargos', conjunto: 'cargos', parte: 'todos', modo: 'unica', unidad: ['registro', 'registros'], vigencia: { tipo: 'cargo' }, ver: ['cargoNombre', 'persona', 'desde', 'hasta'], eje: { filas: ['cargoNombre'], cols: [] } },
   { id: 'contactos', nombre: 'Contactos del profesorado', conjunto: 'contactos', parte: 'todos', modo: 'unica', unidad: ['persona', 'personas'], ver: ['empleado', 'correoCentro'] }
 ];
 
@@ -9300,7 +9301,7 @@ const CONSULTA_CONJUNTOS_ = [
    salvo el nombre, censo NEAE y medidas, casillas en bruto, identificadores y cualquier clave nueva) es delicado: se ve en pantalla y no sale. */
 const CONSULTA_SALEN_ = {
   alumnado: ['apellido1', 'apellido2', 'nombre', 'alumno', 'sexo', 'fechaNacimiento', 'localidadNacimiento', 'nacionalidad', 'curso', 'unidad', 'ensenanza', 'estadoMatricula', 'edad', 'centroProcedencia',
-    'modalidad', 'matriculaNivel', 'cursoAnterior', 'repiteCurso', 'tutores.orden', 'tutores.apellido1', 'tutores.apellido2', 'tutores.nombre'],
+    'modalidad', 'matriculaNivel', 'cursoAnterior', 'repiteCurso', 'matriculado', 'tutores.orden', 'tutores.apellido1', 'tutores.apellido2', 'tutores.nombre'],
   personal: ['empleado', 'apellidos', 'nombre', 'tipoPersonal', 'puesto', 'especialidad', 'situacion', 'fechaTomaPosesion', 'fechaCese', 'listados', 'puestos.listado', 'puestos.puesto', 'puestos.fechaTomaPosesion', 'puestos.fechaCese'],
   tutorias: ['unidad', 'tutorHoy', 'tutores.empleado', 'tutores.apellidos', 'tutores.nombre', 'tutores.periodo', 'tutores.desde', 'tutores.hasta', 'tutores.sustituto', 'tutores.hoy', 'tutores.enPersonal'],
   'consejo-escolar': ['miembro', 'apellidos', 'nombre', 'sector', 'cargo', 'nombramiento', 'cese', 'nato', 'periodos', 'miembroHoy'],
@@ -9391,7 +9392,37 @@ function consultaCarga_(raiz, id, curso, periodo) {
   const res = { hoy: hoyMadrid_(), cursoHoy: cursoActual_(), opciones: e.opciones, id: e.op ? e.op.id : '', curso: e.curso, periodo: e.periodo, campos: [], registros: [], aviso: e.aviso, hay: false };
   if (!e.parte) return res;
   const obj = abrirParteVecina_(e.parte, {});
-  res.hay = true; res.campos = obj.campos || []; res.registros = obj.registros || [];
+  res.hay = true; res.campos = (obj.campos || []).concat(consultaCamposEnlaces_(e.op.id)); res.registros = obj.registros || [];
+  return res;
+}
+
+/* Las partes de un conjunto con curso o periodo, de la más antigua a la más reciente. */
+function consultaPartesDeTodas_(indice, def) {
+  if (!def || def.modo === 'unica') return [];
+  return (indice.hechos || []).filter(function (h) { return h.conjunto === def.conjunto && (def.modo === 'curso' ? h.parte === def.parte : h.parte === 'periodo'); })
+    .sort(function (a, b) { const x = String(a.cursoEscolar || a.periodo || ''), y = String(b.cursoEscolar || b.periodo || ''); return x < y ? -1 : x > y ? 1 : 0; });
+}
+
+/* Fila 100: todas las partes de un conjunto (una por curso o por periodo, de la más antigua a la más reciente), para el eje «Curso escolar» o «Periodo». Las claves de todas se unen en una sola lista
+   para que cada parte tenga las mismas columnas. Los conjuntos de una sola parte no la tienen. */
+function consultaCargaTodas_(raiz, id) {
+  const indice = leerIndice_(raiz), def = consultaDefinicion_(id);
+  const res = { hoy: hoyMadrid_(), cursoHoy: cursoActual_(), id: def ? def.id : '', curso: '', periodo: '', campos: [], cargas: [], aviso: [], hay: false };
+  if (!def || def.modo === 'unica') return res;
+  const partes = consultaPartesDeTodas_(indice, def), porClave = {};
+  const leidas = partes.map(function (h) {
+    const obj = abrirParteVecina_(h, {});
+    (obj.campos || []).forEach(function (c) {
+      if (!porClave[c.clave]) { porClave[c.clave] = JSON.parse(JSON.stringify(c)); res.campos.push(porClave[c.clave]); return; }
+      if (c.tipo !== 'tabla') return;
+      (c.columnas || []).forEach(function (s) { if (!porClave[c.clave].columnas.some(function (x) { return x.clave === s.clave; })) porClave[c.clave].columnas.push(JSON.parse(JSON.stringify(s))); });
+    });
+    if (h.alDia === false && res.aviso.length === 0) res.aviso.push('Estos datos se están poniendo al día: puede que falte algo.');
+    return { id: def.id, curso: h.cursoEscolar || '', periodo: def.modo === 'periodo' ? h.periodo || '' : '', registros: obj.registros || [] };
+  });
+  consultaCamposEnlaces_(def.id).forEach(function (c) { res.campos.push(c); });
+  leidas.forEach(function (c) { c.campos = res.campos; res.cargas.push(c); });
+  res.hay = res.cargas.length > 0;
   return res;
 }
 
@@ -9408,6 +9439,11 @@ function consultaColumnas_(campos, def) {
       const tabla = (def.nombresTabla || {})[c.clave] || c.etiqueta;
       (c.columnas || []).forEach(function (s) {
         const ruta = c.clave + '.' + s.clave;
+        if (s.enlace) {   // fila 101: un dato de otro conjunto; es delicado si lo es en el suyo
+          cols.push({ ruta: ruta, clave: c.clave, sub: s.clave, tabla: c.clave, tipo: s.tipo || 'texto', nombre: s.etiqueta, titulo: s.etiqueta, frase: s.etiqueta + ' · ' + s.motivo, delicada: !consultaSale_(s.de, s.ruta),
+            enlace: s.enlace, conjunto: s.conjunto, motivo: s.motivo });
+          return;
+        }
         cols.push({ ruta: ruta, clave: c.clave, sub: s.clave, tabla: c.clave, tipo: s.tipo || 'texto', nombre: tabla + ' · ' + s.etiqueta, titulo: (def.titulos || {})[ruta] || s.etiqueta,
           frase: (s.etiqueta || '') + ', en ' + (c.etiqueta || '').toLowerCase(), delicada: !consultaSale_(def.conjunto, ruta) });
       });
@@ -9416,6 +9452,7 @@ function consultaColumnas_(campos, def) {
         frase: c.etiqueta || c.clave, delicada: !consultaSale_(def.conjunto, c.clave) });
     }
   });
+  if (def.conjunto === 'alumnado') cols.push({ ruta: 'matriculado', clave: 'matriculado', sub: '', tabla: '', tipo: 'si-no', nombre: 'Matriculado', titulo: 'Matriculado', frase: 'Si el alumno sigue matriculado (los anulados y trasladados salen en «No»)', delicada: !consultaSale_(def.conjunto, 'matriculado') });
   cols.push({ ruta: 'id', clave: 'id', sub: '', tabla: '', tipo: 'texto', nombre: 'Identificador', titulo: 'Identificador', frase: 'Identificador del registro (documento, número escolar…)', delicada: true });
   return cols;
 }
@@ -9472,35 +9509,59 @@ function consultaCumple_(f, texto) {
 /* El valor de una columna en una línea: de la fila de la tabla desplegada, del registro o, si es de otra tabla, de todas sus filas juntas. */
 function consultaValor_(col, r, fila, tabla) {
   if (col.ruta === 'id') return r.id;
+  if (col.ruta === 'matriculado') return r.matriculado !== false;
   if (!col.tabla) return r.datos[col.ruta];
   if (col.tabla === tabla) return fila ? fila[col.sub] : undefined;
   return (Array.isArray(r.datos[col.tabla]) ? r.datos[col.tabla] : []).map(function (x) { return consultaTexto_(col.tipo, x[col.sub]); });
 }
 
 /* Lo que se elige (`estado`: { columnas: [ruta…], filtros: [{ ruta, op, texto }], dia }) sobre una carga de `consultaCarga_`. Devuelve las columnas, las líneas y cuántos registros hay. Cada línea:
-   `textos` (como se ven), `crudos` (como están, para Excel), `grupo` y `n` (el registro del que sale). Solo una tabla se despliega: la de la primera columna de tabla marcada. */
-function consultaTabla_(carga, estado) {
+   `textos` (como se ven), `crudos` (como están, para Excel), `grupo`, `n` (el registro del que sale), `reg` (su clave: curso, un `|` y el identificador) y `clave` (la de la línea, con el lugar de la fila en su tabla).
+   Solo una tabla se despliega: la de la primera columna de tabla marcada, o la que diga `estado.tabla` (entonces no se quita ninguna columna). Fila 100: en el alumnado salen solo los matriculados salvo `estado.conAnulados`
+   o un filtro por «Matriculado»; `estado.casilla` ({ tabla, claves, regs }) deja solo las líneas de una casilla del recuento. */
+function consultaTablaUna_(carga, estado) {
   const def = consultaDefinicion_(carga.id);
   const posibles = consultaColumnas_(carga.campos, def), porRuta = {};
   posibles.forEach(function (c) { porRuta[c.ruta] = c; });
   let columnas = (estado.columnas || []).map(function (r) { return porRuta[r]; }).filter(function (c) { return !!c; });
-  const tabla = (columnas.filter(function (c) { return c.tabla; })[0] || {}).tabla || '';
-  columnas = columnas.filter(function (c) { return !c.tabla || c.tabla === tabla; });
+  const fija = estado.tabla !== undefined;
+  const tabla = fija ? estado.tabla : (columnas.filter(function (c) { return c.tabla; })[0] || {}).tabla || '';
+  if (!fija) columnas = columnas.filter(function (c) { return !c.tabla || c.tabla === tabla; });
   const filtros = (estado.filtros || []).filter(function (f) { return porRuta[f.ruta] && CONSULTA_OPERADORES_.indexOf(f.op) !== -1 && (f.op === 'vacio' || String(f.texto || '').trim() !== ''); });
-  const registros = consultaVigentes_(carga.registros, def, estado.dia, carga.periodo);
+  const conAnulados = !!estado.conAnulados || filtros.some(function (f) { return f.ruta === 'matriculado'; });
+  const registros = consultaVigentes_(carga.registros, def, estado.dia, carga.periodo).filter(function (r) { return def.conjunto !== 'alumnado' || conAnulados || r.matriculado !== false; });
+  const etiqueta = carga.curso || carga.periodo || '', casilla = estado.casilla || null, porLinea = !!casilla && casilla.tabla === tabla;
   const lineas = [], vistos = {};
   registros.forEach(function (r, n) {
     const filas = tabla ? (Array.isArray(r.datos[tabla]) && r.datos[tabla].length ? r.datos[tabla] : [null]) : [null];
-    filas.forEach(function (fila) {
+    const reg = etiqueta + '|' + r.id;
+    filas.forEach(function (fila, fi) {
+      const clave = reg + '|' + fi;
+      if (casilla && !(porLinea ? casilla.claves[clave] : casilla.regs[reg])) return;
       const pasa = filtros.every(function (f) { const c = porRuta[f.ruta]; return consultaCumple_(f, consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla))); });
       if (!pasa) return;
       vistos[n] = true;
-      lineas.push({ n: n, grupo: def.grupo ? String(r.datos[def.grupo] || '') : '',
+      lineas.push({ n: n, reg: reg, clave: clave, grupo: def.grupo ? String(r.datos[def.grupo] || '') : '',
         crudos: columnas.map(function (c) { const v = consultaValor_(c, r, fila, tabla); return v === undefined ? null : v; }),
         textos: columnas.map(function (c) { return consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla)); }) });
     });
   });
   return { columnas: columnas, lineas: lineas, registros: Object.keys(vistos).length, tabla: tabla, filtros: filtros.map(function (f) { return { ruta: f.ruta, op: f.op, texto: String(f.texto || '').trim() }; }) };
+}
+
+/* Con varias partes juntas (`carga.cargas`: todos los cursos o periodos, fila 100) sale una columna más al principio, «Curso escolar» o «Periodo». */
+function consultaTabla_(carga, estado) {
+  if (!carga.cargas) return consultaTablaUna_(carga, estado);
+  const ts = carga.cargas.map(function (c) { return consultaTablaUna_(c, estado); });
+  const nombre = (consultaDefinicion_(carga.id) || {}).modo === 'periodo' ? 'Periodo' : 'Curso escolar';
+  const col = { ruta: '_curso', clave: '_curso', sub: '', tabla: '', tipo: 'texto', nombre: nombre, titulo: nombre, frase: nombre, delicada: false };
+  const lineas = [];
+  ts.forEach(function (t, i) {
+    const et = carga.cargas[i].curso || carga.cargas[i].periodo || '';
+    t.lineas.forEach(function (l) { lineas.push(Object.assign({}, l, { textos: [et].concat(l.textos), crudos: [et].concat(l.crudos) })); });
+  });
+  const t0 = ts[0] || { columnas: [], tabla: '', filtros: [] };
+  return { columnas: [col].concat(t0.columnas), lineas: lineas, registros: ts.reduce(function (a, t) { return a + t.registros; }, 0), tabla: t0.tabla, filtros: t0.filtros };
 }
 
 /* «18 grupos · 21 líneas». */
@@ -9522,6 +9583,7 @@ function consultaDia_(dia) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d
 
 /* «curso 26-27», «el 01/10/2026», «periodo 2025-2026» o «historial»: lo que se consulta. */
 function consultaCuando_(carga, dia) {
+  if (carga.cargas) return 'todos los ' + (carga.cargas[0] && carga.cargas[0].periodo ? 'periodos' : 'cursos');
   if (dia) return 'el ' + consultaDia_(dia) + (carga.curso ? ' (curso ' + consultaCursoDeDia_(dia) + ')' : '');
   if (carga.curso) return 'curso ' + carga.curso;
   return carga.periodo ? 'periodo ' + carga.periodo : 'historial';
@@ -9570,7 +9632,7 @@ function consultaFraseHojas_(h) {
 
 /* `<Conjunto> <curso o fecha>.xlsx`, con la fecha como 01-10-2026 y sin lo que un nombre de fichero no admite. */
 function consultaNombreFichero_(carga, dia) {
-  const cuando = dia ? consultaDia_(dia).replace(/\//g, '-') : (carga.curso || carga.periodo || 'historial');
+  const cuando = dia ? consultaDia_(dia).replace(/\//g, '-') : (carga.cargas ? 'todos' : carga.curso || carga.periodo || 'historial');
   return (consultaDefinicion_(carga.id).nombre + ' ' + cuando).replace(/[\\\/:*?"<>|]/g, '-') + '.xlsx';
 }
 
@@ -9638,29 +9700,646 @@ function consultaCelda_(ref, tipo, crudo, texto) {
   return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + consultaXml_(texto) + '</t></is></c>';
 }
 
-/* `modelo`: el de `consultaSalida_`. Primera fila: «Contiene datos personales del centro»; después el título con los filtros, lo que se quita (si algo) y la tabla. */
-function consultaXlsx_(modelo) {
+/* Las filas de la hoja de una lista, de `consultaSalida_`: primera fila «Contiene datos personales del centro»; después el título con los filtros, lo que se quita (si algo) y la tabla. Cada celda: { tipo, crudo, texto }. */
+function consultaFilasLista_(modelo) {
   const sueltas = [CONSULTA_AVISO_PERSONAL_, modelo.titulo + (modelo.filtros.length ? ' · ' + modelo.filtros.join('; ') : '') + ' · ' + modelo.hoy];
   if (modelo.avisoQuitadas) sueltas.push(modelo.avisoQuitadas);
-  const xml = [];
-  const poner = function (celdas) { xml.push('<row r="' + (xml.length + 1) + '">' + celdas.join('') + '</row>'); };
-  sueltas.forEach(function (t) { poner([consultaCelda_('A' + (xml.length + 1), 'texto', t, t)]); });
-  poner(modelo.columnas.map(function (c, i) { return consultaCelda_(consultaLetras_(i) + (xml.length + 1), 'texto', c, c); }));
-  modelo.lineas.forEach(function (l) {
-    const r = xml.length + 1;
-    poner(l.textos.map(function (t, i) { return consultaCelda_(consultaLetras_(i) + r, modelo.tipos[i], l.crudos[i], t); }));
-  });
-  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + xml.join('') + '</sheetData></worksheet>';
-  const nombreHoja = consultaXml_(modelo.conjunto.replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31));
+  const filas = sueltas.map(function (t) { return [{ tipo: 'texto', crudo: t, texto: t }]; });
+  filas.push(modelo.columnas.map(function (c) { return { tipo: 'texto', crudo: c, texto: c }; }));
+  modelo.lineas.forEach(function (l) { filas.push(l.textos.map(function (t, i) { return { tipo: modelo.tipos[i], crudo: l.crudos[i], texto: t }; })); });
+  return filas;
+}
+
+/* `hojas`: [{ nombre, filas }] con las filas de arriba. */
+function consultaLibro_(hojas) {
   const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const nombres = [];
+  const xmls = hojas.map(function (h) {
+    const filas = h.filas.map(function (celdas, n) {
+      return '<row r="' + (n + 1) + '">' + celdas.map(function (c, i) { return consultaCelda_(consultaLetras_(i) + (n + 1), c.tipo, c.crudo, c.texto); }).join('') + '</row>';
+    });
+    let nombre = h.nombre.replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31) || 'Hoja';
+    while (nombres.indexOf(nombre) !== -1) nombre = nombre.slice(0, 28) + '(' + (nombres.length + 1) + ')';
+    nombres.push(nombre);
+    return cab + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + filas.join('') + '</sheetData></worksheet>';
+  });
+  const n = hojas.length;
+  const uno = function (f) { return xmls.map(function (x, i) { return f(i + 1); }).join(''); };
   return consultaZip_([
-    { nombre: '[Content_Types].xml', texto: cab + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { nombre: '[Content_Types].xml', texto: cab + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + uno(function (i) { return '<Override PartName="/xl/worksheets/sheet' + i + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }) + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
     { nombre: '_rels/.rels', texto: cab + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
-    { nombre: 'xl/workbook.xml', texto: cab + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + nombreHoja + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
-    { nombre: 'xl/_rels/workbook.xml.rels', texto: cab + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
-    { nombre: 'xl/styles.xml', texto: cab + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>' },
-    { nombre: 'xl/worksheets/sheet1.xml', texto: hoja }
-  ]);
+    { nombre: 'xl/workbook.xml', texto: cab + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + uno(function (i) { return '<sheet name="' + consultaXml_(nombres[i - 1]) + '" sheetId="' + i + '" r:id="rId' + i + '"/>'; }) + '</sheets></workbook>' },
+    { nombre: 'xl/_rels/workbook.xml.rels', texto: cab + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + uno(function (i) { return '<Relationship Id="rId' + i + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + i + '.xml"/>'; }) + '<Relationship Id="rId' + (n + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { nombre: 'xl/styles.xml', texto: cab + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>' }
+  ].concat(xmls.map(function (x, i) { return { nombre: 'xl/worksheets/sheet' + (i + 1) + '.xml', texto: x }; })));
+}
+
+/* `modelo`: el de `consultaSalida_`. Un libro con una sola hoja, la lista. */
+function consultaXlsx_(modelo) {
+  return consultaLibro_([{ nombre: modelo.conjunto, filas: consultaFilasLista_(modelo) }]);
+}
+
+/* Fila 100: el libro del recuento, con dos hojas: «Recuento» (aviso, título con filtros y fecha, ejes y cálculo, la tabla con sus totales) y «Detalle» (la lista de quiénes entran, sin lo delicado). `rec`: de `consultaRecuento_`; `titulo`
+   y `filtros` como en `consultaSalida_`; `detalle`: el modelo de `consultaSalida_` de la lista de partida. */
+function consultaXlsxRecuento_(rec, titulo, filtros, hoy, detalle) {
+  const t = consultaTablaRecuento_(rec), txt = function (x) { return { tipo: 'texto', crudo: x, texto: x }; };
+  const ejes = 'Filas: ' + (rec.ejesFilas.length ? consultaNombresEjes_(rec.ejesFilas).join(', ') : 'ninguno') + ' · Columnas: ' + (rec.ejesCols.length ? consultaNombresEjes_(rec.ejesCols).join(', ') : 'ninguno') + ' · ' + consultaFraseCalculo_(rec);
+  const filas = [[txt(CONSULTA_AVISO_PERSONAL_)], [txt(titulo + (filtros.length ? ' · ' + filtros.join('; ') : '') + ' · ' + hoy)], [txt(ejes)], t.cabecera.map(txt)];
+  t.lineas.forEach(function (l) { filas.push(l.map(function (x) { return typeof x === 'string' ? txt(x) : { tipo: 'numero', crudo: x.valor, texto: x.texto }; })); });
+  return consultaLibro_([{ nombre: 'Recuento', filas: filas }, { nombre: 'Detalle', filas: consultaFilasLista_(detalle) }]);
+}
+
+/* ==== ConsultarRecuento.gs ==== */
+/* Consultar (fila 100): el recuento de un conjunto, como una tabla dinámica. Ejes en filas y columnas, un cálculo (contar, sumar, media o porcentaje), totales y, por cada casilla, qué líneas la forman
+   (para abrir la lista de la fila 99). Todo se calcula sobre las partes ya leídas y no escribe nada. El gráfico está en ConsultarGrafico.gs. */
+
+const RECUENTO_CALCULOS_ = [
+  { id: 'contar', nombre: 'Contar', frase: 'Cuántos registros hay en cada casilla; cada uno cuenta una vez.' },
+  { id: 'lineas', nombre: 'Contar líneas', frase: 'Cuántas líneas hay en cada casilla; un registro con varias filas de una tabla cuenta varias veces.' },
+  { id: 'sumar', nombre: 'Sumar', frase: 'La suma de un campo numérico en cada casilla.' },
+  { id: 'media', nombre: 'Media', frase: 'La media de un campo numérico en cada casilla.' },
+  { id: 'porcentaje', nombre: 'Porcentaje', frase: 'Qué parte del total, de la fila o de la columna es cada casilla.' }
+];
+const RECUENTO_BASES_ = [{ id: 'total', nombre: 'del total' }, { id: 'fila', nombre: 'de la fila' }, { id: 'columna', nombre: 'de la columna' }];
+const RECUENTO_SIN_DATO_ = 'Sin dato';
+const RECUENTO_SEXO_ = { H: 'Hombre', M: 'Mujer' };
+
+/* Los ejes que se pueden poner: los campos de texto, sí/no y fecha (también los de las tablas del registro, menos las `celdas`), «Curso escolar» o «Periodo» si el conjunto tiene varias partes. */
+function consultaEjes_(campos, def) {
+  const ejes = [];
+  consultaColumnas_(campos, def).forEach(function (c) {
+    if (c.ruta === 'id' || c.clave === 'celdas' || ['texto', 'si-no', 'fecha'].indexOf(c.tipo) === -1) return;
+    ejes.push({ ruta: c.ruta, nombre: (def.ejeNombres || {})[c.ruta] || (def.titulos || {})[c.ruta] || c.nombre, tipo: c.tipo, tabla: c.tabla, delicada: c.delicada, enlace: c.enlace || '', conjunto: c.conjunto || '', motivo: c.motivo || '' });
+  });
+  if (def.modo !== 'unica') ejes.unshift({ ruta: '_curso', nombre: def.modo === 'periodo' ? 'Periodo' : 'Curso escolar', tipo: 'texto', tabla: '', delicada: false, curso: true });
+  return ejes;
+}
+
+/* Los campos numéricos con los que se puede sumar o hacer la media. */
+function consultaNumericos_(campos, def) {
+  return consultaColumnas_(campos, def).filter(function (c) { return c.tipo === 'numero' && c.ruta !== 'id'; });
+}
+
+/* Los ejes con los que abre el recuento de un conjunto: los suyos, o el primero que haya. */
+function consultaEjesPorDefecto_(campos, def) {
+  const ejes = consultaEjes_(campos, def), ok = function (r) { return ejes.some(function (e) { return e.ruta === r; }); };
+  const filas = ((def.eje || {}).filas || []).filter(ok), cols = ((def.eje || {}).cols || []).filter(ok);
+  if (!filas.length && !cols.length) { const e = ejes.filter(function (x) { return !x.curso; })[0]; if (e) filas.push(e.ruta); }
+  return { filas: filas.map(function (r) { return { ruta: r, agrupa: 'anio' }; }), cols: cols.map(function (r) { return { ruta: r, agrupa: 'anio' }; }) };
+}
+
+/* El valor de un eje en una línea: { o: con lo que se ordena, t: como se ve }. Una fecha se reparte por año (`2026`) o por mes (`07/2026`); H y M se leen «Hombre» y «Mujer»; lo vacío es «Sin dato». */
+function consultaEjeValor_(eje, crudo, agrupa) {
+  const sin = { o: '￿', t: RECUENTO_SIN_DATO_ };
+  if (crudo === null || crudo === undefined || crudo === '' || (Array.isArray(crudo) && !crudo.length)) return sin;
+  if (eje.tipo === 'fecha') {
+    const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(crudo));
+    if (!m) return sin;
+    return agrupa === 'mes' ? { o: m[1] + '-' + m[2], t: m[2] + '/' + m[1] } : { o: m[1], t: m[1] };
+  }
+  let t = consultaTexto_(eje.tipo, crudo);
+  if ((eje.ruta === 'sexo' || /\.sexo$/.test(eje.ruta)) && RECUENTO_SEXO_[t]) t = RECUENTO_SEXO_[t];
+  return t === '' ? sin : { o: t, t: t };
+}
+
+function recuentoOrden_(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) continue;
+    if (a[i] === '￿') return 1;
+    if (b[i] === '￿') return -1;
+    return a[i].localeCompare(b[i], 'es', { numeric: true, sensitivity: 'base' });
+  }
+  return 0;
+}
+
+function recuentoDistintos_(items) {
+  const v = {};
+  let n = 0;
+  items.forEach(function (i) { if (!v[i.k]) { v[i.k] = true; n++; } });
+  return n;
+}
+
+/* La cifra de unas líneas. `den`: las líneas con las que se compara el porcentaje. `deTabla`: el campo numérico es de la tabla desplegada (se cuenta por línea, no por registro). Null si no hay con qué. */
+function recuentoMedir_(calculo, items, den, deTabla) {
+  if (calculo === 'lineas') return items.length;
+  if (calculo === 'porcentaje') { const d = recuentoDistintos_(den); return d ? recuentoDistintos_(items) / d * 100 : null; }
+  if (calculo === 'sumar' || calculo === 'media') {
+    const vistos = {}, valores = [];
+    items.forEach(function (i) {
+      if (!deTabla) { if (vistos[i.k]) return; vistos[i.k] = true; }
+      if (typeof i.v === 'number' && isFinite(i.v)) valores.push(i.v);
+    });
+    const suma = valores.reduce(function (a, x) { return a + x; }, 0);
+    if (calculo === 'sumar') return suma;
+    return valores.length ? suma / valores.length : null;
+  }
+  return recuentoDistintos_(items);
+}
+
+/* Cómo se ve una cifra: los porcentajes con un decimal y «%», las medias y sumas con hasta dos decimales, coma decimal. */
+function consultaCifra_(calculo, v) {
+  if (v === null || v === undefined) return '—';
+  if (calculo === 'porcentaje') return v.toFixed(1).replace('.', ',') + ' %';
+  if (calculo === 'contar' || calculo === 'lineas') return String(v);
+  return String(Math.round(v * 100) / 100).replace('.', ',');
+}
+
+function recuentoDenominador_(base, todos, filaItems, colItems) {
+  if (base === 'fila') return filaItems || todos;
+  if (base === 'columna') return colItems || todos;
+  return todos;
+}
+
+function recuentoGrupos_(items, nEjes, lado) {
+  const mapa = {}, lista = [];
+  items.forEach(function (i) {
+    const vs = i[lado], k = vs.map(function (x) { return x.o; }).join('\u0001');
+    if (!mapa[k]) { mapa[k] = { ordenes: vs.map(function (x) { return x.o; }), etiquetas: vs.map(function (x) { return x.t; }), items: [] }; lista.push(mapa[k]); }
+    mapa[k].items.push(i);
+  });
+  if (!nEjes) return [{ ordenes: [], etiquetas: [], items: items }];
+  lista.sort(function (a, b) { return recuentoOrden_(a.ordenes, b.ordenes); });
+  return lista;
+}
+
+/* El recuento. `carga`: una de `consultaCarga_` o, con el eje del curso, la de `consultaCargaTodas_`. `estado`: { filas: [{ ruta, agrupa }], cols: [...], calculo, campo, base, filtros, dia }.
+   Devuelve las cabeceras (`filas`, `cols`), la matriz `celdas[i][j]` ({ valor, texto, items }), los totales y las líneas de partida (`todos`). */
+function consultaRecuento_(carga, estado) {
+  const def = consultaDefinicion_(carga.id), subs = carga.cargas || [carga];
+  const ejes = consultaEjes_(carga.campos, def), porEje = {};
+  ejes.forEach(function (e) { porEje[e.ruta] = e; });
+  const vistos = {};
+  const pon = function (l) {
+    return (l || []).filter(function (e) { if (!porEje[e.ruta] || vistos[e.ruta] || (porEje[e.ruta].curso && !carga.cargas)) return false; return (vistos[e.ruta] = true); })
+      .map(function (e) { return { ruta: e.ruta, agrupa: e.agrupa === 'mes' ? 'mes' : 'anio' }; });
+  };
+  const filas = pon(estado.filas), cols = pon(estado.cols), todosEjes = filas.concat(cols);
+  const numericos = consultaNumericos_(carga.campos, def);
+  const campo = numericos.filter(function (c) { return c.ruta === estado.campo; })[0] || null;
+  let calculo = RECUENTO_CALCULOS_.some(function (c) { return c.id === estado.calculo; }) ? estado.calculo : 'contar';
+  if ((calculo === 'sumar' || calculo === 'media') && !campo) calculo = 'contar';
+  const base = RECUENTO_BASES_.some(function (b) { return b.id === estado.base; }) ? estado.base : 'total';
+  const tabla = (todosEjes.map(function (e) { return porEje[e.ruta].tabla; }).filter(function (t) { return t; })[0]) || (campo && campo.tabla) || '';
+  const rutas = todosEjes.filter(function (e) { return !porEje[e.ruta].curso; }).map(function (e) { return e.ruta; });
+  const posCampo = campo ? rutas.length : -1;
+  if (campo) rutas.push(campo.ruta);
+  const items = [];
+  subs.forEach(function (sub) {
+    const et = sub.curso || sub.periodo || '';
+    const t = consultaTablaUna_(sub, { columnas: rutas, filtros: estado.filtros, dia: estado.dia, tabla: tabla, conAnulados: todosEjes.some(function (e) { return e.ruta === 'matriculado'; }) });
+    t.lineas.forEach(function (l) {
+      const valor = function (e) { return porEje[e.ruta].curso ? { o: et, t: et } : consultaEjeValor_(porEje[e.ruta], l.crudos[rutas.indexOf(e.ruta)], e.agrupa); };
+      const v = posCampo >= 0 ? Number(l.crudos[posCampo]) : null;
+      items.push({ k: l.reg, lk: l.clave, v: posCampo >= 0 && l.crudos[posCampo] !== null && l.crudos[posCampo] !== '' && isFinite(v) ? v : null, f: filas.map(valor), c: cols.map(valor) });
+    });
+  });
+  const gFilas = recuentoGrupos_(items, filas.length, 'f'), gCols = recuentoGrupos_(items, cols.length, 'c');
+  const deTabla = !!(campo && campo.tabla);
+  const medir = function (its, fi, ci) { return recuentoMedir_(calculo, its, recuentoDenominador_(base, items, fi, ci), deTabla); };
+  const dar = function (its, fi, ci) { const valor = medir(its, fi, ci); return { valor: valor, texto: consultaCifra_(calculo, valor), items: its }; };
+  const celdas = gFilas.map(function (gf) {
+    return gCols.map(function (gc) {
+      const k = gc.ordenes.join('\u0001'), its = gf.items.filter(function (i) { return i.c.map(function (x) { return x.o; }).join('\u0001') === k; });
+      return dar(its, gf.items, gc.items);
+    });
+  });
+  return {
+    id: carga.id, ejesFilas: filas.map(function (e) { return Object.assign({}, porEje[e.ruta], { agrupa: e.agrupa }); }), ejesCols: cols.map(function (e) { return Object.assign({}, porEje[e.ruta], { agrupa: e.agrupa }); }),
+    filas: gFilas, cols: gCols, celdas: celdas, totFilas: gFilas.map(function (gf) { return dar(gf.items, gf.items, null); }), totCols: gCols.map(function (gc) { return dar(gc.items, null, gc.items); }),
+    total: dar(items, null, null), calculo: calculo, base: base, campo: campo ? campo.nombre : '', deTabla: deTabla, tabla: tabla, todos: items,
+    registros: recuentoDistintos_(items), lineas: items.length, conTabla: !!tabla, conAnulados: todosEjes.some(function (e) { return e.ruta === 'matriculado'; })
+  };
+}
+
+/* La frase de lo que se está calculando: «Contar», «Media de Importe», «Porcentaje de la fila». */
+function consultaFraseCalculo_(rec) {
+  const c = RECUENTO_CALCULOS_.filter(function (x) { return x.id === rec.calculo; })[0];
+  if (rec.calculo === 'sumar' || rec.calculo === 'media') return c.nombre + ' de ' + rec.campo;
+  if (rec.calculo === 'porcentaje') return 'Porcentaje ' + RECUENTO_BASES_.filter(function (b) { return b.id === rec.base; })[0].nombre;
+  return c.nombre;
+}
+
+function consultaNombresEjes_(ejes) {
+  return ejes.map(function (e) { return e.nombre + (e.tipo === 'fecha' ? (e.agrupa === 'mes' ? ' (por mes)' : ' (por año)') : ''); });
+}
+
+/* El filtro de la lista que sale al pulsar una casilla (`i` y `j`: lugar de la fila y la columna; -1 es el total). `texto`: «Nivel: 1º ESO · Sexo: Mujer». */
+function consultaCasilla_(rec, i, j) {
+  const c = i < 0 && j < 0 ? rec.total : (j < 0 ? rec.totFilas[i] : (i < 0 ? rec.totCols[j] : rec.celdas[i][j]));
+  const claves = {}, regs = {}, partes = [];
+  c.items.forEach(function (x) { claves[x.lk] = true; regs[x.k] = true; });
+  if (i >= 0) rec.ejesFilas.forEach(function (e, n) { partes.push(e.nombre + ': ' + rec.filas[i].etiquetas[n]); });
+  if (j >= 0) rec.ejesCols.forEach(function (e, n) { partes.push(e.nombre + ': ' + rec.cols[j].etiquetas[n]); });
+  return { tabla: rec.tabla, claves: claves, regs: regs, texto: partes.length ? partes.join(' · ') : 'todo el recuento', lineas: c.items.length };
+}
+
+/* La tabla del recuento como filas de texto, para la hoja impresa y el Excel. Primera fila de cabecera: los ejes de filas, las columnas (con sus ejes anidados unidos por « · ») y «Total». */
+function consultaTablaRecuento_(rec) {
+  const nf = rec.ejesFilas.length, nc = rec.ejesCols.length;
+  const cab = rec.ejesFilas.map(function (e) { return e.nombre; });
+  if (!nf) cab.push('');
+  rec.cols.forEach(function (g) { cab.push(nc ? g.etiquetas.join(' · ') : consultaFraseCalculo_(rec)); });
+  if (nc) cab.push('Total');
+  const lineas = rec.filas.map(function (g, i) {
+    const pre = nf ? g.etiquetas.slice() : ['Total'];
+    const sal = pre.concat(rec.celdas[i].map(function (c) { return { texto: c.texto, valor: c.valor }; }));
+    if (nc) sal.push({ texto: rec.totFilas[i].texto, valor: rec.totFilas[i].valor });
+    return sal;
+  });
+  if (nf) {
+    const ult = ['Total'].concat(new Array(Math.max(0, nf - 1)).fill(''));
+    rec.totCols.forEach(function (c) { ult.push({ texto: c.texto, valor: c.valor }); });
+    if (nc) ult.push({ texto: rec.total.texto, valor: rec.total.valor });
+    lineas.push(ult);
+  }
+  return { cabecera: cab, lineas: lineas };
+}
+
+/* ==== ConsultarGrafico.gs ==== */
+/* Consultar (fila 100): los datos del gráfico del recuento. El dibujo (SVG en la propia página) está en JsConsultarGrafico.html; aquí solo se decide qué tipo toca, qué valores van y cómo se agrupan los
+   que sobran (los 12 mayores y «otros»). */
+
+const GRAFICO_MAX_ = 12;
+const GRAFICO_TIPOS_ = [{ id: 'barras', nombre: 'Barras' }, { id: 'lineas', nombre: 'Líneas' }, { id: 'sectores', nombre: 'Sectores' }];
+
+/* Líneas si el primer eje de filas es el curso escolar o una fecha; barras en los demás casos. */
+function consultaGraficoTipoAuto_(rec) {
+  const e = rec.ejesFilas[0] || rec.ejesCols[0];
+  return e && (e.curso || e.tipo === 'fecha') ? 'lineas' : 'barras';
+}
+
+/* Los tipos que se pueden elegir: los sectores solo con un eje. */
+function consultaGraficoTipos_(rec) {
+  return GRAFICO_TIPOS_.filter(function (t) { return t.id !== 'sectores' || rec.ejesFilas.length + rec.ejesCols.length === 1; });
+}
+
+function graficoJuntar_(grupos, idx) {
+  let sal = [];
+  idx.forEach(function (i) { sal = sal.concat(grupos[i].items); });
+  return sal;
+}
+
+/* Hasta 12 grupos: los de mayor cifra, en su orden, y «otros» con el resto. */
+function graficoGrupos_(grupos, totales) {
+  const todos = grupos.map(function (g, i) { return { etiqueta: g.etiquetas.length ? g.etiquetas.join(' · ') : 'Total', idx: [i] }; });
+  if (todos.length <= GRAFICO_MAX_) return todos;
+  const mayores = todos.map(function (g, i) { return { i: i, v: totales[i] === null ? -Infinity : totales[i] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, GRAFICO_MAX_).map(function (x) { return x.i; });
+  const sal = todos.filter(function (g, i) { return mayores.indexOf(i) !== -1; });
+  sal.push({ etiqueta: 'otros', idx: todos.map(function (g, i) { return i; }).filter(function (i) { return mayores.indexOf(i) === -1; }) });
+  return sal;
+}
+
+/* { tipo, tipos, categorias: [texto], series: [{ nombre, valores: [número], textos: [texto] }], max } o null si no hay ejes. */
+function consultaGrafico_(rec, tipoElegido) {
+  const nf = rec.ejesFilas.length, nc = rec.ejesCols.length;
+  if (!nf && !nc) return null;
+  const tipos = consultaGraficoTipos_(rec).map(function (t) { return t.id; });
+  const tipo = tipos.indexOf(tipoElegido) !== -1 ? tipoElegido : consultaGraficoTipoAuto_(rec);
+  const porFilas = nf > 0, ambos = nf > 0 && nc > 0;
+  const grupos = porFilas ? rec.filas : rec.cols;
+  const cats = graficoGrupos_(grupos, (porFilas ? rec.totFilas : rec.totCols).map(function (c) { return c.valor; }));
+  const sers = ambos ? graficoGrupos_(rec.cols, rec.totCols.map(function (c) { return c.valor; })) : [{ etiqueta: consultaFraseCalculo_(rec), idx: [0] }];
+  const celdaDe = function (ci, si) {
+    let items = [];
+    ci.forEach(function (i) { si.forEach(function (j) { items = items.concat(ambos ? rec.celdas[i][j].items : (porFilas ? rec.celdas[i][0].items : rec.celdas[0][i].items)); }); });
+    return items;
+  };
+  const series = sers.map(function (s) {
+    const valores = [], textos = [];
+    cats.forEach(function (c) {
+      const items = ambos ? celdaDe(c.idx, s.idx) : celdaDe(c.idx, [0]);
+      const filaItems = porFilas ? graficoJuntar_(rec.filas, c.idx) : null, colItems = ambos ? graficoJuntar_(rec.cols, s.idx) : (porFilas ? null : graficoJuntar_(rec.cols, c.idx));
+      const v = recuentoMedir_(rec.calculo, items, recuentoDenominador_(rec.base, rec.todos, filaItems, colItems), rec.deTabla);
+      valores.push(v === null ? 0 : v); textos.push(consultaCifra_(rec.calculo, v));
+    });
+    return { nombre: s.etiqueta, valores: valores, textos: textos };
+  });
+  const max = series.reduce(function (m, s) { return Math.max(m, Math.max.apply(null, s.valores.concat([0]))); }, 0);
+  return { tipo: tipo, tipos: tipos, categorias: cats.map(function (c) { return c.etiqueta; }), series: series, max: max };
+}
+
+/* ==== ConsultarEnlaces.gs ==== */
+/* Consultar (fila 101): cruzar conjuntos. Qué datos de otros conjuntos se pueden usar como eje del recuento y como columna de la lista, y por qué enlazan. Solo se cruza por lo que enlaza de verdad
+   (el grupo, el documento de la persona, el nivel y la asignatura de la matrícula) y nunca por parecido. Las uniones se hacen al consultar (ConsultarEnlacesDatos.gs) y no se guarda nada.
+   Cada enlace pone en el registro de partida una tabla con prefijo `_en_` (una fila por dato enlazado) o, en las tutorías, columnas nuevas en la tabla `tutores`; el resto de la consulta las trata como a cualquier otra tabla. */
+
+/* `desde`: el conjunto de partida. `tabla`: la tabla que se añade (`aumenta`: la tabla ya existente a la que se añaden columnas). `destinos`: las partes que hacen falta para la unión.
+   `cols`: `clave` en la fila, `de`: el conjunto del que viene el dato y `ruta`: su clave allí (de ella sale si es delicado). `unoSolo`: solo se espera una fila, y si hay más se avisa.
+   `ninguno`: «no tienen <esto>» si alguien se queda sin enlace (sin él, no se avisa). `dos`: por qué sale dos veces. */
+function enlCol_(clave, etiqueta, tipo, de, ruta) { return { clave: clave, etiqueta: etiqueta, tipo: tipo, de: de, ruta: ruta }; }
+const ENL_PERSONAL_TUTOR_ = [enlCol_('especialidad', 'Especialidad del tutor/a (Personal)', 'texto', 'personal', 'especialidad'), enlCol_('puesto', 'Puesto del tutor/a (Personal)', 'texto', 'personal', 'puesto'),
+  enlCol_('tipoPersonal', 'Docente o no docente del tutor/a (Personal)', 'texto', 'personal', 'tipoPersonal')];
+const ENL_PERSONAL_FICHA_ = [enlCol_('tipoPersonal', 'Docente o no docente (Personal)', 'texto', 'personal', 'tipoPersonal'), enlCol_('puesto', 'Puesto (Personal)', 'texto', 'personal', 'puesto'),
+  enlCol_('especialidad', 'Especialidad (Personal)', 'texto', 'personal', 'especialidad'), enlCol_('situacion', 'Situación (Personal)', 'texto', 'personal', 'situacion')];
+const ENL_ALUMNO_FICHA_ = [enlCol_('curso', 'Nivel (Alumnado)', 'texto', 'alumnado', 'curso'), enlCol_('unidad', 'Grupo (Alumnado)', 'texto', 'alumnado', 'unidad'), enlCol_('sexo', 'Sexo (Alumnado)', 'texto', 'alumnado', 'sexo')];
+
+const CONSULTA_ENLACES_ = [
+  { id: 'alumnado-tutorias', desde: 'alumnado', tabla: '_en_tutorias', nombre: 'Tutorías', motivo: 'por su grupo', destinos: ['tutorias', 'personal'], unoSolo: true,
+    ninguno: 'grupo con tutor ese día', dos: 'por haber dos tutores en su grupo ese día', cols: [enlCol_('empleado', 'Tutor/a del grupo (Tutorías)', 'texto', 'tutorias', 'tutores.empleado')].concat(ENL_PERSONAL_TUTOR_) },
+  { id: 'alumnado-libros', desde: 'alumnado', tabla: '_en_libros', nombre: 'Libros de texto', motivo: 'por su nivel y la asignatura de su matrícula', destinos: ['libros'], ninguno: 'libros de texto en su matrícula',
+    cols: [enlCol_('materia', 'Asignatura del libro (Libros de texto)', 'texto', 'libros', 'materia'), enlCol_('titulo', 'Libro (Libros de texto)', 'texto', 'libros', 'titulo'),
+      enlCol_('editorial', 'Editorial del libro (Libros de texto)', 'texto', 'libros', 'editorial'), enlCol_('isbn', 'ISBN del libro (Libros de texto)', 'texto', 'libros', 'isbn'), enlCol_('importe', 'Importe del libro (Libros de texto)', 'numero', 'libros', 'importe')] },
+  { id: 'tutorias-personal', desde: 'tutorias', aumenta: 'tutores', tabla: 'tutores', nombre: 'Personal', motivo: 'por el documento del tutor/a', destinos: ['personal'], unoSolo: true, ninguno: 'tutor/a con ficha en el personal', cols: ENL_PERSONAL_TUTOR_ },
+  { id: 'personal-cargos', desde: 'personal', tabla: '_en_cargos', nombre: 'Cargos', motivo: 'por su ficha del personal', destinos: ['cargos'],
+    cols: [enlCol_('cargoNombre', 'Cargo (Cargos)', 'texto', 'cargos', 'cargoNombre'), enlCol_('desde', 'Cargo desde (Cargos)', 'fecha', 'cargos', 'desde'), enlCol_('hasta', 'Cargo hasta (Cargos)', 'fecha', 'cargos', 'hasta'),
+      enlCol_('ocupaHoy', 'Ocupa el cargo hoy (Cargos)', 'si-no', 'cargos', 'ocupaHoy')] },
+  { id: 'personal-consejo', desde: 'personal', tabla: '_en_consejo', nombre: 'Consejo Escolar', motivo: 'por su ficha del personal', destinos: ['consejo-escolar'],
+    cols: [enlCol_('sector', 'Sector en el Consejo (Consejo Escolar)', 'texto', 'consejo-escolar', 'sector'), enlCol_('cargo', 'Cargo en el Consejo (Consejo Escolar)', 'texto', 'consejo-escolar', 'cargo'),
+      enlCol_('nombramiento', 'Nombramiento en el Consejo (Consejo Escolar)', 'fecha', 'consejo-escolar', 'nombramiento'), enlCol_('cese', 'Cese en el Consejo (Consejo Escolar)', 'fecha', 'consejo-escolar', 'cese'),
+      enlCol_('miembroHoy', 'Miembro hoy del Consejo (Consejo Escolar)', 'si-no', 'consejo-escolar', 'miembroHoy')] },
+  { id: 'personal-contactos', desde: 'personal', tabla: '_en_contactos', nombre: 'Contactos del profesorado', motivo: 'por su documento', destinos: ['contactos'], unoSolo: true, ninguno: 'contactos guardados',
+    dos: 'por tener dos fichas de contactos', cols: [enlCol_('correoCentro', 'Correo del centro (Contactos)', 'texto', 'contactos', 'correoCentro'), enlCol_('correoPersonal', 'Correo personal (Contactos)', 'texto', 'contactos', 'correoPersonal'),
+      enlCol_('movil', 'Móvil (Contactos)', 'texto', 'contactos', 'movil')] },
+  { id: 'cargos-personal', desde: 'cargos', tabla: '_en_personal', nombre: 'Personal', motivo: 'por su ficha del personal', destinos: ['personal'], unoSolo: true, ninguno: 'ficha en el personal', cols: ENL_PERSONAL_FICHA_ },
+  { id: 'consejo-personal', desde: 'consejo-escolar', tabla: '_en_personal', nombre: 'Personal', motivo: 'por su ficha del personal', destinos: ['personal'], unoSolo: true, ninguno: 'ficha en el personal', cols: ENL_PERSONAL_FICHA_ },
+  { id: 'consejo-alumnado', desde: 'consejo-escolar', tabla: '_en_alumnado', nombre: 'Alumnado', motivo: 'por su ficha del alumnado', destinos: ['alumnado'], unoSolo: true, ninguno: 'ficha en el alumnado', cols: ENL_ALUMNO_FICHA_ },
+  { id: 'contactos-personal', desde: 'contactos', tabla: '_en_personal', nombre: 'Personal', motivo: 'por su documento', destinos: ['personal'], unoSolo: true, ninguno: 'ficha en el personal', cols: ENL_PERSONAL_FICHA_ },
+  { id: 'libros-alumnado', desde: 'libros', tabla: '_en_alumnado', nombre: 'Alumnado', motivo: 'por su nivel y la asignatura de su matrícula', destinos: ['alumnado'], ninguno: 'ningún alumno matriculado en esa asignatura',
+    cols: [enlCol_('apellido1', 'Primer apellido (Alumnado)', 'texto', 'alumnado', 'apellido1'), enlCol_('apellido2', 'Segundo apellido (Alumnado)', 'texto', 'alumnado', 'apellido2'), enlCol_('nombre', 'Nombre (Alumnado)', 'texto', 'alumnado', 'nombre')]
+      .concat(ENL_ALUMNO_FICHA_) }
+];
+
+/* Los enlaces que salen de un conjunto de la consulta (`id` de CONSULTA_CONJUNTOS_). */
+function consultaEnlacesDe_(id) {
+  const def = consultaDefinicion_(id);
+  return def ? CONSULTA_ENLACES_.filter(function (e) { return e.desde === def.id; }) : [];
+}
+
+/* Las rutas de columna (`tabla.clave`) que ofrece un enlace. */
+function consultaEnlaceRutas_(enl) { return enl.cols.map(function (c) { return enl.tabla + '.' + c.clave; }); }
+
+/* Los campos que se añaden a la carga de un conjunto: una tabla por enlace con sus columnas marcadas como enlazadas. El nombre llano del conjunto de origen sale de `CONSULTA_CONJUNTOS_`. */
+function consultaCamposEnlaces_(id) {
+  return consultaEnlacesDe_(id).map(function (enl) {
+    return { clave: enl.tabla, etiqueta: enl.nombre, tipo: 'tabla', enlace: enl.id, columnas: enl.cols.map(function (c) {
+      const d = consultaDefinicion_(c.de);
+      return { clave: c.clave, etiqueta: c.etiqueta, tipo: c.tipo, enlace: enl.id, de: c.de, ruta: c.ruta, conjunto: d ? d.nombre : c.de, motivo: enl.nombre + ', ' + enl.motivo };
+    }) };
+  });
+}
+
+/* ¿Es una columna enlazada y de qué enlace? (`ruta`: `tabla.clave`). */
+function consultaEnlaceDeRuta_(id, ruta) {
+  return consultaEnlacesDe_(id).filter(function (e) { return consultaEnlaceRutas_(e).indexOf(ruta) !== -1; })[0] || null;
+}
+
+/* Las frases (ámbar) de lo que pasa con los datos enlazados que se están usando (`rutas`: las columnas y ejes elegidos): lo que falta, quién sale dos veces y quién se queda sin enlace.
+   `carga.enlaces` lo deja `consultaAplicarEnlaces_`. Sin datos enlazados todavía, nada. */
+function consultaAvisosEnlaces_(carga, rutas) {
+  const frases = [], def = consultaDefinicion_(carga.id), u = (def || {}).unidad || ['registro', 'registros'];
+  const palabra = function (n) { return n + ' ' + (n === 1 ? u[0] : u[1]); };
+  consultaEnlacesDe_(carga.id).forEach(function (enl) {
+    const st = (carga.enlaces || {})[enl.id];
+    if (!st || !consultaEnlaceRutas_(enl).some(function (r) { return rutas.indexOf(r) !== -1; })) return;
+    (st.falta || []).forEach(function (f) { frases.push(f); });
+    if (st.sinMatricula) frases.push(palabra(st.sinMatricula) + (st.sinMatricula === 1 ? ' no tiene' : ' no tienen') + ' listado de matrícula: ' + (st.sinMatricula === 1 ? 'sale' : 'salen') + ' en «Sin dato».');
+    if (st.dos) frases.push(palabra(st.dos) + (st.dos === 1 ? ' sale' : ' salen') + ' dos veces: ' + (enl.dos || 'por tener más de un dato enlazado') + '.');
+    if (st.ninguno && enl.ninguno) frases.push(palabra(st.ninguno) + (st.ninguno === 1 ? ' no tiene ' : ' no tienen ') + enl.ninguno + ': ' + (st.ninguno === 1 ? 'sale' : 'salen') + ' en «Sin dato».');
+  });
+  return frases;
+}
+
+/* ==== ConsultarEnlacesDatos.gs ==== */
+/* Consultar (fila 101): las uniones, hechas al consultar y sin guardar nada. Para cada enlace de ConsultarEnlaces.gs se busca, registro a registro, el dato del otro conjunto:
+   - el grupo del alumno con el de las tutorías (`unidad` con el `id` del grupo), con el tutor que está en vigor un día;
+   - la persona con su ficha del personal, sus cargos, el Consejo y sus contactos, siempre por el documento (`id`, o `fichaId` cuando el conjunto lo trae);
+   - el alumno con sus libros (y los libros con sus alumnos), por el nivel y la asignatura de la matrícula.
+   Nunca por nombre ni por parecido. El resultado (`consultaEnlazarDatos_`) se pega a la carga con `consultaAplicarEnlaces_`; lo que no enlaza sale en «Sin dato» y se cuenta para avisarlo. */
+
+const ENL_MATRICULADA_ = ['MATR', 'CONV'];
+
+/* El nivel de un listado de matrícula o de libros: `bac1c` y `bac1h` son los dos `bac1`. */
+function enlNivel_(n) { const s = String(n === null || n === undefined ? '' : n).toLowerCase().trim(); return /^bac[12][ch]$/.test(s) ? s.slice(0, 4) : s; }
+function enlUnidad_(u) { return String(u === null || u === undefined ? '' : u).replace(/\s+/g, ' ').trim(); }
+function enlFinCurso_(curso) { const m = /^(\d{2})-(\d{2})$/.exec(String(curso || '')); return m ? '20' + m[2] + '-08-31' : ''; }
+
+/* Las asignaturas en las que está matriculado un alumno (`matriculaCeldas`: una casilla por columna del listado), sin tildes ni mayúsculas. Solo `MATR` y `CONV`. */
+function enlMaterias_(celdas) {
+  const m = {};
+  (Array.isArray(celdas) ? celdas : []).forEach(function (c) { if (c && ENL_MATRICULADA_.indexOf(String(c.valor || '').toUpperCase().trim()) !== -1) m[normalizarAlumno_(c.columna)] = true; });
+  return m;
+}
+
+/* El día para el que vale el tutor: el elegido; sin él, hoy si cae en el curso; si no, el último día del curso en que el grupo tuvo tutor. */
+function enlDiaTutor_(lineas, ctx) {
+  if (ctx.dia) return ctx.dia;
+  if (consultaCursoDeDia_(ctx.hoy) === ctx.curso) return ctx.hoy;
+  const fin = enlFinCurso_(ctx.curso);
+  let ult = '';
+  lineas.forEach(function (l) {
+    if (!l.desde) return;
+    const h = fin && (!l.hasta || l.hasta > fin) ? fin : (l.hasta || fin);
+    if (h > ult) ult = h;
+  });
+  return ult;
+}
+
+function enlVigentes_(lineas, dia) {
+  return lineas.filter(function (l) { return !dia || ((!l.desde || l.desde <= dia) && (!l.hasta || dia <= l.hasta)); });
+}
+
+function enlIndice_(registros, clave) {
+  const m = {};
+  (registros || []).forEach(function (r) { const k = clave(r); if (k === null || k === undefined || k === '') return; (m[k] = m[k] || []).push(r); });
+  return m;
+}
+function enlPorFicha_(registros, conjunto) { return enlIndice_(registros, function (r) { return (r.datos.fichaConjunto || conjunto) === conjunto ? r.datos.fichaId : null; }); }
+function enlFilaPersonal_(r) { return { tipoPersonal: r.datos.tipoPersonal, puesto: r.datos.puesto, especialidad: r.datos.especialidad, situacion: r.datos.situacion }; }
+function enlFilaAlumno_(r) { return { curso: r.datos.curso, unidad: r.datos.unidad, sexo: r.datos.sexo }; }
+function enlExtrasTutor_(l, personal) {
+  const p = l.id ? (personal[l.id] || [])[0] : null;
+  return p ? { especialidad: p.datos.especialidad, puesto: p.datos.puesto, tipoPersonal: p.datos.tipoPersonal } : null;
+}
+
+/* La función que da, de un registro de partida, sus filas enlazadas: una lista, `null` si el registro no cuenta (un alumno anulado) o 'sin-matricula'. Para el enlace que añade columnas a
+   `tutores`, una lista con lo que se añade a cada línea (o null si esa línea no tiene ficha). `d`: las partes de los conjuntos de destino por `id`. */
+function enlConstruir_(enl, d, ctx) {
+  const reg = function (id) { return d[id] ? d[id].registros : []; };
+  const personal = enlIndice_(reg('personal'), function (r) { return r.id; });
+  const fichas = function (m, id) { return id ? (m[id] || []) : []; };
+  switch (enl.id) {
+    case 'alumnado-tutorias': {
+      const grupos = enlIndice_(reg('tutorias'), function (g) { return enlUnidad_(g.id); }), memo = {};
+      return function (r) {
+        if (r.matriculado === false) return null;
+        const u = enlUnidad_(r.datos.unidad);
+        if (!u || !grupos[u]) return [];
+        if (!memo[u]) {
+          const ls = grupos[u][0].datos.tutores || [];
+          memo[u] = enlVigentes_(ls, enlDiaTutor_(ls, ctx)).map(function (l) { return Object.assign({ empleado: l.empleado }, enlExtrasTutor_(l, personal) || {}); });
+        }
+        return memo[u];
+      };
+    }
+    case 'alumnado-libros': {
+      const porNivel = {};
+      reg('libros').forEach(function (l) { if (l.datos.conLibro !== false) (porNivel[enlNivel_(l.datos.nivel)] = porNivel[enlNivel_(l.datos.nivel)] || []).push(l); });
+      return function (r) {
+        if (r.matriculado === false) return null;
+        const nivel = enlNivel_(r.datos.matriculaNivel);
+        if (!nivel) return 'sin-matricula';
+        const mats = enlMaterias_(r.datos.matriculaCeldas);
+        return (porNivel[nivel] || []).filter(function (l) { return mats[normalizarAlumno_(l.datos.materia)]; })
+          .map(function (l) { return { materia: l.datos.materia, titulo: l.datos.titulo, editorial: l.datos.editorial, isbn: l.datos.isbn, importe: l.datos.importe }; });
+      };
+    }
+    case 'tutorias-personal':
+      return function (r) { return (r.datos.tutores || []).map(function (l) { return enlExtrasTutor_(l, personal); }); };
+    case 'personal-cargos': {
+      const m = enlPorFicha_(reg('cargos'), 'personal');
+      return function (r) { return fichas(m, r.id).map(function (c) { return { cargoNombre: c.datos.cargoNombre, desde: c.datos.desde, hasta: c.datos.hasta, ocupaHoy: c.datos.ocupaHoy }; }); };
+    }
+    case 'personal-consejo': {
+      const m = enlPorFicha_(reg('consejo-escolar'), 'personal');
+      return function (r) { return fichas(m, r.id).map(function (c) { return { sector: c.datos.sector, cargo: c.datos.cargo, nombramiento: c.datos.nombramiento, cese: c.datos.cese, miembroHoy: c.datos.miembroHoy }; }); };
+    }
+    case 'personal-contactos': {
+      const m = enlIndice_(reg('contactos'), function (c) { return c.id; });
+      return function (r) { return fichas(m, r.id).map(function (c) { return { correoCentro: c.datos.correoCentro, correoPersonal: c.datos.correoPersonal, movil: c.datos.movil }; }); };
+    }
+    case 'cargos-personal':
+      return function (r) { return fichas(personal, r.datos.fichaId).map(enlFilaPersonal_); };
+    case 'consejo-personal':
+      return function (r) { return r.datos.fichaConjunto === 'personal' ? fichas(personal, r.datos.fichaId).map(enlFilaPersonal_) : []; };
+    case 'consejo-alumnado': {
+      const m = enlIndice_(reg('alumnado'), function (a) { return a.id; });
+      return function (r) { return r.datos.fichaConjunto === 'alumnado' ? fichas(m, r.datos.fichaId).map(enlFilaAlumno_) : []; };
+    }
+    case 'contactos-personal':
+      return function (r) { return fichas(personal, r.id).map(enlFilaPersonal_); };
+    case 'libros-alumnado': {
+      const porNivel = {};
+      reg('alumnado').forEach(function (a) {
+        if (a.matriculado === false) return;
+        const n = enlNivel_(a.datos.matriculaNivel);
+        if (n) (porNivel[n] = porNivel[n] || []).push({ a: a, mats: enlMaterias_(a.datos.matriculaCeldas) });
+      });
+      return function (r) {
+        if (r.datos.conLibro === false) return null;
+        const mat = normalizarAlumno_(r.datos.materia);
+        return (porNivel[enlNivel_(r.datos.nivel)] || []).filter(function (x) { return x.mats[mat]; })
+          .map(function (x) { return Object.assign({ apellido1: x.a.datos.apellido1, apellido2: x.a.datos.apellido2, nombre: x.a.datos.nombre }, enlFilaAlumno_(x.a)); });
+      };
+    }
+  }
+  return function () { return []; };
+}
+
+/* La frase de lo que falta: no hay parte del conjunto de destino. */
+function enlFalta_(destId, curso) {
+  const def = consultaDefinicion_(destId), n = (def ? def.nombre : destId).toLowerCase();
+  if (destId === 'consejo-escolar') return 'No hay historial del Consejo Escolar: lo enlazado sale en «Sin dato».';
+  return 'No hay ' + n + (def && def.modo === 'curso' ? ' del curso ' + curso : ' guardados') + ': lo enlazado sale en «Sin dato».';
+}
+
+/* Las uniones de una carga: `base` ({ id, curso, periodo, registros }). `buscar(id)` da la parte de destino ({ registros }) o null. `curso`: el curso en que se busca en los destinos por curso.
+   Devuelve `tablas` (por registro, las filas de cada tabla `_en_…`), `aumentos` (por registro, lo que se añade a cada línea de `tutores`) y `stats` (por enlace, cuántos no enlazan y cuántos salen dos veces). */
+function consultaEnlazarDatos_(base, buscar, dia, hoy, curso) {
+  const res = { tablas: {}, aumentos: {}, stats: {} };
+  consultaEnlacesDe_(base.id).forEach(function (enl) {
+    const d = {}, st = { ninguno: 0, dos: 0, sinMatricula: 0, falta: [] };
+    res.stats[enl.id] = st;
+    enl.destinos.forEach(function (id) { d[id] = buscar(id); if (!d[id]) st.falta.push(enlFalta_(id, curso)); });
+    if (!d[enl.destinos[0]]) return;
+    const f = enlConstruir_(enl, d, { dia: dia || '', hoy: hoy, curso: curso });
+    base.registros.forEach(function (r) {
+      const filas = f(r);
+      if (filas === null) return;
+      if (enl.aumenta) {
+        (res.aumentos[r.id] = res.aumentos[r.id] || {})[enl.tabla] = filas;
+        if (filas.some(function (x) { return !x; })) st.ninguno++;
+        return;
+      }
+      const t = (res.tablas[r.id] = res.tablas[r.id] || {});
+      if (filas === 'sin-matricula') { st.sinMatricula++; t[enl.tabla] = []; return; }
+      t[enl.tabla] = filas;
+      if (!filas.length) st.ninguno++; else if (enl.unoSolo && filas.length > 1) st.dos++;
+    });
+  });
+  return res;
+}
+
+function enlSumar_(a, b) {
+  const s = a || { ninguno: 0, dos: 0, sinMatricula: 0, falta: [] };
+  return { ninguno: s.ninguno + b.ninguno, dos: s.dos + b.dos, sinMatricula: s.sinMatricula + b.sinMatricula, falta: s.falta.concat(b.falta.filter(function (x) { return s.falta.indexOf(x) === -1; })) };
+}
+
+/* Pega las uniones a una carga (o a cada parte de una carga de `cargas`, con `res.porParte` por curso o periodo). Todos los registros ganan sus tablas, vacías si no enlazan. */
+function consultaAplicarEnlaces_(carga, res) {
+  const stats = {};
+  (carga.cargas || [carga]).forEach(function (sub) {
+    const r = carga.cargas ? (res.porParte || {})[sub.curso || sub.periodo || ''] : res;
+    if (!r) return;
+    const enlaces = consultaEnlacesDe_(carga.id);
+    (sub.registros || []).forEach(function (reg) {
+      const t = r.tablas[reg.id] || {}, a = r.aumentos[reg.id] || {};
+      enlaces.forEach(function (enl) {
+        if (!enl.aumenta) { reg.datos[enl.tabla] = t[enl.tabla] || []; return; }
+        (reg.datos[enl.tabla] || []).forEach(function (fila, i) { Object.assign(fila, (a[enl.tabla] || [])[i] || {}); });
+      });
+    });
+    Object.keys(r.stats || {}).forEach(function (k) { stats[k] = enlSumar_(stats[k], r.stats[k]); });
+  });
+  carga.enlaces = stats;
+  carga.conEnlaces = true;
+  return carga;
+}
+
+/* El curso en que se buscan los destinos por curso: el de la propia consulta o, si no tiene (cargos, Consejo…), el del día elegido o el de hoy. */
+function consultaCursoEnlazado_(base, dia) { return base.curso || consultaCursoDeDia_(dia) || cursoActual_(); }
+
+/* La parte de un conjunto de destino para un curso; null si no la hay. El Consejo va por su historial. */
+function consultaEnlaceParte_(indice, destId, curso) {
+  const def = consultaDefinicion_(destId);
+  if (!def || (def.modo === 'curso' && !curso)) return null;
+  return consultaParte_(indice, def, def.modo === 'curso' ? curso : '', '').parte;
+}
+
+function consultaEnlacesCarga_(indice, carga, dia, cache) {
+  const curso = consultaCursoEnlazado_(carga, dia), memo = {};
+  const buscar = function (destId) {
+    if (!(destId in memo)) { const h = consultaEnlaceParte_(indice, destId, curso); memo[destId] = h ? { registros: abrirParteVecina_(h, cache).registros || [] } : null; }
+    return memo[destId];
+  };
+  return consultaEnlazarDatos_(carga, buscar, dia, hoyMadrid_(), curso);
+}
+
+/* Lo que trae el servidor al pedir los datos enlazados de la consulta que se está viendo. */
+function consultaEnlaces_(raiz, id, curso, periodo, dia) {
+  const indice = leerIndice_(raiz), e = consultaEleccion_(indice, id, curso, periodo);
+  if (!e.parte) return { tablas: {}, aumentos: {}, stats: {} };
+  const cache = {}, obj = abrirParteVecina_(e.parte, cache);
+  return consultaEnlacesCarga_(indice, { id: e.op.id, curso: e.curso, periodo: e.periodo, registros: obj.registros || [] }, dia, cache);
+}
+
+/* Lo mismo para todas las partes de un conjunto (el eje del curso escolar o del periodo): una unión por curso o periodo. */
+function consultaEnlacesTodas_(raiz, id) {
+  const indice = leerIndice_(raiz), def = consultaDefinicion_(id), cache = {}, res = { porParte: {} };
+  consultaPartesDeTodas_(indice, def).forEach(function (h) {
+    const carga = { id: def.id, curso: def.modo === 'curso' ? h.cursoEscolar : '', periodo: def.modo === 'periodo' ? h.periodo || '' : '', registros: abrirParteVecina_(h, cache).registros || [] };
+    res.porParte[carga.curso || carga.periodo || ''] = consultaEnlacesCarga_(indice, carga, '', cache);
+  });
+  return res;
+}
+
+/* Las rutas de las partes que hacen falta para unir: la propia y las de los destinos de cada enlace. Sirve a la página para traerlas antes (`dia`: el día elegido, si lo hay). */
+function consultaEnlacesPartes_(indice, id, curso, periodo, dia) {
+  const e = consultaEleccion_(indice, id, curso, periodo), rutas = [];
+  if (!e.parte) return rutas;
+  rutas.push(e.parte.ruta);
+  consultaRutasDestino_(indice, id, consultaCursoEnlazado_({ curso: e.curso }, dia), rutas);
+  return rutas;
+}
+function consultaEnlacesTodasPartes_(indice, id) {
+  const def = consultaDefinicion_(id), rutas = [];
+  if (!def) return rutas;
+  consultaPartesDeTodas_(indice, def).forEach(function (h) { rutas.push(h.ruta); consultaRutasDestino_(indice, id, def.modo === 'curso' ? h.cursoEscolar : cursoActual_(), rutas); });
+  return rutas;
+}
+function consultaRutasDestino_(indice, id, curso, rutas) {
+  consultaEnlacesDe_(id).forEach(function (enl) {
+    enl.destinos.forEach(function (d) { const h = consultaEnlaceParte_(indice, d, curso); if (h && rutas.indexOf(h.ruta) === -1) rutas.push(h.ruta); });
+  });
 }
 
 /* ==== Acceso.gs ==== */

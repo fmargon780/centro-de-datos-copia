@@ -75,14 +75,42 @@
           <button type="button" class="accion" id="consExcel">Sacar a Excel</button>
         </span>
       </div>
-      <div class="consulta-columnas">Columnas: <span id="consPastillas"></span> <select id="consAnadir" aria-label="Añadir una columna"></select></div>
-      <p class="aviso-pasos" id="consAvisos" hidden></p>
-      <p class="aviso-pasos" id="consQuitar" hidden></p>
-      <p class="nota-simple" id="consSinColumnas" hidden>No hay ninguna columna marcada.</p>
-      <div class="tabla-consulta">
-        <table id="tablaConsulta"><thead id="consCabeza"></thead><tbody id="consCuerpo"></tbody></table>
+      <div id="consEnlaces" hidden></div>
+      <p class="nota-simple" id="consSinCurso" hidden>Con «Curso escolar» o «Periodo» como eje se cuentan todos los cursos guardados: «Curso» y «o en la fecha» no se usan.</p>
+      <div id="consRecuento">
+        <div class="rec-barra">
+          <label>Calcular <select id="recCalculo" aria-label="Qué calcular"></select></label>
+          <label id="recCampoCaja" hidden>de <select id="recCampo" aria-label="Campo numérico"></select></label>
+          <label id="recBaseCaja" hidden>como porcentaje <select id="recBase" aria-label="Porcentaje de"></select></label>
+          <span class="nota-simple" id="recFrase"></span>
+        </div>
+        <div class="rec-ejes">Ejes: <span id="recEjes"></span></div>
+        <div class="rec-ejes" id="recEjesEnlCaja" hidden>De otros datos, enlazados: <span id="recEjesEnl"></span></div>
+        <div class="rec-cajas">
+          <div class="rec-caja" id="recFilas" data-caja="filas"><b>Filas</b><span class="rec-pastillas"></span></div>
+          <div class="rec-caja" id="recCols" data-caja="cols"><b>Columnas</b><span class="rec-pastillas"></span></div>
+        </div>
+        <p class="aviso-pasos" id="recAvisos" hidden></p>
+        <div class="rec-cuerpo">
+          <div class="tabla-consulta rec-tabla"><table id="recTabla"><thead id="recCabeza"></thead><tbody id="recCuerpo"></tbody></table></div>
+          <div class="rec-grafico" id="recGraficoCaja">
+            <label>Gráfico <select id="recTipo" aria-label="Tipo de gráfico"></select></label>
+            <div id="recSvg"></div>
+          </div>
+        </div>
+        <p class="cuenta consulta-cuenta"><span id="recCuenta"></span></p>
       </div>
-      <p class="cuenta consulta-cuenta"><span id="consCuenta"></span> <span id="consHojas"></span></p>
+      <div id="consLista" hidden>
+        <p class="rec-volver"><button type="button" class="accion" id="recVolver">Volver al recuento</button> <span class="pastilla marcada" id="recCasilla" hidden></span></p>
+        <div class="consulta-columnas">Columnas: <span id="consPastillas"></span> <select id="consAnadir" aria-label="Añadir una columna"></select></div>
+        <p class="aviso-pasos" id="consAvisos" hidden></p>
+        <p class="aviso-pasos" id="consQuitar" hidden></p>
+        <p class="nota-simple" id="consSinColumnas" hidden>No hay ninguna columna marcada.</p>
+        <div class="tabla-consulta">
+          <table id="tablaConsulta"><thead id="consCabeza"></thead><tbody id="consCuerpo"></tbody></table>
+        </div>
+        <p class="cuenta consulta-cuenta"><span id="consCuenta"></span> <span id="consHojas"></span></p>
+      </div>
     </div>
     <div id="hojaImpresion"></div>
   </section>

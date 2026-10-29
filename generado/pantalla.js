@@ -693,13 +693,18 @@ function agrupar(avisos, destino, revisado) {
 /* La pestaña «Consultar» (fila 99): la lista de un conjunto de datos ya hechos, con las columnas y los filtros que se elijan, que se imprime en una hoja preparada y se saca a Excel.
    Solo lee. Lo delicado (documentos, teléfonos, direcciones, correos propios, necesidades educativas…) se ve aquí y no sale al imprimir ni a Excel (Consultar.gs decide qué es delicado).
    Las columnas y los filtros se aplican aquí mismo (ConsultarFilas.gs); el servidor solo trae la parte elegida. */
-var CONSULTA = { carga: null, idColumnas: '', visibles: [], marcadas: {}, filtros: [{ ruta: '', op: 'contiene', texto: '' }], centro: null, medido: false, abierta: false, cursoAntes: null };
+var CONSULTA = { carga: null, idColumnas: '', visibles: [], marcadas: {}, filtros: [{ ruta: '', op: 'contiene', texto: '' }], centro: null, medido: false, abierta: false, cursoAntes: null,
+  vista: 'recuento', casilla: null, cargaLista: null, conAnulados: false };   // fila 100: se abre en el recuento; la lista sale al pulsar una cifra (JsRecuento.html)
 
 function consultaDef() { return consultaDefinicion_(CONSULTA.carga.id); }
 function consultaOpcion() { return CONSULTA.carga.opciones.filter(function (o) { return o.id === CONSULTA.carga.id; })[0]; }
 function consultaPosibles() { return consultaColumnas_(CONSULTA.carga.campos, consultaDef()); }
+/* La carga de la lista: la del curso elegido o, si viene de una casilla con varios cursos, todas las partes (entonces no se usa la fecha). */
+function cargaDeLista() { return CONSULTA.cargaLista || CONSULTA.carga; }
 function consultaEstado() {
-  return { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: document.getElementById('consFecha').value };
+  var varias = !!cargaDeLista().cargas;
+  return { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: varias ? '' : document.getElementById('consFecha').value,
+    casilla: CONSULTA.vista === 'lista' ? CONSULTA.casilla : null, conAnulados: CONSULTA.conAnulados };
 }
 
 /* Con las columnas de siempre de cada conjunto (las que ya tiene la parte). */
@@ -710,11 +715,12 @@ function consultaColumnasPorDefecto() {
   CONSULTA.visibles.forEach(function (r) { CONSULTA.marcadas[r] = true; });
   CONSULTA.filtros = [{ ruta: '', op: 'contiene', texto: '' }];
   document.getElementById('consGrupo').checked = false;
+  if (window.recuentoPorDefecto) recuentoPorDefecto();
 }
 
 function consultaPedir(id, curso, periodo) {
   return servidor('webConsultarLeer', id || null, curso || '', periodo || '').then(function (c) {
-    CONSULTA.carga = c;
+    CONSULTA.carga = c; CONSULTA.casilla = null; CONSULTA.cargaLista = null; CONSULTA.conAnulados = false;
     if (CONSULTA.idColumnas !== c.id) consultaColumnasPorDefecto();
     pintarConsulta();
   }, function (x) { avisar(x.message, true); });
@@ -753,13 +759,16 @@ function pintarBarraConsulta() {
   if (c.curso && cursos.indexOf(c.curso) === -1) cursos.unshift(c.curso);
   document.getElementById('consCursoCaja').hidden = !(op && op.modo === 'curso');
   llenarSelect(document.getElementById('consCurso'), cursos, c.curso || '', function (v) { return v + (v === c.cursoHoy ? ' (hoy)' : ''); });
-  document.getElementById('consCurso').disabled = !!dia;
+  var variosCursos = window.recuentoUsaCurso && recuentoUsaCurso();
+  document.getElementById('consCurso').disabled = !!dia || variosCursos;
   document.getElementById('consPeriodoCaja').hidden = !(op && op.modo === 'periodo');
   llenarSelect(document.getElementById('consPeriodo'), op && op.modo === 'periodo' ? op.periodos : [''], c.periodo, function (v) { return v === '' ? 'Historial (todos)' : v; });
   var conFecha = !!op && (op.vigencia || op.modo === 'curso');
   document.getElementById('consFechaCaja').hidden = !conFecha;
+  document.getElementById('consFecha').disabled = variosCursos;
+  document.getElementById('consSinCurso').hidden = !variosCursos;
   if (!conFecha) document.getElementById('consFecha').value = '';
-  document.getElementById('consGrupoCaja').hidden = !(op && op.grupo);
+  document.getElementById('consGrupoCaja').hidden = !(op && op.grupo) || CONSULTA.vista !== 'lista';
   document.getElementById('consGrupo').disabled = !(op && op.grupo);
 }
 
@@ -775,10 +784,10 @@ function pintarFiltrosConsulta() {
     [['contiene', 'contiene'], ['igual', 'es igual a'], ['vacio', 'está vacío']].forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; op.appendChild(o); });
     op.value = f.op; texto.type = 'text'; texto.value = f.texto; texto.placeholder = 'texto'; texto.hidden = f.op === 'vacio';
     quitar.type = 'button'; quitar.title = 'Quitar este filtro'; quitar.setAttribute('aria-label', 'Quitar este filtro');
-    col.onchange = function () { f.ruta = col.value; pintarTablaConsulta(); };
-    op.onchange = function () { f.op = op.value; texto.hidden = f.op === 'vacio'; pintarTablaConsulta(); };
-    texto.oninput = function () { f.texto = texto.value; pintarTablaConsulta(); };
-    quitar.onclick = function () { CONSULTA.filtros.splice(i, 1); if (!CONSULTA.filtros.length) CONSULTA.filtros.push({ ruta: '', op: 'contiene', texto: '' }); pintarFiltrosConsulta(); pintarTablaConsulta(); };
+    col.onchange = function () { f.ruta = col.value; repintarConsulta(); };
+    op.onchange = function () { f.op = op.value; texto.hidden = f.op === 'vacio'; repintarConsulta(); };
+    texto.oninput = function () { f.texto = texto.value; repintarConsulta(); };
+    quitar.onclick = function () { CONSULTA.filtros.splice(i, 1); if (!CONSULTA.filtros.length) CONSULTA.filtros.push({ ruta: '', op: 'contiene', texto: '' }); pintarFiltrosConsulta(); repintarConsulta(); };
     [col, op, texto, quitar].forEach(function (x) { fila.appendChild(x); });
     caja.appendChild(fila);
   });
@@ -798,7 +807,7 @@ function pintarColumnasConsulta() {
   posibles.forEach(function (p) { porRuta[p.ruta] = p; });
   caja.textContent = '';
   CONSULTA.visibles.filter(function (r) { return porRuta[r]; }).forEach(function (r) {
-    var p = porRuta[r], b = el('button', 'pastilla' + (CONSULTA.marcadas[r] ? ' marcada' : '') + (p.delicada ? ' ambar' : ''), p.nombre + (p.delicada ? ' (solo en pantalla)' : ''));
+    var p = porRuta[r], b = el('button', 'pastilla' + (CONSULTA.marcadas[r] ? ' marcada' : '') + (p.delicada ? ' ambar' : '') + (p.enlace ? ' enlazada' : ''), p.nombre + (p.delicada ? ' (solo en pantalla)' : ''));
     b.type = 'button'; b.title = p.frase; b.dataset.ruta = r; b.setAttribute('aria-pressed', CONSULTA.marcadas[r] ? 'true' : 'false');
     b.onclick = function () { marcarColumnaConsulta(r, !CONSULTA.marcadas[r]); pintarColumnasConsulta(); pintarTablaConsulta(); };
     caja.appendChild(b);
@@ -806,14 +815,25 @@ function pintarColumnasConsulta() {
   var mas = document.getElementById('consAnadir');
   mas.textContent = '';
   var primera = el('option', '', '+ añadir'); primera.value = ''; mas.appendChild(primera);
+  var grupos = {};   // fila 101: las columnas de otros conjuntos, agrupadas por el conjunto de donde vienen
   posibles.filter(function (p) { return CONSULTA.visibles.indexOf(p.ruta) === -1; }).forEach(function (p) {
-    var o = el('option', '', p.nombre + (p.delicada ? ' (solo en pantalla)' : '')); o.value = p.ruta; o.title = p.frase; mas.appendChild(o);
+    var o = el('option', '', p.nombre + (p.delicada ? ' (solo en pantalla)' : '')); o.value = p.ruta; o.title = p.frase;
+    if (!p.enlace) { mas.appendChild(o); return; }
+    if (!grupos[p.conjunto]) { grupos[p.conjunto] = document.createElement('optgroup'); grupos[p.conjunto].label = 'De ' + p.conjunto + ' (enlazado)'; mas.appendChild(grupos[p.conjunto]); }
+    grupos[p.conjunto].appendChild(o);
   });
   mas.value = '';
 }
 
 function pintarTablaConsulta() {
-  var c = CONSULTA.carga, estado = consultaEstado(), t = consultaTabla_(c, estado), m = consultaSalida_(c, estado, document.getElementById('consGrupo').checked, c.hoy);
+  var c = cargaDeLista();
+  if (enlacesPendientes(c)) {
+    document.getElementById('consCuenta').textContent = 'Cargando los datos de los otros conjuntos…';
+    cargarEnlaces(c).then(function () { if (CONSULTA.vista === 'lista') pintarTablaConsulta(); });
+    return null;
+  }
+  pintarAvisosEnlaces(c);
+  var estado = consultaEstado(), t = consultaTabla_(c, estado), m = consultaSalida_(c, estado, document.getElementById('consGrupo').checked, c.hoy);
   var cab = document.getElementById('consCabeza'), cuerpo = document.getElementById('consCuerpo');
   cab.textContent = ''; cuerpo.textContent = '';
   var tr = el('tr');
@@ -836,18 +856,31 @@ function pintarTablaConsulta() {
   return t;
 }
 
+/* Se vuelve a pintar lo que se está viendo (los filtros de arriba valen para el recuento y para la lista). */
+function repintarConsulta() {
+  if (CONSULTA.vista === 'lista') pintarTablaConsulta(); else pintarRecuento();
+}
+
+function pintarVista() {
+  var lista = CONSULTA.vista === 'lista';
+  document.getElementById('consLista').hidden = !lista;
+  document.getElementById('consRecuento').hidden = lista;
+  var op = consultaOpcion();
+  document.getElementById('consGrupoCaja').hidden = !(op && op.grupo) || !lista;
+  document.getElementById('recVolver').hidden = !lista;
+  var cas = document.getElementById('recCasilla');
+  cas.hidden = !(lista && CONSULTA.casilla);
+  if (CONSULTA.casilla) cas.textContent = 'Casilla: ' + CONSULTA.casilla.texto;
+  if (lista) { pintarColumnasConsulta(); pintarTablaConsulta(); } else pintarRecuento();
+}
+
 function pintarConsulta() {
   var vacio = !CONSULTA.carga.id;
   document.getElementById('consVacio').hidden = !vacio;
   document.getElementById('consContenido').hidden = vacio;
   if (vacio) return;
-  pintarBarraConsulta(); pintarFiltrosConsulta(); pintarColumnasConsulta();
-  var t = pintarTablaConsulta();
-  if (!CONSULTA.medido) {
-    CONSULTA.medido = true;
-    var ancho = window.innerWidth;
-    servidor('webConsultarMedidas', { cargada: true, columnas: t.columnas.length, lineas: t.lineas.length, desbordes: document.documentElement.scrollWidth > ancho ? 1 : 0, ancho: ancho }).then(null, function () { /* medir no es lo importante */ });
-  }
+  pintarBarraConsulta(); pintarFiltrosConsulta();
+  pintarVista();
 }
 
 /* La hoja preparada: datos del centro, título, fecha, filtros y la tabla; una hoja por grupo si se marca; al pie, lo que se ha quitado y que lleva datos personales. */
@@ -868,6 +901,7 @@ function hojaDeConsulta(m, centro, grupo, aparte) {
   });
   tabla.appendChild(cuerpo); h.appendChild(tabla);
   if (m.avisoQuitadas) h.appendChild(el('p', 'hoja-pie ambar', m.avisoQuitadas));
+  (m.avisosEnlaces || []).forEach(function (f) { h.appendChild(el('p', 'hoja-pie ambar', f)); });
   h.appendChild(el('p', 'hoja-pie', m.avisoPersonal));
   return h;
 }
@@ -878,9 +912,11 @@ function centroDeConsulta() {
 }
 
 function imprimirConsulta() {
-  var c = CONSULTA.carga;
+  if (CONSULTA.vista !== 'lista') return imprimirRecuento();
+  var c = cargaDeLista();
   if (!c || !c.hay) return Promise.resolve();
   var m = consultaSalida_(c, consultaEstado(), document.getElementById('consGrupo').checked, c.hoy);
+  m.avisosEnlaces = c.conEnlaces ? consultaAvisosEnlaces_(c, rutasEnUso()) : [];
   return centroDeConsulta().then(function (centro) {
     var caja = document.getElementById('hojaImpresion');
     caja.textContent = '';
@@ -894,7 +930,8 @@ window.addEventListener('afterprint', function () { document.body.classList.remo
 
 /* El fichero de Excel se arma aquí mismo y se descarga. */
 function sacarAExcel() {
-  var c = CONSULTA.carga;
+  if (CONSULTA.vista !== 'lista') return excelRecuento();
+  var c = cargaDeLista();
   if (!c || !c.hay) return;
   var estado = consultaEstado(), m = consultaSalida_(c, estado, false, c.hoy);
   var blob = new Blob([consultaXlsx_(m)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -917,6 +954,480 @@ document.getElementById('consAnadir').onchange = function () {
 };
 document.getElementById('consImprimir').onclick = function () { imprimirConsulta(); };
 document.getElementById('consExcel').onclick = function () { sacarAExcel(); };
+
+/* ==== JsConsultarGrafico.html ==== */
+
+/* El gráfico del recuento (fila 100): barras, líneas o sectores dibujados aquí mismo en SVG (la página no descarga librerías). Los datos los prepara `consultaGrafico_` (ConsultarGrafico.gs). */
+var GRAFICO_COLORES = ['#3b6ea5', '#d9822b', '#4c9a6a', '#b04a6b', '#7b5ea7', '#2e9aa6', '#a39a2a', '#8a5a44', '#5d7184', '#c2573f', '#6a9c3b', '#9b6bb3'];
+var SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(nombre, atributos, texto) {
+  var e = document.createElementNS(SVG_NS, nombre);
+  Object.keys(atributos || {}).forEach(function (k) { e.setAttribute(k, atributos[k]); });
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+function colorGrafico(g, i, nombre) { return nombre === 'otros' ? '#9aa5b1' : GRAFICO_COLORES[i % GRAFICO_COLORES.length]; }
+
+function cortarEtiqueta(t, n) { t = String(t); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+/* Un número redondo por encima del máximo para el eje, con cuatro marcas. */
+function escalaGrafico(max) {
+  if (max <= 0) return { tope: 1, paso: 0.25 };
+  var base = Math.pow(10, Math.floor(Math.log(max) / Math.LN10)), tope = base;
+  [1, 2, 2.5, 5, 10].some(function (m) { tope = m * base; return tope >= max; });
+  return { tope: tope, paso: tope / 4 };
+}
+
+function dibujarEjes(svg, g, ancho, alto, m) {
+  var esc = escalaGrafico(g.max), h = alto - m.arriba - m.abajo;
+  for (var i = 0; i <= 4; i++) {
+    var y = alto - m.abajo - h * i / 4;
+    svg.appendChild(svgEl('line', { x1: m.izq, x2: ancho - m.der, y1: y, y2: y, stroke: '#d5dbe1', 'stroke-width': 1 }));
+    svg.appendChild(svgEl('text', { x: m.izq - 6, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#555' }, String(Math.round(esc.paso * i * 100) / 100).replace('.', ',')));
+  }
+  return { esc: esc, h: h };
+}
+
+function dibujarBarras(svg, g, ancho, alto) {
+  var m = { izq: 44, der: 8, arriba: 10, abajo: 46 }, e = dibujarEjes(svg, g, ancho, alto, m);
+  var cat = (ancho - m.izq - m.der) / g.categorias.length, ns = g.series.length, bw = Math.max(2, Math.min(40, cat * 0.8 / ns));
+  g.categorias.forEach(function (c, ci) {
+    var x0 = m.izq + cat * ci + (cat - bw * ns) / 2;
+    g.series.forEach(function (s, si) {
+      var v = s.valores[ci], hh = e.h * v / e.esc.tope;
+      var r = svgEl('rect', { x: x0 + bw * si, y: alto - m.abajo - hh, width: bw, height: hh, fill: colorGrafico(g, ns > 1 ? si : ci, ns > 1 ? s.nombre : c), 'data-marca': 'barra' });
+      r.appendChild(svgEl('title', {}, c + (ns > 1 ? ' · ' + s.nombre : '') + ': ' + s.textos[ci]));
+      svg.appendChild(r);
+    });
+    var t = svgEl('text', { x: m.izq + cat * ci + cat / 2, y: alto - m.abajo + 14, 'text-anchor': 'middle', 'font-size': 11, fill: '#333' }, cortarEtiqueta(c, Math.max(4, Math.floor(cat / 6.5))));
+    t.appendChild(svgEl('title', {}, c));
+    svg.appendChild(t);
+  });
+}
+
+function dibujarLineas(svg, g, ancho, alto) {
+  var m = { izq: 44, der: 14, arriba: 10, abajo: 46 }, e = dibujarEjes(svg, g, ancho, alto, m);
+  var n = g.categorias.length, paso = n > 1 ? (ancho - m.izq - m.der) / (n - 1) : 0;
+  var px = function (i) { return n > 1 ? m.izq + paso * i : m.izq + (ancho - m.izq - m.der) / 2; };
+  g.categorias.forEach(function (c, i) {
+    var t = svgEl('text', { x: px(i), y: alto - m.abajo + 14, 'text-anchor': 'middle', 'font-size': 11, fill: '#333' }, cortarEtiqueta(c, 10));
+    t.appendChild(svgEl('title', {}, c)); svg.appendChild(t);
+  });
+  g.series.forEach(function (s, si) {
+    var color = colorGrafico(g, si, s.nombre), puntos = s.valores.map(function (v, i) { return px(i) + ',' + (alto - m.abajo - e.h * v / e.esc.tope); }).join(' ');
+    svg.appendChild(svgEl('polyline', { points: puntos, fill: 'none', stroke: color, 'stroke-width': 2, 'data-marca': 'linea' }));
+    s.valores.forEach(function (v, i) {
+      var p = svgEl('circle', { cx: px(i), cy: alto - m.abajo - e.h * v / e.esc.tope, r: 3.5, fill: color, 'data-marca': 'punto' });
+      p.appendChild(svgEl('title', {}, g.categorias[i] + (g.series.length > 1 ? ' · ' + s.nombre : '') + ': ' + s.textos[i])); svg.appendChild(p);
+    });
+  });
+}
+
+function dibujarSectores(svg, g, ancho, alto) {
+  var s = g.series[0], total = s.valores.reduce(function (a, v) { return a + v; }, 0), cx = ancho / 2, cy = alto / 2, r = Math.min(ancho, alto) / 2 - 12, ang = -Math.PI / 2;
+  if (total <= 0) return;
+  s.valores.forEach(function (v, i) {
+    if (v <= 0) return;
+    var fin = ang + v / total * Math.PI * 2, grande = fin - ang > Math.PI ? 1 : 0;
+    var d = s.valores.filter(function (x) { return x > 0; }).length === 1 ? 'M ' + (cx - r) + ' ' + cy + ' a ' + r + ' ' + r + ' 0 1 0 ' + 2 * r + ' 0 a ' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0'
+      : 'M ' + cx + ' ' + cy + ' L ' + (cx + r * Math.cos(ang)) + ' ' + (cy + r * Math.sin(ang)) + ' A ' + r + ' ' + r + ' 0 ' + grande + ' 1 ' + (cx + r * Math.cos(fin)) + ' ' + (cy + r * Math.sin(fin)) + ' Z';
+    var p = svgEl('path', { d: d, fill: colorGrafico(g, i, g.categorias[i]), stroke: '#fff', 'stroke-width': 1, 'data-marca': 'sector' });
+    p.appendChild(svgEl('title', {}, g.categorias[i] + ': ' + s.textos[i]));
+    svg.appendChild(p);
+    ang = fin;
+  });
+}
+
+/* Pinta el gráfico en `caja`: el SVG y, debajo, la leyenda (las series, o los sectores). */
+function dibujarGrafico(caja, g) {
+  caja.textContent = '';
+  if (!g) return;
+  var ancho = 560, alto = 280, svg = svgEl('svg', { viewBox: '0 0 ' + ancho + ' ' + alto, role: 'img', 'aria-label': 'Gráfico del recuento', 'data-tipo': g.tipo, width: '100%' });
+  if (g.tipo === 'sectores') dibujarSectores(svg, g, ancho, alto);
+  else if (g.tipo === 'lineas') dibujarLineas(svg, g, ancho, alto);
+  else dibujarBarras(svg, g, ancho, alto);
+  caja.appendChild(svg);
+  var ley = el('p', 'grafico-leyenda');
+  var items = g.tipo === 'sectores' ? g.categorias.map(function (c, i) { return [c, colorGrafico(g, i, c)]; }) : (g.series.length > 1 ? g.series.map(function (s, i) { return [s.nombre, colorGrafico(g, i, s.nombre)]; }) : []);
+  items.forEach(function (x) {
+    var c = el('span', 'grafico-clave'), cuadro = el('i'); cuadro.style.background = x[1];
+    c.appendChild(cuadro); c.appendChild(document.createTextNode(' ' + x[0])); ley.appendChild(c);
+  });
+  if (items.length) caja.appendChild(ley);
+}
+
+/* ==== JsRecuento.html ==== */
+
+/* El recuento de «Consultar» (fila 100): se arrastran ejes (o se pulsa la pastilla) a filas y columnas, se elige qué calcular y sale la tabla con sus totales y el gráfico. Pulsar una cifra abre la lista de la fila 99
+   con esas líneas. Solo lee; los cálculos están en ConsultarRecuento.gs y ConsultarGrafico.gs y el dibujo en JsConsultarGrafico.html. */
+var RECUENTO = { filas: [], cols: [], calculo: 'contar', campo: '', base: 'total', tipo: 'auto', todas: null, rec: null, menu: '', cargando: false };
+
+function recuentoDef() { return consultaDefinicion_(CONSULTA.carga.id); }
+function recuentoEjes() { return consultaEjes_(CONSULTA.carga.campos, recuentoDef()); }
+function recuentoUsaCurso() { return !!CONSULTA.carga && !!CONSULTA.carga.id && recuentoDef().modo !== 'unica' && RECUENTO.filas.concat(RECUENTO.cols).some(function (e) { return e.ruta === '_curso'; }); }
+
+/* Los ejes con los que abre cada conjunto (los de su ficha, o el primero que tenga). */
+function recuentoPorDefecto() {
+  var def = recuentoDef(), campos = CONSULTA.carga.campos;
+  var d = campos && campos.length ? consultaEjesPorDefecto_(campos, def) : { filas: ((def.eje || {}).filas || []).map(function (r) { return { ruta: r, agrupa: 'anio' }; }), cols: ((def.eje || {}).cols || []).map(function (r) { return { ruta: r, agrupa: 'anio' }; }) };
+  RECUENTO.filas = d.filas; RECUENTO.cols = d.cols; RECUENTO.calculo = 'contar'; RECUENTO.campo = ''; RECUENTO.base = 'total'; RECUENTO.menu = ''; RECUENTO.tipo = 'auto';
+}
+
+function recuentoUsado(ruta) {
+  return RECUENTO.filas.filter(function (e) { return e.ruta === ruta; })[0] || RECUENTO.cols.filter(function (e) { return e.ruta === ruta; })[0] || null;
+}
+
+/* Pone un eje en «filas», en «columnas» o lo quita («ejes»), antes de otro si se dice. Solo caben ejes de una tabla del registro a la vez. */
+function moverEje(ruta, destino, antesDe) {
+  var eje = recuentoEjes().filter(function (e) { return e.ruta === ruta; })[0];
+  if (!eje) return;
+  var previo = recuentoUsado(ruta), agrupa = previo ? previo.agrupa : 'anio';
+  RECUENTO.filas = RECUENTO.filas.filter(function (e) { return e.ruta !== ruta; });
+  RECUENTO.cols = RECUENTO.cols.filter(function (e) { return e.ruta !== ruta; });
+  if (destino === 'filas' || destino === 'cols') {
+    var lista = RECUENTO[destino], pos = antesDe ? lista.map(function (e) { return e.ruta; }).indexOf(antesDe) : -1, nuevo = { ruta: ruta, agrupa: agrupa };
+    if (pos === -1) lista.push(nuevo); else lista.splice(pos, 0, nuevo);
+    if (eje.tabla) {
+      var tablaDe = {};
+      recuentoEjes().forEach(function (e) { tablaDe[e.ruta] = e.tabla; });
+      RECUENTO.filas = RECUENTO.filas.filter(function (e) { return !tablaDe[e.ruta] || tablaDe[e.ruta] === eje.tabla; });
+      RECUENTO.cols = RECUENTO.cols.filter(function (e) { return !tablaDe[e.ruta] || tablaDe[e.ruta] === eje.tabla; });
+    }
+  }
+  RECUENTO.menu = '';
+  cambioDeEjes();
+}
+
+function cambioDeEjes() {
+  if (window.pintarBarraConsulta) pintarBarraConsulta();
+  pintarRecuento();
+}
+
+function pastillaDeEje(e, usado) {
+  var texto = e.nombre + (e.tipo === 'fecha' && usado ? (usado.agrupa === 'mes' ? ' (por mes)' : ' (por año)') : '');
+  var b = el('button', 'pastilla marcada' + (e.delicada ? ' ambar' : '') + (e.enlace ? ' enlazada' : ''), texto);
+  b.type = 'button'; b.draggable = true; b.dataset.ruta = e.ruta;
+  b.title = (e.enlace ? 'Viene de ' + e.conjunto + ', enlazado ' + e.motivo.slice(e.motivo.indexOf(', ') + 2) + '. ' : '') + (e.delicada ? 'Dato delicado: las cifras salen exactas, pero la lista no lo enseña al imprimir. ' : '') + 'Arrástrala a filas o columnas, o púlsala para elegir.';
+  b.ondragstart = function (ev) { ev.dataTransfer.setData('text/plain', e.ruta); ev.dataTransfer.effectAllowed = 'move'; };
+  b.onclick = function () { RECUENTO.menu = RECUENTO.menu === e.ruta ? '' : e.ruta; pintarEjes(); };
+  return b;
+}
+
+function menuDeEje(e, usado) {
+  var m = el('span', 'rec-menu');
+  var op = function (texto, hecho) { var b = el('button', 'accion', texto); b.type = 'button'; b.onclick = hecho; m.appendChild(b); };
+  op('A filas', function () { moverEje(e.ruta, 'filas'); });
+  op('A columnas', function () { moverEje(e.ruta, 'cols'); });
+  if (usado) op('Quitar', function () { moverEje(e.ruta, 'ejes'); });
+  if (e.tipo === 'fecha' && usado) {
+    op('Por año', function () { fijarAgrupa(e.ruta, 'anio'); });
+    op('Por mes', function () { fijarAgrupa(e.ruta, 'mes'); });
+  }
+  return m;
+}
+
+function fijarAgrupa(ruta, agrupa) {
+  var u = recuentoUsado(ruta);
+  if (u) u.agrupa = agrupa;
+  RECUENTO.menu = '';
+  cambioDeEjes();
+}
+
+/* Las pastillas de «Ejes» (los que no están en uso) y las de las dos cajas, con el menú abierto si toca. */
+function pintarEjes() {
+  var ejes = recuentoEjes(), porRuta = {};
+  ejes.forEach(function (e) { porRuta[e.ruta] = e; });
+  var poner = function (caja, lista) {
+    caja.textContent = '';
+    lista.forEach(function (x) {
+      var e = x.eje, b = pastillaDeEje(e, x.usado);
+      caja.appendChild(b);
+      if (RECUENTO.menu === e.ruta) caja.appendChild(menuDeEje(e, x.usado));
+    });
+  };
+  var libres = ejes.filter(function (e) { return !recuentoUsado(e.ruta); }).map(function (e) { return { eje: e, usado: null }; });
+  poner(document.getElementById('recEjes'), libres.filter(function (x) { return !x.eje.enlace; }));
+  poner(document.getElementById('recEjesEnl'), libres.filter(function (x) { return x.eje.enlace; }));
+  document.getElementById('recEjesEnlCaja').hidden = !ejes.some(function (e) { return e.enlace; });
+  var dentro = function (id, lista) { poner(document.querySelector('#' + id + ' .rec-pastillas'), lista.filter(function (u) { return porRuta[u.ruta]; }).map(function (u) { return { eje: porRuta[u.ruta], usado: u }; })); };
+  dentro('recFilas', RECUENTO.filas); dentro('recCols', RECUENTO.cols);
+}
+
+function prepararSoltar(caja, destino) {
+  caja.dataset.caja = destino;
+  caja.ondragover = function (ev) { ev.preventDefault(); };
+  caja.ondrop = function (ev) {
+    ev.preventDefault();
+    var ruta = ev.dataTransfer.getData('text/plain'), sobre = ev.target.closest && ev.target.closest('[data-ruta]');
+    if (ruta) moverEje(ruta, destino, sobre && sobre.dataset.ruta !== ruta ? sobre.dataset.ruta : undefined);
+  };
+}
+
+function estadoRecuento() {
+  var varios = recuentoUsaCurso();
+  return { filas: RECUENTO.filas, cols: RECUENTO.cols, calculo: RECUENTO.calculo, campo: RECUENTO.campo, base: RECUENTO.base, filtros: CONSULTA.filtros, dia: varios ? '' : document.getElementById('consFecha').value };
+}
+
+/* Qué se puede calcular según los ejes y los campos del conjunto. */
+function pintarCalculo() {
+  var c = CONSULTA.carga, def = recuentoDef(), numericos = consultaNumericos_(c.campos, def);
+  var conTabla = recuentoEjes().some(function (e) { return e.tabla && recuentoUsado(e.ruta); });
+  var sel = document.getElementById('recCalculo');
+  sel.textContent = '';
+  RECUENTO_CALCULOS_.filter(function (k) { return (k.id !== 'lineas' || conTabla) && ((k.id !== 'sumar' && k.id !== 'media') || numericos.length); }).forEach(function (k) {
+    var o = el('option', '', k.nombre); o.value = k.id; o.title = k.frase; sel.appendChild(o);
+  });
+  if (!Array.prototype.some.call(sel.options, function (o) { return o.value === RECUENTO.calculo; })) RECUENTO.calculo = 'contar';
+  sel.value = RECUENTO.calculo;
+  var campos = document.getElementById('recCampo');
+  campos.textContent = '';
+  numericos.forEach(function (n) { var o = el('option', '', n.nombre); o.value = n.ruta; campos.appendChild(o); });
+  if (!numericos.some(function (n) { return n.ruta === RECUENTO.campo; })) RECUENTO.campo = numericos.length ? numericos[0].ruta : '';
+  campos.value = RECUENTO.campo;
+  document.getElementById('recCampoCaja').hidden = !(RECUENTO.calculo === 'sumar' || RECUENTO.calculo === 'media');
+  var base = document.getElementById('recBase');
+  base.textContent = '';
+  RECUENTO_BASES_.forEach(function (b) { var o = el('option', '', b.nombre); o.value = b.id; base.appendChild(o); });
+  base.value = RECUENTO.base;
+  document.getElementById('recBaseCaja').hidden = RECUENTO.calculo !== 'porcentaje';
+  document.getElementById('recFrase').textContent = RECUENTO_CALCULOS_.filter(function (k) { return k.id === RECUENTO.calculo; })[0].frase;
+}
+
+function recuentoCelda(rec, i, j, texto, clase, general) {
+  var td = el('td', clase || '');
+  var a = el('a', 'rec-cifra', texto); a.href = '#'; a.dataset.i = i; a.dataset.j = j;
+  a.title = 'Ver la lista de quiénes son';
+  a.onclick = function (ev) { ev.preventDefault(); abrirLista(rec, i, j); };
+  if (general) a.id = 'recTotal';
+  td.appendChild(a);
+  return td;
+}
+
+function pintarTablaRecuento(rec) {
+  var cab = document.getElementById('recCabeza'), cuerpo = document.getElementById('recCuerpo');
+  cab.textContent = ''; cuerpo.textContent = '';
+  var nf = rec.ejesFilas.length, nc = rec.ejesCols.length, anchoIzq = Math.max(nf, 1);
+  if (!nc) {
+    var tr0 = el('tr');
+    if (nf) rec.ejesFilas.forEach(function (e) { tr0.appendChild(el('th', '', e.nombre)); }); else tr0.appendChild(el('th', '', ''));
+    tr0.appendChild(el('th', 'rec-num', consultaFraseCalculo_(rec)));
+    cab.appendChild(tr0);
+  } else {
+    for (var l = 0; l < nc; l++) {
+      var tr = el('tr');
+      if (l === 0 && nc > 1) { var tl = el('th', '', ''); tl.colSpan = anchoIzq; tl.rowSpan = nc - 1; tr.appendChild(tl); }
+      if (l === nc - 1) { if (nf) rec.ejesFilas.forEach(function (e) { tr.appendChild(el('th', '', e.nombre)); }); else tr.appendChild(el('th', '', '')); }
+      var j = 0;
+      while (j < rec.cols.length) {
+        var g = rec.cols[j], k = j + 1;
+        while (k < rec.cols.length && rec.cols[k].ordenes.slice(0, l + 1).join('\u0001') === g.ordenes.slice(0, l + 1).join('\u0001')) k++;
+        var th = el('th', 'rec-num', g.etiquetas[l]); th.colSpan = k - j; th.title = rec.ejesCols[l].nombre; tr.appendChild(th);
+        j = k;
+      }
+      if (l === 0) { var tt = el('th', 'rec-num', 'Total'); tt.rowSpan = nc; tr.appendChild(tt); }
+      cab.appendChild(tr);
+    }
+  }
+  rec.filas.forEach(function (g, i) {
+    var fila = el('tr');
+    if (nf) g.etiquetas.forEach(function (t, n) {
+      var igual = i > 0 && rec.filas[i - 1].ordenes.slice(0, n + 1).join('\u0001') === g.ordenes.slice(0, n + 1).join('\u0001');
+      fila.appendChild(el('th', 'rec-fila', igual ? '' : t));
+    }); else fila.appendChild(el('th', 'rec-fila', 'Total'));
+    rec.celdas[i].forEach(function (c, j) { fila.appendChild(recuentoCelda(rec, i, j, c.texto, 'rec-num', !nf && !nc)); });
+    if (nc) fila.appendChild(recuentoCelda(rec, i, -1, rec.totFilas[i].texto, 'rec-num rec-total', !nf));
+    cuerpo.appendChild(fila);
+  });
+  if (nf) {
+    var ult = el('tr', 'rec-total'), t0 = el('th', 'rec-fila', 'Total'); t0.colSpan = nf; ult.appendChild(t0);
+    rec.totCols.forEach(function (c, j) { ult.appendChild(recuentoCelda(rec, -1, nc ? j : -1, c.texto, 'rec-num', !nc)); });
+    if (nc) ult.appendChild(recuentoCelda(rec, -1, -1, rec.total.texto, 'rec-num', true));
+    cuerpo.appendChild(ult);
+  }
+}
+
+/* Con pulsar la cifra de la casilla (i = fila, j = columna; -1 es el total) se abre la lista con esas líneas. */
+function abrirLista(rec, i, j) {
+  CONSULTA.casilla = consultaCasilla_(rec, i, j);
+  CONSULTA.cargaLista = recuentoUsaCurso() ? RECUENTO.todas : null;
+  CONSULTA.conAnulados = rec.conAnulados;
+  CONSULTA.vista = 'lista';
+  pintarVista();
+}
+
+/* La carga de todas las partes (para el eje del curso); una vez por conjunto. */
+function recuentoCargarTodas() {
+  var id = CONSULTA.carga.id;
+  if (RECUENTO.todas && RECUENTO.todas.id === id) return Promise.resolve(RECUENTO.todas);
+  RECUENTO.cargando = true;
+  return servidor('webConsultarTodos', id).then(function (t) { RECUENTO.cargando = false; RECUENTO.todas = t; return t; }, function (x) { RECUENTO.cargando = false; avisar(x.message, true); throw x; });
+}
+
+function pintarRecuento() {
+  var c = CONSULTA.carga;
+  if (!c || !c.id) return;
+  pintarEjes(); pintarCalculo();
+  var varios = recuentoUsaCurso(), avisos = document.getElementById('recAvisos');
+  if (varios && (!RECUENTO.todas || RECUENTO.todas.id !== c.id)) {
+    document.getElementById('recCuenta').textContent = 'Cargando todos los cursos…';
+    recuentoCargarTodas().then(function () { if (CONSULTA.vista === 'recuento') pintarRecuento(); }, function () { /* el aviso ya salió */ });
+    return;
+  }
+  var base = varios ? RECUENTO.todas : c;
+  if (enlacesPendientes(base)) {
+    document.getElementById('recCuenta').textContent = 'Cargando los datos de los otros conjuntos…';
+    cargarEnlaces(base).then(function () { if (CONSULTA.vista === 'recuento') pintarRecuento(); });
+    return;
+  }
+  pintarAvisosEnlaces(base);
+  var textoAvisos = varios ? base.aviso : c.aviso;
+  avisos.hidden = !textoAvisos.length; avisos.textContent = textoAvisos.join(' ');
+  var rec = null;
+  if (base.hay) rec = consultaRecuento_(base, estadoRecuento());
+  RECUENTO.rec = rec;
+  if (!rec) {
+    document.getElementById('recCabeza').textContent = ''; document.getElementById('recCuerpo').textContent = ''; document.getElementById('recSvg').textContent = '';
+    document.getElementById('recCuenta').textContent = '';
+    document.getElementById('recGraficoCaja').hidden = true;
+    medirRecuento(0, 0, false);
+    return;
+  }
+  pintarTablaRecuento(rec);
+  var g = consultaGrafico_(rec, RECUENTO.tipo);
+  var caja = document.getElementById('recGraficoCaja');
+  caja.hidden = !g;
+  if (g) {
+    var sel = document.getElementById('recTipo');
+    sel.textContent = '';
+    consultaGraficoTipos_(rec).forEach(function (t) { var o = el('option', '', t.nombre); o.value = t.id; sel.appendChild(o); });
+    sel.value = g.tipo;
+    dibujarGrafico(document.getElementById('recSvg'), g);
+  } else document.getElementById('recSvg').textContent = '';
+  var u = (recuentoDef().unidad || ['registro', 'registros']);
+  document.getElementById('recCuenta').textContent = rec.registros + ' ' + (rec.registros === 1 ? u[0] : u[1]) + (rec.lineas !== rec.registros ? ' · ' + rec.lineas + ' líneas' : '') + ' · ' + consultaFraseCalculo_(rec);
+  medirRecuento(rec.cols.length, rec.filas.length, !!g);
+}
+
+function medirRecuento(columnas, lineas, grafico) {
+  if (CONSULTA.medido) return;
+  CONSULTA.medido = true;
+  var ancho = window.innerWidth;
+  servidor('webConsultarMedidas', { cargada: true, recuento: true, grafico: grafico, enlaces: pastillasEnlazadas(), columnas: columnas, lineas: lineas, desbordes: document.documentElement.scrollWidth > ancho ? 1 : 0, ancho: ancho }).then(null, function () { /* medir no es lo importante */ });
+}
+
+/* La lista de todas las personas que entran en el recuento (hoja «Detalle» del Excel): las columnas de la lista, sin lo delicado. */
+function detalleDeRecuento(rec) {
+  var base = recuentoUsaCurso() ? RECUENTO.todas : CONSULTA.carga;
+  var estado = { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: estadoRecuento().dia, conAnulados: rec.conAnulados };
+  return { base: base, estado: estado, modelo: consultaSalida_(base, estado, false, base.hoy) };
+}
+
+function hojaDeRecuento(rec, centro, d) {
+  var h = el('div', 'hoja'), m = d.modelo;
+  var linea = [centro.codigo ? 'Código ' + centro.codigo : '', centro.direccion, (centro.localidad || '') + (centro.localidad && centro.provincia ? ' (' + centro.provincia + ')' : ''), centro.telefono ? 'Tel. ' + centro.telefono : ''].filter(function (x) { return x; });
+  var cabeza = el('div', 'hoja-centro'); cabeza.appendChild(el('strong', '', centro.nombre || 'Centro de datos')); cabeza.appendChild(el('span', '', linea.join(' · ')));
+  h.appendChild(cabeza);
+  h.appendChild(el('h2', '', m.conjunto + ' · recuento · ' + m.cuando));
+  h.appendChild(el('p', 'hoja-meta', 'Fecha: ' + m.hoy + (m.filtros.length ? ' · Filtros: ' + m.filtros.join('; ') : '')));
+  h.appendChild(el('p', 'hoja-ejes', 'Filas: ' + (rec.ejesFilas.length ? consultaNombresEjes_(rec.ejesFilas).join(', ') : 'ninguno') + ' · Columnas: ' + (rec.ejesCols.length ? consultaNombresEjes_(rec.ejesCols).join(', ') : 'ninguno') + ' · ' + consultaFraseCalculo_(rec)));
+  var t = consultaTablaRecuento_(rec), tabla = el('table'), cab = el('tr');
+  t.cabecera.forEach(function (x) { cab.appendChild(el('th', '', x)); });
+  tabla.appendChild(el('thead')).appendChild(cab);
+  var cuerpo = el('tbody');
+  t.lineas.forEach(function (l) { var f = el('tr'); l.forEach(function (x) { f.appendChild(el('td', '', typeof x === 'string' ? x : x.texto)); }); cuerpo.appendChild(f); });
+  tabla.appendChild(cuerpo); h.appendChild(tabla);
+  var svg = document.querySelector('#recSvg svg');
+  if (svg && !document.getElementById('recGraficoCaja').hidden) { var gc = el('div', 'hoja-grafico'); gc.appendChild(svg.cloneNode(true)); h.appendChild(gc); }
+  (d.base.conEnlaces ? consultaAvisosEnlaces_(d.base, rutasEnUso()) : []).forEach(function (f) { h.appendChild(el('p', 'hoja-pie ambar', f)); });
+  h.appendChild(el('p', 'hoja-pie', m.avisoPersonal));
+  return h;
+}
+
+function imprimirRecuento() {
+  var rec = RECUENTO.rec;
+  if (!rec) return Promise.resolve();
+  var d = detalleDeRecuento(rec);
+  return centroDeConsulta().then(function (centro) {
+    var caja = document.getElementById('hojaImpresion');
+    caja.textContent = '';
+    caja.appendChild(hojaDeRecuento(rec, centro, d));
+    document.body.classList.add('imprimiendo');
+    window.print();
+  });
+}
+
+function excelRecuento() {
+  var rec = RECUENTO.rec;
+  if (!rec) return;
+  var d = detalleDeRecuento(rec), m = d.modelo;
+  var bytes = consultaXlsxRecuento_(rec, m.conjunto + ' · recuento · ' + m.cuando, m.filtros, m.hoy, m);
+  var nombre = consultaNombreFichero_(d.base, d.estado.dia), conjunto = consultaDefinicion_(d.base.id).nombre;
+  var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = conjunto + ' recuento' + nombre.slice(conjunto.length); a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+}
+
+prepararSoltar(document.getElementById('recEjes'), 'ejes');
+prepararSoltar(document.getElementById('recEjesEnl'), 'ejes');
+prepararSoltar(document.getElementById('recFilas'), 'filas');
+prepararSoltar(document.getElementById('recCols'), 'cols');
+document.getElementById('recCalculo').onchange = function () { RECUENTO.calculo = this.value; pintarRecuento(); };
+document.getElementById('recCampo').onchange = function () { RECUENTO.campo = this.value; pintarRecuento(); };
+document.getElementById('recBase').onchange = function () { RECUENTO.base = this.value; pintarRecuento(); };
+document.getElementById('recTipo').onchange = function () { RECUENTO.tipo = this.value; pintarRecuento(); };
+document.getElementById('recVolver').onclick = function () { CONSULTA.vista = 'recuento'; CONSULTA.casilla = null; CONSULTA.cargaLista = null; pintarVista(); };
+
+/* ==== JsConsultarEnlaces.html ==== */
+
+/* Cruzar conjuntos en «Consultar» (fila 101). Los ejes y las columnas de otros datos que enlazan (ConsultarEnlaces.gs) se ofrecen siempre, pero sus datos se traen del servidor la primera vez que se usan
+   (ConsultarEnlacesDatos.gs): hasta entonces la consulta es la de siempre. Aquí: cuándo hace falta traerlos, el aviso de quien sale dos veces o sin enlace y el número de pastillas enlazadas. */
+
+/* Las columnas que se están usando en lo que se ve: los ejes del recuento o las columnas de la lista, y las de los filtros. */
+function rutasEnUso() {
+  var rutas = CONSULTA.filtros.map(function (f) { return f.ruta; }).filter(function (r) { return r; });
+  if (CONSULTA.vista === 'lista') return rutas.concat(CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }));
+  return rutas.concat(RECUENTO.filas.concat(RECUENTO.cols).map(function (e) { return e.ruta; }));
+}
+
+function enlacesEnUso(carga) {
+  var rutas = rutasEnUso();
+  return consultaEnlacesDe_(carga.id).filter(function (e) { return consultaEnlaceRutas_(e).some(function (r) { return rutas.indexOf(r) !== -1; }); });
+}
+
+/* ¿Falta traer los datos enlazados de esta carga? Solo si se usan, aún no están y no ha fallado ya. */
+function enlacesPendientes(carga) {
+  return !!carga && !carga.conEnlaces && !carga.enlacesFallo && enlacesEnUso(carga).length > 0;
+}
+
+/* Trae las uniones de la carga (una sola vez) y las pega. */
+function cargarEnlaces(carga) {
+  if (carga.pidiendoEnlaces) return carga.pidiendoEnlaces;
+  var dia = carga.cargas ? '' : document.getElementById('consFecha').value;
+  var p = carga.cargas ? servidor('webConsultarEnlacesTodas', carga.id) : servidor('webConsultarEnlaces', carga.id, carga.curso, carga.periodo, dia);
+  carga.pidiendoEnlaces = p.then(function (res) { consultaAplicarEnlaces_(carga, res); carga.pidiendoEnlaces = null; },
+    function (x) { carga.enlacesFallo = true; carga.pidiendoEnlaces = null; avisar(x.message, true); });
+  return carga.pidiendoEnlaces;
+}
+
+/* Las frases (ámbar) de lo que pasa con lo enlazado que se usa. Se quitan si ya no se usa nada. */
+function pintarAvisosEnlaces(carga) {
+  var caja = document.getElementById('consEnlaces');
+  caja.textContent = '';
+  var frases = carga && carga.conEnlaces ? consultaAvisosEnlaces_(carga, rutasEnUso()) : [];
+  if (carga && carga.enlacesFallo && enlacesEnUso(carga).length) frases = ['No he podido traer los datos de los otros conjuntos: lo enlazado sale vacío.'];
+  frases.forEach(function (f) { caja.appendChild(el('p', 'aviso-pasos', f)); });
+  caja.hidden = !frases.length;
+  return frases;
+}
+
+/* Cuántas pastillas de otros datos se ofrecen (la medida de la pestaña). */
+function pastillasEnlazadas() {
+  return CONSULTA.carga && CONSULTA.carga.id ? recuentoEjes().filter(function (e) { return e.enlace; }).length : 0;
+}
 
 /* ==== JsContactos.html ==== */
 
