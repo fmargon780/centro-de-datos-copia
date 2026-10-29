@@ -50,7 +50,7 @@
   function consultarMedidas(m) {
     if (!activo()) return Promise.resolve(null);
     m = m || {};
-    return escribir('consultar-pantalla.json', { version: VERSION_CD, cargada: m.cargada === true, recuento: m.recuento === true, grafico: m.grafico === true, enlaces: entero(m.enlaces), columnas: entero(m.columnas), lineas: entero(m.lineas), desbordes: entero(m.desbordes), ancho: entero(m.ancho), cuando: ahoraMadrid_() });
+    return escribir('consultar-pantalla.json', { version: VERSION_CD, cargada: m.cargada === true, recuento: m.recuento === true, grafico: m.grafico === true, enlaces: entero(m.enlaces), consultas: entero(m.consultas), columnas: entero(m.columnas), lineas: entero(m.lineas), desbordes: entero(m.desbordes), ancho: entero(m.ancho), cuando: ahoraMadrid_() });
   }
 
   window.MedidasPagina = { soporteVisto: soporteVisto, soporteEnvio: soporteEnvio, listadosMedidas: listadosMedidas, consultarMedidas: consultarMedidas };

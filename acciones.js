@@ -38,7 +38,7 @@
       b.onclick = seguir;
       i.onkeydown = function (ev) { if (ev.key === 'Enter') seguir(); };
       d.appendChild(i); d.appendChild(b);
-      var z = document.getElementById('zona');
+      var z = document.querySelector('main > section.activa') || document.getElementById('zona');   // la barra va delante de la pestaña que se ve (fila 102: también se pregunta desde «Consultar»)
       z.parentNode.insertBefore(d, z);
       i.focus();
     });
@@ -138,6 +138,16 @@
   function guardarConfiguracion(grupo, campo, valor) {
     return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webConfiguracionGuardar(grupo, campo, valor, ctx); }, false, true); }); });
   }
+  /* Fila 102: las consultas guardadas de «Consultar» (_interno/consultas.json). Guardar y borrar piden el nombre (quienEres); apuntar el uso no lo pide. */
+  function consultaGuardar(modo, id, nombre, estado) {
+    return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webConsultasGuardar(modo, id, nombre, estado, ctx); }, false, true); }); });
+  }
+  function consultaBorrar(id) {
+    return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webConsultasBorrar(id, ctx); }, false, true); }); });
+  }
+  function consultaUsar(id) {
+    return conCarpeta(function () { return hacer(quienGuardado(), function (ctx) { return webConsultasUsar(id, ctx); }, false, true); });
+  }
   function avisoVisto(huella, conjunto, visto) {
     return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webAvisoVisto(huella, conjunto, visto, ctx); }, false, true); }); });
   }
@@ -151,10 +161,10 @@
     });
   }
 
-  Object.assign(window.PUERTA_PAGINA, { webContactosGuardar: guardarContacto, webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto });
+  Object.assign(window.PUERTA_PAGINA, { webContactosGuardar: guardarContacto, webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto, webConsultasGuardar: consultaGuardar, webConsultasBorrar: consultaBorrar, webConsultasUsar: consultaUsar });
   /* Fila 66: sin pantalla antigua, el disparador de la aplicación de Google solo arranca si hay un fichero en entrada/. Al abrir la carpeta se deja el testigo de la vuelta de fondo (Fondo.gs), que no se quita. */
   function asegurarFondo() {
     return conCarpeta(function () { return C.transaccion(function () { asegurarTestigoFondo_(carpetaDatos_()); }); });
   }
-  window.AccionesPagina = { repasarDiario: repasarDiario, quienEres: quienEres, asegurarFondo: asegurarFondo };
+  window.AccionesPagina = { repasarDiario: repasarDiario, quienEres: quienEres, quienGuardado: quienGuardado, asegurarFondo: asegurarFondo };
 })();

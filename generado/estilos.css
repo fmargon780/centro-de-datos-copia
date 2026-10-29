@@ -175,6 +175,10 @@
   .consulta-filtro input { width: 90px; max-width: 100%; }
   .consulta-barra select#consDatos { max-width: 12em; }
   .consulta-barra { column-gap: 10px; }
+  .consulta-guardadas { margin-bottom: 6px; }
+  .consulta-guardadas label { max-width: 100%; }
+  .consulta-guardadas select { max-width: min(30em, calc(100vw - 7em)); min-width: 0; }
+  #consNombre { padding: 3px 6px; font: inherit; border: 1px solid #b9c4cd; border-radius: 4px; width: 16em; max-width: 100%; }
   .consulta-filtro button { padding: 1px 7px; cursor: pointer; }
   .consulta-derecha { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .consulta-columnas { margin: 8px 0 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }

@@ -736,7 +736,9 @@ function cursoPedidoConsulta() {
 }
 
 function cargarConsultar() {
-  if (!CONSULTA.abierta) { CONSULTA.abierta = true; return consultaPedir(null, '', ''); }
+  /* Fila 102: la pestaña abre con la consulta montada «Tutores de cada grupo». */
+  traerConsultas();
+  if (!CONSULTA.abierta) { CONSULTA.abierta = true; CONSULTAS.seleccion = CONSULTAS_MONTADAS_[0].id; pintarConsultas(); return consultaAplicar(consultasMontadas_()[0].estado, true); }
   return cambiaConsulta();
 }
 
@@ -1314,7 +1316,7 @@ function medirRecuento(columnas, lineas, grafico) {
   if (CONSULTA.medido) return;
   CONSULTA.medido = true;
   var ancho = window.innerWidth;
-  servidor('webConsultarMedidas', { cargada: true, recuento: true, grafico: grafico, enlaces: pastillasEnlazadas(), columnas: columnas, lineas: lineas, desbordes: document.documentElement.scrollWidth > ancho ? 1 : 0, ancho: ancho }).then(null, function () { /* medir no es lo importante */ });
+  servidor('webConsultarMedidas', { cargada: true, recuento: true, grafico: grafico, enlaces: pastillasEnlazadas(), consultas: (CONSULTAS.lista || []).length, columnas: columnas, lineas: lineas, desbordes: document.documentElement.scrollWidth > ancho ? 1 : 0, ancho: ancho }).then(null, function () { /* medir no es lo importante */ });
 }
 
 /* La lista de todas las personas que entran en el recuento (hoja «Detalle» del Excel): las columnas de la lista, sin lo delicado. */
@@ -1428,6 +1430,157 @@ function pintarAvisosEnlaces(carga) {
 function pastillasEnlazadas() {
   return CONSULTA.carga && CONSULTA.carga.id ? recuentoEjes().filter(function (e) { return e.enlace; }).length : 0;
 }
+
+/* ==== JsConsultas.html ==== */
+
+/* Las consultas guardadas de «Consultar» (fila 102). Arriba de la pestaña, el desplegable «Consulta»: las cinco montadas (ConsultasMontadas.gs, viven en el código) y las que ha guardado la gente (ConsultasGuardadas.gs, en
+   _interno/consultas.json), de la más usada a la menos. Elegir una pone la pestaña tal como se guardó y apunta el uso. «Guardar» la deja para todos; solo quien la creó la cambia o la borra, y los demás la guardan como copia.
+   No hay permisos propios: «quien la creó» es el nombre que la página pide al entrar, y se compara sin mayúsculas ni tildes (es orden, no cerradura). */
+var CONSULTAS = { lista: null, seleccion: '', modo: '' };   // `lista`: se llena con las montadas en cuanto se pinta
+
+function consultasQuien() { return window.AccionesPagina && window.AccionesPagina.quienGuardado ? window.AccionesPagina.quienGuardado() : ''; }
+function consultaElegida() { return (CONSULTAS.lista || []).filter(function (c) { return c.id === CONSULTAS.seleccion; })[0] || null; }
+function consultaEsPropia(c) { return !!c && !c.montada && consultasMismaPersona_(c.creador, consultasQuien()); }
+function mensajeConsultas(t) { document.getElementById('consGuardadasMsg').textContent = t || ''; }
+
+/* Todo lo que la pestaña sabe de sí misma, para guardarlo. «El curso de hoy» se guarda como tal. */
+function consultaEstadoGuardable() {
+  var c = CONSULTA.carga, dia = document.getElementById('consFecha').value;
+  var copia = function (e) { return { ruta: e.ruta, agrupa: e.agrupa }; };
+  return { id: c.id, curso: c.curso === c.cursoHoy ? 'hoy' : c.curso, periodo: c.periodo || '', dia: dia,
+    filas: RECUENTO.filas.map(copia), cols: RECUENTO.cols.map(copia), calculo: RECUENTO.calculo, campo: RECUENTO.campo, base: RECUENTO.base, tipo: RECUENTO.tipo,
+    filtros: CONSULTA.filtros.filter(function (f) { return f.ruta; }).map(function (f) { return { ruta: f.ruta, op: f.op, texto: f.texto }; }),
+    visibles: CONSULTA.visibles.slice(), marcadas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }),
+    vista: CONSULTA.vista, grupo: document.getElementById('consGrupo').checked };
+}
+
+/* Pone la pestaña como estaba guardada. Lo que ya no existe (un campo, un conjunto) se abre sin ello y se dice en una línea ámbar. */
+function consultaPonerEstado(est) {
+  var posibles = consultaPosibles().map(function (p) { return p.ruta; }), ejes = recuentoEjes().map(function (e) { return e.ruta; }), quitados = [];
+  var valido = function (r, validas) { if (validas.indexOf(r) !== -1) return true; if (quitados.indexOf(r) === -1) quitados.push(r); return false; };
+  var losEjes = function (lista) { return lista.filter(function (e) { return valido(e.ruta, ejes); }).map(function (e) { return { ruta: e.ruta, agrupa: e.agrupa }; }); };
+  RECUENTO.filas = losEjes(est.filas); RECUENTO.cols = losEjes(est.cols);
+  RECUENTO.calculo = est.calculo; RECUENTO.campo = est.campo; RECUENTO.base = est.base; RECUENTO.tipo = est.tipo; RECUENTO.menu = '';
+  CONSULTA.filtros = est.filtros.filter(function (f) { return valido(f.ruta, posibles); }).map(function (f) { return { ruta: f.ruta, op: f.op, texto: f.texto }; });
+  if (!CONSULTA.filtros.length) CONSULTA.filtros = [{ ruta: '', op: 'contiene', texto: '' }];
+  if (est.visibles) {
+    CONSULTA.visibles = est.visibles.filter(function (r) { return valido(r, posibles); });
+    CONSULTA.marcadas = {};
+    est.marcadas.forEach(function (r) { if (CONSULTA.visibles.indexOf(r) !== -1) CONSULTA.marcadas[r] = true; });
+  }
+  document.getElementById('consGrupo').checked = est.grupo;
+  CONSULTA.vista = est.vista;
+  return quitados;
+}
+
+function pintarFaltan(frase) {
+  var p = document.getElementById('consFaltan');
+  p.textContent = frase || ''; p.hidden = !frase;
+}
+
+/* Abre una consulta: pide su conjunto y curso (o fecha) y le pone encima lo guardado. `abriendo`: es la que abre la pestaña, no una elegida. */
+function consultaAplicar(est, abriendo) {
+  document.getElementById('consFecha').value = est.dia || '';
+  CONSULTA.cursoAntes = null;
+  var curso = est.dia ? consultaCursoDeDia_(est.dia) : (est.curso === 'hoy' ? '' : est.curso);
+  return servidor('webConsultarLeer', est.id, curso, est.periodo || '').then(function (c) {
+    CONSULTA.carga = c; CONSULTA.casilla = null; CONSULTA.cargaLista = null; CONSULTA.conAnulados = false; CONSULTA.vista = 'recuento';
+    var frase = '';
+    CONSULTA.idColumnas = '';
+    if (c.id) {
+      consultaColumnasPorDefecto();
+      if (c.id === est.id) {
+        var quitados = consultaPonerEstado(est);
+        if (quitados.length) frase = 'Esta consulta usaba datos que ya no existen y se han quitado: ' + quitados.join(', ') + '.';
+      } else if (!abriendo) frase = 'Esta consulta usaba unos datos que ya no existen: se ha abierto con ' + c.opciones.filter(function (o) { return o.id === c.id; })[0].nombre + '.';
+    }
+    pintarFaltan(frase);
+    pintarConsulta();
+  }, function (x) { avisar(x.message, true); });
+}
+
+function pintarConsultas() {
+  var sel = document.getElementById('consElegida');
+  if (!CONSULTAS.lista) CONSULTAS.lista = consultasOrdenadas_([], {});
+  if (CONSULTAS.seleccion && !consultaElegida()) CONSULTAS.seleccion = '';
+  sel.textContent = '';
+  var nueva = el('option', '', '— Consulta nueva —'); nueva.value = ''; sel.appendChild(nueva);
+  CONSULTAS.lista.forEach(function (c) { var o = el('option', '', consultasRotulo_(c)); o.value = c.id; sel.appendChild(o); });
+  sel.value = CONSULTAS.seleccion;
+  var propia = consultaEsPropia(consultaElegida());
+  document.getElementById('consGuardar').hidden = !(CONSULTAS.seleccion === '' || propia);
+  document.getElementById('consCopia').hidden = CONSULTAS.seleccion === '';
+  document.getElementById('consBorrar').hidden = !propia;
+}
+
+function recibirConsultas(r) {
+  if (r && r.consultas) CONSULTAS.lista = r.consultas;
+  pintarConsultas();
+  return r;
+}
+
+/* Trae la lista del fichero común (otra persona puede haber guardado o usado alguna). Si falla, quedan las montadas. */
+function traerConsultas() {
+  return servidor('webConsultasLeer').then(recibirConsultas, function () { pintarConsultas(); });
+}
+
+function elegirConsulta(id) {
+  mensajeConsultas(''); cerrarNombreConsulta();
+  CONSULTAS.seleccion = id;
+  pintarConsultas();
+  var c = consultaElegida();
+  if (!c) return Promise.resolve();
+  return consultaAplicar(c.estado, false).then(function () {
+    return servidor('webConsultasUsar', c.id).then(recibirConsultas, function () { /* apuntar el uso no es lo importante */ });
+  });
+}
+
+function abrirNombreConsulta(modo) {
+  CONSULTAS.modo = modo;
+  document.getElementById('consNombreCaja').hidden = false;
+  var i = document.getElementById('consNombre');
+  i.value = ''; i.focus();
+}
+
+function cerrarNombreConsulta() {
+  CONSULTAS.modo = '';
+  document.getElementById('consNombreCaja').hidden = true;
+}
+
+function guardarConsulta(modo, id, nombre) {
+  return servidor('webConsultasGuardar', modo, id, nombre, consultaEstadoGuardable()).then(function (r) {
+    if (!r.ok) { mensajeConsultas(r.mensaje); return; }
+    cerrarNombreConsulta();
+    CONSULTAS.seleccion = r.id;
+    recibirConsultas(r);
+    mensajeConsultas(modo === 'cambiar' ? 'Consulta guardada.' : 'Consulta guardada como «' + consultaElegida().nombre + '».');
+  }, function (x) { mensajeConsultas(x.message); });
+}
+
+document.getElementById('consElegida').onchange = function () { elegirConsulta(this.value); };
+document.getElementById('consGuardar').onclick = function () {
+  mensajeConsultas('');
+  if (CONSULTAS.seleccion === '') abrirNombreConsulta('nueva'); else guardarConsulta('cambiar', CONSULTAS.seleccion, '');
+};
+document.getElementById('consCopia').onclick = function () { mensajeConsultas(''); abrirNombreConsulta('copia'); };
+document.getElementById('consNombreOk').onclick = function () { guardarConsulta(CONSULTAS.modo, CONSULTAS.seleccion, document.getElementById('consNombre').value); };
+document.getElementById('consNombreNo').onclick = function () { cerrarNombreConsulta(); };
+document.getElementById('consNombre').onkeydown = function (ev) {
+  if (ev.key === 'Enter') document.getElementById('consNombreOk').click();
+  else if (ev.key === 'Escape') cerrarNombreConsulta();
+};
+document.getElementById('consBorrar').onclick = function () {
+  var c = consultaElegida();
+  if (!consultaEsPropia(c) || !window.confirm('¿Borrar la consulta «' + c.nombre + '»? Dejará de estar para todos.')) return;
+  mensajeConsultas('');
+  servidor('webConsultasBorrar', c.id).then(function (r) {
+    if (!r.ok) { mensajeConsultas(r.mensaje); recibirConsultas(r); return; }
+    CONSULTAS.seleccion = '';
+    recibirConsultas(r);
+    mensajeConsultas('Consulta borrada.');
+  }, function (x) { mensajeConsultas(x.message); });
+};
+if (typeof consultasOrdenadas_ === 'function') pintarConsultas();   // la pantalla antigua no trae los .gs y no usa esta línea
 
 /* ==== JsContactos.html ==== */
 

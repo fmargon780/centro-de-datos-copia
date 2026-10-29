@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v60';
+const VERSION_CD = 'CD v61';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6441,7 +6441,8 @@ const COMPROBACIONES_ = [
   { id: 'soporte-boton-unico', fila: 20, que: 'El botón único de soporte carga en la página', funcion: 'cmpSoporteBotonUnico_' },
   { id: 'soporte-envio', fila: 30, que: 'El último envío de un aviso desde el botón de soporte de esta página salió bien o mal, con cuántos van de cada', funcion: 'cmpSoporteEnvio_' },
   { id: 'listados-sin-solapes', fila: 31, que: 'La tabla de Listados de la página: cuántas filas y cuántas cajitas tiene y si algún elemento se solapa con otro o se sale por la derecha', funcion: 'cmpListadosSinSolapes_' },
-  { id: 'consultar-pantalla', fila: 99, que: 'La pestaña Consultar de la página: si abrió en el recuento con su primera consulta, cuántas columnas y líneas sacó, si dibujó el gráfico, cuántas pastillas de otros datos enlazados ofrece y si la página se sale por la derecha', funcion: 'cmpConsultarPantalla_' },
+  { id: 'consultar-pantalla', fila: 99, que: 'La pestaña Consultar de la página: si abrió en el recuento con su primera consulta, cuántas consultas ofrece en la línea de consultas, cuántas columnas y líneas sacó, si dibujó el gráfico, cuántas pastillas de otros datos enlazados ofrece y si la página se sale por la derecha', funcion: 'cmpConsultarPantalla_' },
+  { id: 'consultas-guardadas', fila: 102, que: 'Las consultas guardadas de Consultar: cuántas hay, cuántas no tienen creador o uso, si algún nombre se repite y si están las cinco montadas (solo cifras, nunca nombres)', funcion: 'cmpConsultasGuardadas_' },
   { id: 'avisos-pantalla', fila: 32, que: 'La pestaña Avisos: cuántos avisos hay en los datos, cuántos esperan, cuántos están revisados, cuántas marcas huérfanas se han borrado y cuántos avisos no tienen frase llana', funcion: 'cmpAvisosPantalla_' },
   { id: 'clave-github', fila: 33, que: 'La clave de GitHub: si escribe, de qué tipo es y cuántos días faltan para que caduque (solo cifras y estados, nunca la clave)', funcion: 'cmpClaveGithub_' },
   { id: 'antigua-sin-pantalla', fila: 66, que: 'La aplicación de Google sin pantalla sigue trabajando sola: cuántas cosas de fondo se hicieron en las últimas 24 horas, si el disparador de 10 minutos existe y cuántas horas pasaron entre dos vueltas', funcion: 'cmpAntiguaSinPantalla_' },
@@ -6465,7 +6466,7 @@ const COMPROBACIONES_ = [
 
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
+    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 
@@ -9260,10 +9261,10 @@ function cmpListadosSinSolapes_(ctx) {
 function webConsultarMedidas(medidas, ctx) {
   const m = medidas || {};
   const n = function (x) { return Math.max(0, Math.min(100000, Math.floor(Number(x) || 0))); };
-  const v = { version: VERSION_CD, cargada: m.cargada === true, recuento: m.recuento === true, grafico: m.grafico === true, enlaces: n(m.enlaces), columnas: n(m.columnas), lineas: n(m.lineas), desbordes: n(m.desbordes), ancho: n(m.ancho), cuando: ahoraMadrid_() };
+  const v = { version: VERSION_CD, cargada: m.cargada === true, recuento: m.recuento === true, grafico: m.grafico === true, enlaces: n(m.enlaces), consultas: n(m.consultas), columnas: n(m.columnas), lineas: n(m.lineas), desbordes: n(m.desbordes), ancho: n(m.ancho), cuando: ahoraMadrid_() };
   const interno = subcarpetaPorRuta_(carpetaDatos_(), '_interno');
   const antes = leerJson_(interno, 'consultar-pantalla.json');
-  if (antes && ['version', 'cargada', 'recuento', 'grafico', 'enlaces', 'columnas', 'lineas', 'desbordes', 'ancho'].every(function (k) { return antes[k] === v[k]; })) return { ok: true };
+  if (antes && ['version', 'cargada', 'recuento', 'grafico', 'enlaces', 'consultas', 'columnas', 'lineas', 'desbordes', 'ancho'].every(function (k) { return antes[k] === v[k]; })) return { ok: true };
   escribirJson_(interno, 'consultar-pantalla.json', v);
   return { ok: true };
 }
@@ -9272,7 +9273,7 @@ function webConsultarMedidas(medidas, ctx) {
 function cmpConsultarPantalla_(ctx) {
   const v = medidaPantalla_(ctx.raiz, 'consultar-pantalla.json', 'consultar-pantalla.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
-  return { estado: !v.cargada || !v.recuento || v.desbordes ? 'mal' : 'bien', cifras: { cargada: v.cargada, recuento: v.recuento === true, grafico: v.grafico === true, enlaces: v.enlaces || 0, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
+  return { estado: !v.cargada || !v.recuento || v.desbordes || (v.consultas || 0) < CONSULTAS_MONTADAS_.length ? 'mal' : 'bien', cifras: { cargada: v.cargada, recuento: v.recuento === true, grafico: v.grafico === true, enlaces: v.enlaces || 0, consultas: v.consultas || 0, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
 }
 
 /* ==== Consultar.gs ==== */
@@ -10340,6 +10341,209 @@ function consultaRutasDestino_(indice, id, curso, rutas) {
   consultaEnlacesDe_(id).forEach(function (enl) {
     enl.destinos.forEach(function (d) { const h = consultaEnlaceParte_(indice, d, curso); if (h && rutas.indexOf(h.ruta) === -1) rutas.push(h.ruta); });
   });
+}
+
+/* ==== ConsultasMontadas.gs ==== */
+/* Consultas guardadas de «Consultar» (fila 102), parte pura: las cinco consultas montadas, que viven en el código (no se pueden estropear ni borrar), cómo se limpia el estado de una consulta,
+   quién es el dueño de cada una y cómo se ordena y se rotula la lista. Lo comparten la pestaña (en el navegador) y las comprobaciones. El fichero compartido está en ConsultasGuardadas.gs.
+   El estado de una consulta es todo lo que la pestaña sabe de sí misma: conjunto, curso o fecha, ejes, cálculo, gráfico, filtros, columnas de la lista y la vista. */
+
+const CONSULTA_MAX_NOMBRE_ = 60;
+const CONSULTA_MAX_GUARDADAS_ = 200;
+const CONSULTA_ID_MONTADA_ = 'montada-';
+
+const CONSULTAS_MONTADAS_ = [
+  { id: 'montada-tutores', nombre: 'Tutores de cada grupo',
+    estado: { id: 'tutorias', curso: 'hoy', filas: [{ ruta: 'unidad', agrupa: 'anio' }], cols: [{ ruta: 'tutores.empleado', agrupa: 'anio' }], visibles: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'], marcadas: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'] } },
+  { id: 'montada-nivel-grupo', nombre: 'Alumnado por nivel y grupo',
+    estado: { id: 'alumnado', curso: 'hoy', filas: [{ ruta: 'curso', agrupa: 'anio' }, { ruta: 'unidad', agrupa: 'anio' }] } },
+  { id: 'montada-sexo-nivel', nombre: 'Alumnado por sexo y nivel',
+    estado: { id: 'alumnado', curso: 'hoy', filas: [{ ruta: 'curso', agrupa: 'anio' }], cols: [{ ruta: 'sexo', agrupa: 'anio' }] } },
+  { id: 'montada-personal', nombre: 'Personal docente y no docente',
+    estado: { id: 'personal', curso: 'hoy', filas: [{ ruta: 'tipoPersonal', agrupa: 'anio' }] } },
+  { id: 'montada-evolucion', nombre: 'Evolución del alumnado',
+    estado: { id: 'alumnado', curso: 'hoy', filas: [{ ruta: '_curso', agrupa: 'anio' }], tipo: 'lineas' } }
+];
+
+/* Sin tildes, sin mayúsculas, sin espacios de más: así se comparan los nombres de consultas y de personas (es orden, no cerradura). */
+function consultasClave_(t) { return String(t === null || t === undefined ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+/* ¿Es la misma persona? Sin nombre en un lado, nunca. */
+function consultasMismaPersona_(a, b) { const x = consultasClave_(a); return x !== '' && x === consultasClave_(b); }
+
+function consultasTextoCorto_(t, max) { return String(t === null || t === undefined ? '' : t).replace(/[\u0000-\u001f]/g, ' ').slice(0, max); }
+
+function consultasEjes_(lista) {
+  return (Array.isArray(lista) ? lista : []).slice(0, 12).filter(function (e) { return e && typeof e.ruta === 'string' && e.ruta; })
+    .map(function (e) { return { ruta: consultasTextoCorto_(e.ruta, 80), agrupa: e.agrupa === 'mes' ? 'mes' : 'anio' }; });
+}
+
+function consultasRutas_(lista) {
+  return (Array.isArray(lista) ? lista : []).slice(0, 80).filter(function (r) { return typeof r === 'string' && r; }).map(function (r) { return consultasTextoCorto_(r, 80); });
+}
+
+/* El estado limpio de lo que llegue (de la pestaña o del fichero): solo las claves que se conocen, con su forma. null si ni siquiera dice de qué conjunto es.
+   `visibles` y `marcadas` ausentes significan «las columnas de siempre del conjunto». */
+function consultasLimpiarEstado_(e) {
+  if (!e || typeof e !== 'object' || typeof e.id !== 'string' || !e.id) return null;
+  const calculos = RECUENTO_CALCULOS_.map(function (k) { return k.id; }), tipos = ['auto'].concat(GRAFICO_TIPOS_.map(function (t) { return t.id; }));
+  const s = {
+    id: consultasTextoCorto_(e.id, 40), curso: consultasTextoCorto_(e.curso, 20), periodo: consultasTextoCorto_(e.periodo, 40),
+    dia: /^\d{4}-\d{2}-\d{2}$/.test(String(e.dia || '')) ? e.dia : '',
+    filas: consultasEjes_(e.filas), cols: consultasEjes_(e.cols),
+    calculo: calculos.indexOf(e.calculo) !== -1 ? e.calculo : 'contar', campo: consultasTextoCorto_(e.campo, 80),
+    base: ['total', 'fila', 'columna'].indexOf(e.base) !== -1 ? e.base : 'total', tipo: tipos.indexOf(e.tipo) !== -1 ? e.tipo : 'auto',
+    filtros: (Array.isArray(e.filtros) ? e.filtros : []).slice(0, 12).filter(function (f) { return f && typeof f.ruta === 'string' && f.ruta; })
+      .map(function (f) { return { ruta: consultasTextoCorto_(f.ruta, 80), op: ['contiene', 'igual', 'vacio'].indexOf(f.op) !== -1 ? f.op : 'contiene', texto: consultasTextoCorto_(f.texto, 200) }; }),
+    vista: e.vista === 'lista' ? 'lista' : 'recuento', grupo: e.grupo === true
+  };
+  if (Array.isArray(e.visibles)) { s.visibles = consultasRutas_(e.visibles); s.marcadas = consultasRutas_(e.marcadas); }
+  return s;
+}
+
+/* Las montadas tal como las ve la pestaña. Cada llamada da copias nuevas. */
+function consultasMontadas_() {
+  return CONSULTAS_MONTADAS_.map(function (m) { return { id: m.id, nombre: m.nombre, creador: '', creada: '', usada: '', montada: true, estado: consultasLimpiarEstado_(m.estado) }; });
+}
+
+function consultasMomento_(iso) {
+  const t = new Date(String(iso || '')).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+/* Las guardadas y las montadas en una sola lista, de la más recién usada a la menos; las nunca usadas, al final (primero las montadas, en su orden; luego las guardadas, la más nueva primero). */
+function consultasOrdenadas_(guardadas, usos) {
+  const lista = consultasMontadas_().map(function (m, i) { m.usada = (usos || {})[m.id] || ''; m.orden = i; return m; });
+  (guardadas || []).forEach(function (g, i) { lista.push({ id: g.id, nombre: g.nombre, creador: g.creador, creada: g.creada, usada: g.usada || '', montada: false, estado: g.estado, orden: 1000 + i }); });
+  return lista.sort(function (a, b) {
+    const x = consultasMomento_(a.usada), y = consultasMomento_(b.usada);
+    if (x || y) return y - x || b.orden - a.orden;
+    if (a.montada !== b.montada) return a.montada ? -1 : 1;
+    return a.montada ? a.orden - b.orden : consultasMomento_(b.creada) - consultasMomento_(a.creada) || a.orden - b.orden;
+  }).map(function (c) { delete c.orden; return c; });
+}
+
+/* «Tutores de cada grupo · montada · usada el 15/01» o «Alumnos NEAE · de Diego · sin usar». */
+function consultasRotulo_(c) {
+  const m = /^\d{4}-(\d\d)-(\d\d)/.exec(String(c.usada || ''));
+  return c.nombre + ' · ' + (c.montada ? 'montada' : 'de ' + c.creador) + ' · ' + (m ? 'usada el ' + m[2] + '/' + m[1] : 'sin usar');
+}
+
+/* ==== ConsultasGuardadas.gs ==== */
+/* Consultas guardadas de «Consultar» (fila 102): el fichero común `_interno/consultas.json`, que escribe la pestaña (acciones.js, dentro de una transacción como la configuración del centro).
+   No es un conjunto de datos: no entra en `indice.json` ni en el contrato. Sin permisos propios: la consulta es de quien la creó (el nombre que la página pide al entrar) y solo esa persona la cambia o la borra,
+   pero se compara por nombre, así que es orden, no cerradura. Las montadas (ConsultasMontadas.gs) viven en el código; aquí solo se apunta cuándo se usaron. */
+
+const ARCHIVO_CONSULTAS_ = 'consultas.json';
+
+/* El fichero, limpio: lo que no tenga nombre, id o estado se descarta. Un fichero ilegible cuenta como vacío (`ilegible`). */
+function leerConsultas_(raiz) {
+  let d = null, ilegible = false;
+  try { d = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_CONSULTAS_); } catch (e) { if (!e || e.name !== 'SyntaxError') throw e; ilegible = true; }
+  const v = { contrato: 1, consultas: [], usos: {}, ilegible: ilegible, descartadas: 0 };
+  if (!d || typeof d !== 'object') return v;
+  (Array.isArray(d.consultas) ? d.consultas : []).forEach(function (c) {
+    const estado = c && consultasLimpiarEstado_(c.estado), nombre = c ? consultasTextoCorto_(c.nombre, CONSULTA_MAX_NOMBRE_).trim() : '';
+    if (!c || typeof c.id !== 'string' || !/^c\d+$/.test(c.id) || !nombre || !estado) { v.descartadas++; return; }
+    v.consultas.push({ id: c.id, nombre: nombre, creador: consultasTextoCorto_(c.creador, 80), creada: String(c.creada || ''), usada: String(c.usada || ''), estado: estado });
+  });
+  if (d.usos && typeof d.usos === 'object') CONSULTAS_MONTADAS_.forEach(function (m) { if (typeof d.usos[m.id] === 'string') v.usos[m.id] = d.usos[m.id]; });
+  return v;
+}
+
+function escribirConsultas_(raiz, v) {
+  escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_CONSULTAS_, { contrato: 1, actualizado: ahoraMadrid_(), consultas: v.consultas, usos: v.usos });
+}
+
+function respuestaConsultas_(v, extra) { return Object.assign({ ok: true, consultas: consultasOrdenadas_(v.consultas, v.usos) }, extra || {}); }
+
+/* Todas las consultas, ordenadas por uso. */
+function webConsultasLeer(ctx) {
+  return respuestaConsultas_(leerConsultas_(carpetaDatos_()));
+}
+
+function nombreEnUso_(v, nombre, salvoId) {
+  const k = consultasClave_(nombre);
+  return CONSULTAS_MONTADAS_.some(function (m) { return consultasClave_(m.nombre) === k; }) || v.consultas.some(function (c) { return c.id !== salvoId && consultasClave_(c.nombre) === k; });
+}
+
+/* Guarda una consulta. `modo`: «nueva» (pide nombre), «cambiar» (la propia, `id`; el nombre no se toca) o «copia» (a nombre de quien guarda, con otro nombre). Con el cerrojo puesto. */
+function webConsultasGuardar(modo, id, nombre, estado, ctx) {
+  const limpio = consultasLimpiarEstado_(estado), quien = String(ctx.correo || '').trim();
+  if (!limpio) return { ok: false, mensaje: 'No he entendido qué consulta guardar.' };
+  if (!quien) return { ok: false, mensaje: 'Hace falta tu nombre para guardar una consulta.' };
+  if (['nueva', 'cambiar', 'copia'].indexOf(modo) === -1) throw new Error('Eso no se puede hacer con una consulta.');
+  const texto = consultasTextoCorto_(nombre, CONSULTA_MAX_NOMBRE_ + 1).trim();
+  if (modo !== 'cambiar' && !texto) return { ok: false, mensaje: 'Escribe un nombre para la consulta.' };
+  if (texto.length > CONSULTA_MAX_NOMBRE_) return { ok: false, mensaje: 'El nombre es demasiado largo (' + CONSULTA_MAX_NOMBRE_ + ' letras como mucho).' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const raiz = carpetaDatos_(), v = leerConsultas_(raiz), ahora = ahoraMadrid_();
+    if (modo === 'cambiar') {
+      const c = v.consultas.filter(function (x) { return x.id === id; })[0];
+      if (!c) return { ok: false, mensaje: CONSULTA_NO_EXISTE_ };
+      if (!consultasMismaPersona_(c.creador, quien)) return { ok: false, mensaje: 'Solo quien la creó puede cambiarla. Puedes guardarla como copia.' };
+      c.estado = limpio; c.usada = ahora;
+      escribirConsultas_(raiz, v);
+      return respuestaConsultas_(v, { id: c.id });
+    }
+    if (nombreEnUso_(v, texto, '')) return { ok: false, mensaje: 'Ya hay una consulta con ese nombre.' };
+    if (v.consultas.length >= CONSULTA_MAX_GUARDADAS_) return { ok: false, mensaje: 'Hay demasiadas consultas guardadas: borra alguna propia.' };
+    const nuevo = 'c' + (v.consultas.reduce(function (m, c) { return Math.max(m, parseInt(c.id.slice(1), 10)); }, 0) + 1);
+    v.consultas.push({ id: nuevo, nombre: texto, creador: quien, creada: ahora, usada: ahora, estado: limpio });
+    escribirConsultas_(raiz, v);
+    return respuestaConsultas_(v, { id: nuevo });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+const CONSULTA_NO_EXISTE_ = 'Esa consulta ya no existe.';
+
+/* Borra una consulta propia. Las montadas no se borran y las de otros tampoco. */
+function webConsultasBorrar(id, ctx) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const raiz = carpetaDatos_(), v = leerConsultas_(raiz), c = v.consultas.filter(function (x) { return x.id === id; })[0];
+    if (CONSULTAS_MONTADAS_.some(function (m) { return m.id === id; })) return { ok: false, mensaje: 'Las consultas montadas no se borran.' };
+    if (!c) return respuestaConsultas_(v, { ok: false, mensaje: CONSULTA_NO_EXISTE_ });
+    if (!consultasMismaPersona_(c.creador, ctx.correo)) return { ok: false, mensaje: 'Solo quien la creó puede borrarla.' };
+    v.consultas = v.consultas.filter(function (x) { return x.id !== id; });
+    escribirConsultas_(raiz, v);
+    return respuestaConsultas_(v);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Apunta que se ha usado (fecha y hora). No pide nombre: lo puede hacer cualquiera. */
+function webConsultasUsar(id, ctx) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const raiz = carpetaDatos_(), v = leerConsultas_(raiz), c = v.consultas.filter(function (x) { return x.id === id; })[0];
+    if (c) c.usada = ahoraMadrid_();
+    else if (CONSULTAS_MONTADAS_.some(function (m) { return m.id === id; })) v.usos[id] = ahoraMadrid_();
+    else return respuestaConsultas_(v, { ok: false, mensaje: CONSULTA_NO_EXISTE_ });
+    escribirConsultas_(raiz, v);
+    return respuestaConsultas_(v);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Solo lee. Solo cifras, nunca nombres de personas ni de consultas: cuántas guardadas, cuántas sin creador o sin uso, si hay nombres repetidos (0/1) y cuántas montadas están bien (5). */
+function cmpConsultasGuardadas_(ctx) {
+  const v = leerConsultas_(ctx.raiz), claves = {};
+  let repetidos = 0;
+  v.consultas.forEach(function (c) { const k = consultasClave_(c.nombre); if (claves[k]) repetidos = 1; claves[k] = true; });
+  CONSULTAS_MONTADAS_.forEach(function (m) { const k = consultasClave_(m.nombre); if (claves[k]) repetidos = 1; claves[k] = true; });
+  const montadas = consultasMontadas_().filter(function (m) { return m.nombre && m.estado && consultaDefinicion_(m.estado.id); }).length;
+  const sinCreador = v.consultas.filter(function (c) { return !consultasClave_(c.creador); }).length, sinUso = v.consultas.filter(function (c) { return !consultasMomento_(c.usada); }).length;
+  const cifras = { guardadas: v.consultas.length, 'sin-creador': sinCreador, 'sin-uso': sinUso, 'nombres-repetidos': repetidos, 'montadas-presentes': montadas, descartadas: v.descartadas, ilegible: v.ilegible ? 1 : 0 };
+  return { estado: v.ilegible || sinCreador || sinUso || repetidos || v.descartadas || montadas !== CONSULTAS_MONTADAS_.length ? 'mal' : 'bien', cifras: cifras };
 }
 
 /* ==== Acceso.gs ==== */

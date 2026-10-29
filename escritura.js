@@ -131,9 +131,14 @@
   compactar.n = 0;
 
   /* ¿Ha cambiado alguno de los ficheros que se van a reescribir desde que se leyó? */
-  async function huboCambios(ops) {
+  async function huboCambios(ops, propios) {
+    var libera = {};   // los sitios que el propio guardado deja libres (un fichero que se mueve o se borra): crear otro con ese nombre es lo normal
+    ops.forEach(function (op) { if ((op.t === 'colocar' || op.t === 'borrar') && op.f.disco) libera[op.f.disco.c.ruta + '\u0000' + op.f.disco.n] = true; });
     for (var i = 0; i < ops.length; i++) {
       var f = ops[i].f;
+      if (ops[i].t === 'crear' && ops[i].c.handle && !libera[ops[i].c.ruta + '\u0000' + ops[i].n] && !propios[ops[i].c.ruta + '\u0000' + ops[i].n]) {   // un fichero que se crea y ya está en el disco, y no lo escribió una vuelta anterior de este mismo guardado: otra persona lo creó a la vez (fila 102)
+        try { await ops[i].c.handle.getFileHandle(ops[i].n); return true; } catch (e) { if (!e || e.name !== 'NotFoundError') throw e; }
+      }
       if (ops[i].t !== 'contenido' || !f.leido || !f.handle) continue;
       var ahora;
       try { ahora = await bytesDe(f.handle); } catch (e) { return true; }
@@ -142,7 +147,7 @@
     return false;
   }
 
-  async function reproducir(ops) {
+  async function reproducir(ops, propios) {
     var escritos = {}, clave = function (c, n) { return c.ruta + '\u0000' + n; };
     for (var j = 0; j < ops.length; j++) if (ops[j].t === 'colocar' && !ops[j].f.bytes) await ops[j].f.cargar();   // el contenido, antes de que nada lo pise
     for (var i = 0; i < ops.length; i++) {
@@ -151,7 +156,7 @@
       else if (op.t === 'crear') {
         f.handle = await escribirFichero(op.c, op.n, f.bytes);
         f.disco = { c: op.c, n: op.n };
-        escritos[clave(op.c, op.n)] = f;
+        escritos[clave(op.c, op.n)] = f; propios[clave(op.c, op.n)] = true;
       } else if (op.t === 'contenido') {
         var w = await f.handle.createWritable();
         await w.write(f.bytes);
@@ -165,7 +170,7 @@
           var ocupa = escritos[clave(viejo.c, viejo.n)];
           if (!ocupa || ocupa === f) await quitar(viejo.c, viejo.n);   // si otro fichero nuevo ya está ahí, ese es el que se queda
         }
-        escritos[clave(op.c, op.n)] = f;
+        escritos[clave(op.c, op.n)] = f; propios[clave(op.c, op.n)] = true;
       } else if (op.t === 'borrar') {
         var d = f.disco, o = d && escritos[clave(d.c, d.n)];
         if (d && (!o || o === f)) await quitar(d.c, d.n);
@@ -209,14 +214,15 @@
 
   /* `alterna`: una raíz distinta (el ensayo de la fila 46, pagina/ensayo.js) para que los .gs lean y escriban en ella; al terminar la carpeta de verdad vuelve a ser la de siempre. */
   async function unaVez(fn, alterna) {
+    var propios = {};   // lo que las vueltas de este guardado ya han escrito (una vuelta repetida no choca con lo suyo)
     try {
       for (var vuelta = 0; vuelta < VUELTAS; vuelta++) {
         if (vuelta) await new Promise(function (ok) { setTimeout(ok, 150 + Math.random() * 450); });
         C.reiniciar(alterna);
         var p = await probar(fn), ops = compactar(p.ops);
         if (!ops.length) return p.resultado;
-        if (await huboCambios(ops)) continue;
-        await reproducir(ops);
+        if (await huboCambios(ops, propios)) continue;
+        await reproducir(ops, propios);
         var bien = await sigueIgual(ops);
         if (bien) return p.resultado;
       }

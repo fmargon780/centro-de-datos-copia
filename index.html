@@ -63,6 +63,15 @@
   <section id="consultar">
     <p class="nota-simple" id="consVacio" hidden>Todavía no hay datos ya hechos que consultar: se montan en cuanto el Centro de datos tiene listados.</p>
     <div id="consContenido">
+      <div class="consulta-barra consulta-guardadas" id="consGuardadas">
+        <label>Consulta <select id="consElegida"></select></label>
+        <button type="button" class="accion" id="consGuardar">Guardar</button>
+        <button type="button" class="accion" id="consCopia">Guardar como copia</button>
+        <button type="button" class="accion" id="consBorrar">Borrar</button>
+        <span id="consNombreCaja" hidden><input type="text" id="consNombre" maxlength="60" placeholder="Nombre de la consulta" aria-label="Nombre de la consulta"> <button type="button" class="accion" id="consNombreOk">Guardar</button> <button type="button" class="accion" id="consNombreNo">Cancelar</button></span>
+        <span class="aviso-campo" id="consGuardadasMsg" role="status"></span>
+      </div>
+      <p class="aviso-pasos" id="consFaltan" hidden></p>
       <div class="consulta-barra">
         <label>Datos <select id="consDatos"></select></label>
         <label id="consCursoCaja">Curso <select id="consCurso"></select></label>
