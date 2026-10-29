@@ -17,6 +17,7 @@
 <nav>
   <button class="activa" data-p="listados">Listados</button>
   <button data-p="pestanaAvisos" id="botonAvisos">Avisos</button>
+  <button data-p="contactos">Contactos del profesorado</button>
   <button data-p="configuracion">Configuración del centro</button>
   <button data-p="acceso" id="botonAcceso" hidden>Acceso y carpeta</button>
 </nav>
@@ -57,6 +58,18 @@
     <div id="listaDeAvisos"><p class="nota-simple">Cargando los avisos…</p></div>
     <details id="revisadosAvisos" class="revisados" hidden><summary id="resumenRevisados"></summary><div id="listaRevisados"></div></details>
     <div id="cajaDiag" class="cabeza-tabla" hidden><label>Buscar un código de diagnóstico <input id="codigoDiag" type="text" placeholder="A-1b2c3d4e" maxlength="12"></label> <button id="buscarDiag" type="button">Buscar</button> <span class="aviso-campo" id="resultadoDiag"></span></div>
+  </section>
+  <section id="contactos">
+    <div class="cabeza-tabla"><h2 id="tituloContactos">Contactos del profesorado</h2><span class="cuenta" id="resumenContactos"></span><input type="search" id="buscarContactos" placeholder="Buscar por nombre" aria-label="Buscar por nombre"></div>
+    <p class="nota-simple">Lo de Séneca sale en gris. Escribe encima para corregirlo; se guarda al salir de la casilla. También se puede cambiar desde Ausencias y Guardias.</p>
+    <p class="nota-simple" id="sinContactos" hidden></p>
+    <div class="tabla-contactos">
+      <table id="tablaContactos">
+        <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
+        <thead><tr><th>Profesor</th><th>Correo del centro</th><th>Correo personal</th><th>Móvil</th><th>Último cambio</th></tr></thead>
+        <tbody id="filasContactos"></tbody>
+      </table>
+    </div>
   </section>
   <section id="configuracion">
     <div class="dos">

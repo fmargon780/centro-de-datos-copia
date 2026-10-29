@@ -142,7 +142,16 @@
     return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webAvisoVisto(huella, conjunto, visto, ctx); }, false, true); }); });
   }
 
-  Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto });
+  /* Fila 98: una casilla de «Contactos del profesorado». Deja en entrada/ el fichero de cambios de esta página (ContactosCambios.gs); lo aplica la vuelta de fondo. La página nunca toca el fichero de lo escrito a mano: solo el trabajo de fondo lo escribe. */
+  function guardarContacto(cambio) {
+    return conCarpeta(function () {
+      return quienEres().then(function (q) {
+        return C.transaccion(function () { return guardarCambioDeContacto_(carpetaDatos_(), Object.assign({}, cambio, { quien: q })); }).then(function (r) { return Object.assign({ quien: q }, r); });
+      });
+    });
+  }
+
+  Object.assign(window.PUERTA_PAGINA, { webContactosGuardar: guardarContacto, webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto });
   /* Fila 66: sin pantalla antigua, el disparador de la aplicación de Google solo arranca si hay un fichero en entrada/. Al abrir la carpeta se deja el testigo de la vuelta de fondo (Fondo.gs), que no se quita. */
   function asegurarFondo() {
     return conCarpeta(function () { return C.transaccion(function () { asegurarTestigoFondo_(carpetaDatos_()); }); });

@@ -16,6 +16,7 @@
     document.querySelectorAll('nav button').forEach(function (x) { x.classList.toggle('activa', x.dataset.p === p); });
     document.querySelectorAll('section').forEach(function (s) { s.classList.toggle('activa', s.id === p); });
     if (p === 'pestanaAvisos') cargarAvisos();
+    if (p === 'contactos') cargarContactos();
   };
   document.querySelectorAll('nav button').forEach(function (b) { b.onclick = function () { window.irAPestana(b.dataset.p); }; });
   $('botonAcceso').hidden = false;

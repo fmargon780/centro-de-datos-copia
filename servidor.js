@@ -7,7 +7,7 @@
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
   var NO_AQUI = 'Eso no se puede hacer desde esta página.';
   var CLAVE_VISTA = 'centro-de-datos-clave-funciona';
-  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1 };
+  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
@@ -93,7 +93,18 @@
     });
   }
 
+  /* Los contactos del profesorado (fila 98): trae antes la parte de los contactos y la del personal del curso de hoy, que son lo que se enseña. */
+  async function contactos() {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () {
+      return (leerIndice_(raiz()).hechos || []).filter(function (h) { return h.conjunto === 'contactos' || (h.conjunto === 'personal' && h.cursoEscolar === cursoActual_()); }).map(function (h) { return h.ruta; });
+    });
+    await C.precargar(rutas);
+    return C.conCarga(function () { return contactosParaPagina_(raiz()); });
+  }
+
   var PUERTA = window.PUERTA_PAGINA = {
+    webContactosLeer: function () { return contactos(); },
     webEstado: function () { return estado(); },
     webAvisos: function () { return avisos(); },
     webAnteriores: function (c, v) { return anteriores(c, v); },

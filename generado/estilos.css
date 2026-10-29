@@ -146,3 +146,20 @@
   details.revisados { margin-top: 10px; }
   details.revisados summary { cursor: pointer; font-weight: bold; font-size: 14px; }
   @media (max-width: 700px) { .aviso-linea { grid-template-columns: 1fr auto; } .aviso-linea .que, .aviso-linea .donde { grid-column: 1 / -1; } }
+  /* contactos del profesorado (fila 98) */
+  nav { flex-wrap: wrap; row-gap: 2px; }   /* con cinco pestañas, en un móvil se pasan a otra línea en vez de ensanchar la página */
+  #contactos .cabeza-tabla { flex-wrap: wrap; row-gap: 6px; }
+  #contactos .cabeza-tabla input { margin-left: auto; width: 220px; max-width: 100%; padding: 4px 8px; font: inherit; border: 1px solid #b9c4cd; border-radius: 4px; }
+  #contactos .cabeza-tabla .cuenta { margin-left: 12px; }
+  .tabla-contactos { overflow-x: auto; max-width: 100%; margin-top: 6px; }
+  #tablaContactos { table-layout: fixed; min-width: 760px; }
+  #tablaContactos col.c1 { width: 22%; } #tablaContactos col.c2 { width: 24%; } #tablaContactos col.c3 { width: 24%; } #tablaContactos col.c4 { width: 13%; } #tablaContactos col.c5 { width: 17%; }
+  #tablaContactos td { vertical-align: top; }
+  #tablaContactos td.nombre { padding-top: 8px; }
+  #tablaContactos td.ultimo { padding-top: 8px; color: #555; font-size: 13px; }
+  #tablaContactos tr[hidden] { display: none; }
+  #tablaContactos input { width: 100%; padding: 4px 6px; font: inherit; color: #222; border: 1px solid transparent; border-radius: 4px; background: transparent; }
+  #tablaContactos input:hover, #tablaContactos input:focus { border-color: #b9c4cd; background: #fff; }
+  #tablaContactos input.gris { color: #8a8f94; }
+  #tablaContactos input.mal { border-color: #a11; }
+  #tablaContactos .aviso-campo { display: block; min-width: 0; padding-top: 1px; white-space: normal; }

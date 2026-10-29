@@ -336,6 +336,7 @@ function textoDeUnConjunto(c) {
   if (c.consejo) return textoDelConsejo(c);
   if (c.libros !== undefined && c.conjunto === 'libros') return textoDeLibros(c);
   if (c.entero) return textoDelEntero(c);
+  if (c.contactos) return textoDeContactos(c);
   var t = c.actuales.map(function (a, i) {
     return (i === 0 ? c.etiqueta + ' del curso ' : 'del curso ') + a.cursoEscolar + ': ' + numeroConPuntos(a.registros) + ' ' + c.cuenta;
   });
@@ -371,6 +372,15 @@ function textoDelConsejo(c) {
     if (k.ultimoPeriodo) t.push('último periodo ' + k.ultimoPeriodo);
   }
   if (c.fecha) t.push('del ' + c.fecha);
+  t.push(c.alDia ? 'al día' : 'poniéndose al día');
+  if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
+  return t.join(' · ');
+}
+
+/* Los contactos del profesorado: cuántos y cuántos están escritos a mano (lo demás sale de Séneca). */
+function textoDeContactos(c) {
+  var k = c.contactos, t = [c.etiqueta + ': ' + numeroConPuntos(k.registros) + (k.registros === 1 ? ' persona' : ' personas')];
+  t.push(numeroConPuntos(k.aMano) + ' con algo escrito a mano');
   t.push(c.alDia ? 'al día' : 'poniéndose al día');
   if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
   return t.join(' · ');
@@ -677,6 +687,103 @@ function agrupar(avisos, destino, revisado) {
     destino.appendChild(caja);
   });
 }
+
+/* ==== JsContactos.html ==== */
+
+/* La pestaña «Contactos del profesorado» (fila 98): una fila por docente del curso de hoy con su correo del centro, su correo personal y su móvil. Lo de Séneca sale en gris; lo escrito, en negro. Cada casilla se guarda al salir de ella.
+   Lo guardado no se ve publicado hasta que el trabajo de fondo lo recoge de entrada/: mientras tanto esta página recuerda sus cambios (en este navegador) y los enseña ya. */
+var CLAVE_PENDIENTES_CONTACTOS = 'centro-de-datos-contactos-pendientes';
+var DATOS_CONTACTOS = [['correoCentro', 'Correo del centro'], ['correoPersonal', 'Correo personal'], ['movil', 'Móvil']];
+
+function pendientesDeContactos() {
+  try { var l = JSON.parse(localStorage.getItem(CLAVE_PENDIENTES_CONTACTOS) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; }
+}
+function recordarPendientesDeContactos(l) {
+  try { localStorage.setItem(CLAVE_PENDIENTES_CONTACTOS, JSON.stringify(l)); } catch (e) { /* sin recordarlos: el fichero de entrada/ lleva los cambios igualmente */ }
+}
+
+/* ¿Lo publicado ya recoge este cambio (o uno posterior)? */
+function contactoYaPublicado(fila, p) {
+  var o = fila.origen[p.campo], cuando = o ? (o.de === 'a-mano' ? o.cuando : (o.borradoPor || {}).cuando) : '';
+  return !!cuando && Date.parse(cuando) >= Date.parse(p.cuando);
+}
+
+/* Pone en una fila un cambio de esta página, como lo dejará la parte cuando se publique. */
+function ponerCambioEnFila(fila, p) {
+  if (p.valor) { fila.valores[p.campo] = p.valor; fila.origen[p.campo] = { de: 'a-mano', quien: p.quien, app: DUENO_CD_, cuando: p.cuando }; }
+  else if (fila.seneca[p.campo]) { fila.valores[p.campo] = fila.seneca[p.campo]; fila.origen[p.campo] = { de: 'seneca', borradoPor: { quien: p.quien, app: DUENO_CD_, cuando: p.cuando } }; }
+  else { delete fila.valores[p.campo]; delete fila.origen[p.campo]; }
+}
+
+function celdaDeContacto(fila, campo, etiqueta, celdaUltimo) {
+  var td = el('td'), entrada = el('input'), aviso = el('span', 'aviso-campo');
+  entrada.type = 'text'; entrada.dataset.campo = campo; entrada.setAttribute('aria-label', etiqueta + ' de ' + fila.empleado);
+  function pintar() {
+    var o = fila.origen[campo], valor = fila.valores[campo];
+    entrada.value = valor ? textoDeContacto_(campo, valor) : '';
+    entrada.classList.toggle('gris', !!valor && !(o && o.de === 'a-mano'));
+    entrada.classList.remove('mal');
+  }
+  function guardar() {
+    var v = validarContacto_(campo, entrada.value);
+    if (!v.ok) { entrada.classList.add('mal'); aviso.className = 'aviso-campo mal'; aviso.textContent = v.motivo; return; }
+    var aMano = !!(fila.origen[campo] && fila.origen[campo].de === 'a-mano');
+    aviso.className = 'aviso-campo'; aviso.textContent = '';
+    if (v.valor === (fila.valores[campo] || '') || (v.valor === '' && !aMano)) { pintar(); return; }   // el mismo dato, o vaciar lo que viene de Séneca: no hay nada que guardar
+    servidor('webContactosGuardar', { id: fila.id, empleado: fila.empleado, campo: campo, valor: v.valor, pendientes: pendientesDeContactos() }).then(function (r) {
+      if (r.estado !== 'ok') { entrada.classList.add('mal'); aviso.className = 'aviso-campo mal'; aviso.textContent = r.motivo; return; }
+      var p = { id: fila.id, empleado: fila.empleado, campo: campo, valor: r.valor, quien: r.quien, cuando: r.cuando };
+      recordarPendientesDeContactos(pendientesDeContactos().filter(function (x) { return !(x.id === p.id && x.campo === p.campo); }).concat([p]));
+      ponerCambioEnFila(fila, p); pintar();
+      celdaUltimo.textContent = ultimoCambioDeContacto_(fila.origen);
+      aviso.className = 'aviso-campo bien'; aviso.textContent = '✔ Guardado';
+      setTimeout(function () { if (aviso.textContent === '✔ Guardado') aviso.textContent = ''; }, 2500);
+    }, function (x) { entrada.classList.add('mal'); aviso.className = 'aviso-campo mal'; aviso.textContent = x.message; });
+  }
+  entrada.addEventListener('change', guardar);
+  pintar();
+  td.appendChild(entrada); td.appendChild(aviso);
+  return td;
+}
+
+function filaDeTablaContactos(fila) {
+  var tr = el('tr'), ultimo = el('td', 'ultimo', ultimoCambioDeContacto_(fila.origen));
+  tr.dataset.nombre = normalizarAlumno_(fila.empleado);
+  tr.appendChild(el('td', 'nombre', fila.empleado));
+  DATOS_CONTACTOS.forEach(function (d) { tr.appendChild(celdaDeContacto(fila, d[0], d[1], ultimo)); });
+  tr.appendChild(ultimo);
+  return tr;
+}
+
+function filtrarContactos() {
+  var q = normalizarAlumno_(document.getElementById('buscarContactos').value);
+  document.querySelectorAll('#filasContactos tr').forEach(function (tr) { tr.hidden = !!q && tr.dataset.nombre.indexOf(q) === -1; });
+}
+
+function pintarContactos(r) {
+  document.getElementById('tituloContactos').textContent = 'Contactos del profesorado · curso ' + r.curso;
+  var cuerpo = document.getElementById('filasContactos'), nota = document.getElementById('sinContactos');
+  cuerpo.textContent = '';
+  /* Los cambios de esta página que aún no ve publicados el Centro de datos se enseñan ya; los que ya están publicados se olvidan. */
+  var pendientes = pendientesDeContactos().filter(function (p) {
+    var fila = r.filas.filter(function (f) { return f.id === p.id; })[0];
+    return !!fila && !contactoYaPublicado(fila, p);
+  });
+  recordarPendientesDeContactos(pendientes);
+  pendientes.slice().sort(function (a, b) { return Date.parse(a.cuando) - Date.parse(b.cuando); }).forEach(function (p) {
+    ponerCambioEnFila(r.filas.filter(function (f) { return f.id === p.id; })[0], p);
+  });
+  r.filas.forEach(function (f) { cuerpo.appendChild(filaDeTablaContactos(f)); });
+  nota.hidden = r.filas.length > 0;
+  nota.textContent = r.hay ? 'No hay ningún docente en el personal de este curso.' : 'Todavía no hay contactos: se montan en cuanto el Centro de datos tiene el personal del curso.';
+  document.getElementById('resumenContactos').textContent = r.filas.length ? r.filas.length + (r.filas.length === 1 ? ' docente' : ' docentes') : '';
+  filtrarContactos();
+}
+
+function cargarContactos() {
+  return servidor('webContactosLeer').then(pintarContactos, function (x) { avisar(x.message, true); });
+}
+document.getElementById('buscarContactos').addEventListener('input', filtrarContactos);
 
 /* ==== JsSubir.html ==== */
 
