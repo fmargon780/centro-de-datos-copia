@@ -696,7 +696,8 @@ function agrupar(avisos, destino, revisado) {
    Solo lee. Lo delicado (documentos, teléfonos, direcciones, correos propios, necesidades educativas…) se ve aquí y no sale al imprimir ni a Excel (Consultar.gs decide qué es delicado).
    Las columnas y los filtros se aplican aquí mismo (ConsultarFilas.gs); el servidor solo trae la parte elegida. */
 var CONSULTA = { carga: null, idColumnas: '', visibles: [], marcadas: {}, filtros: [{ ruta: '', op: 'contiene', texto: '' }], centro: null, medido: false, abierta: false, cursoAntes: null,
-  vista: 'recuento', casilla: null, cargaLista: null, conAnulados: false };   // fila 100: se abre en el recuento; la lista sale al pulsar una cifra (JsRecuento.html)
+  vista: 'recuento', casilla: null, cargaLista: null, conAnulados: false,
+  anoAnt: { activa: false, decidida: false } };   // fila 107: el filtro «Año: curso anterior» (activa) y si ya se puso solo o se quitó (decidida)   // fila 100: se abre en el recuento; la lista sale al pulsar una cifra (JsRecuento.html)
 
 function consultaDef() { return consultaDefinicion_(CONSULTA.carga.id); }
 function consultaOpcion() { return CONSULTA.carga.opciones.filter(function (o) { return o.id === CONSULTA.carga.id; })[0]; }
@@ -706,7 +707,23 @@ function cargaDeLista() { return CONSULTA.cargaLista || CONSULTA.carga; }
 function consultaEstado() {
   var varias = !!cargaDeLista().cargas;
   return { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: varias ? '' : document.getElementById('consFecha').value,
-    casilla: CONSULTA.vista === 'lista' ? CONSULTA.casilla : null, conAnulados: CONSULTA.conAnulados };
+    casilla: CONSULTA.vista === 'lista' ? CONSULTA.casilla : null, conAnulados: CONSULTA.conAnulados, anoAnterior: CONSULTA.anoAnt.activa };
+}
+
+/* Fila 107: el filtro «Año: curso anterior» de la tabla de matrículas del alumnado (ConsultarAnterior.gs). Se pone solo la primera vez que se usa una columna o un eje de esa tabla; se quita con su ×. */
+function consultaTablaAnterior() { return CONSULTA.carga && CONSULTA.carga.id ? consultaDef().tablaAnterior || '' : ''; }
+function consultaCursoConsultado() { var dia = document.getElementById('consFecha').value; return dia ? consultaCursoDeDia_(dia) : CONSULTA.carga.curso; }
+function consultaUsaTablaAnterior() {
+  var t = consultaTablaAnterior();
+  if (!t) return false;
+  var enLista = consultaPosibles().some(function (c) { return c.tabla === t && CONSULTA.marcadas[c.ruta]; });
+  var enRecuento = recuentoEjes().some(function (e) { return e.tabla === t && recuentoUsado(e.ruta); });
+  return CONSULTA.vista === 'lista' ? enLista : enRecuento;
+}
+function consultaPonerAnterior() {
+  if (CONSULTA.anoAnt.decidida || !consultaUsaTablaAnterior()) return;
+  CONSULTA.anoAnt.activa = true; CONSULTA.anoAnt.decidida = true;
+  pintarFiltrosConsulta();
 }
 
 /* Con las columnas de siempre de cada conjunto (las que ya tiene la parte). */
@@ -717,6 +734,7 @@ function consultaColumnasPorDefecto() {
   CONSULTA.visibles.forEach(function (r) { CONSULTA.marcadas[r] = true; });
   CONSULTA.filtros = [{ ruta: '', op: 'contiene', texto: '' }];
   document.getElementById('consGrupo').checked = false;
+  CONSULTA.anoAnt = { activa: false, decidida: false };
   if (window.recuentoPorDefecto) recuentoPorDefecto();
 }
 
@@ -779,6 +797,15 @@ function pintarBarraConsulta() {
 function pintarFiltrosConsulta() {
   var caja = document.getElementById('consFiltros'), posibles = consultaPosibles();
   caja.textContent = '';
+  if (CONSULTA.anoAnt.activa && consultaTablaAnterior()) {   // fila 107: el filtro propio, sin editar, solo con su ×
+    var curso = consultaCursoAnterior_(consultaCursoConsultado()), varios = window.recuentoUsaCurso && recuentoUsaCurso();
+    var pa = el('span', 'consulta-filtro filtro-anterior' + (varios ? ' apagado' : '')), qa = el('button', 'accion', '×');
+    pa.id = 'consAnterior'; pa.appendChild(el('span', '', curso ? consultaFraseAnterior_(curso) : 'Año: curso anterior'));
+    pa.title = varios ? 'Solo con un curso' : 'De cada alumno, la matrícula del curso anterior; quien no estaba sale con «Sin dato»';
+    qa.type = 'button'; qa.title = 'Quitar el filtro «curso anterior»'; qa.setAttribute('aria-label', 'Quitar el filtro curso anterior');
+    qa.onclick = function () { CONSULTA.anoAnt = { activa: false, decidida: true }; pintarFiltrosConsulta(); repintarConsulta(); };
+    pa.appendChild(qa); caja.appendChild(pa);
+  }
   CONSULTA.filtros.forEach(function (f, i) {
     var fila = el('span', 'consulta-filtro'), col = el('select'), op = el('select'), texto = el('input'), quitar = el('button', 'accion', '×');
     col.setAttribute('aria-label', 'Filtrar por la columna'); op.setAttribute('aria-label', 'Cómo filtrar'); texto.setAttribute('aria-label', 'Texto del filtro');
@@ -830,6 +857,7 @@ function pintarColumnasConsulta() {
 }
 
 function pintarTablaConsulta() {
+  consultaPonerAnterior();
   var c = cargaDeLista();
   if (enlacesPendientes(c)) {
     document.getElementById('consCuenta').textContent = 'Cargando los datos de los otros conjuntos…';
@@ -845,13 +873,14 @@ function pintarTablaConsulta() {
   cab.appendChild(tr);
   var trozo = document.createDocumentFragment();
   t.lineas.forEach(function (l) {
-    var f = el('tr');
+    var f = el('tr', l.sinDato ? 'fila-ambar' : '');
     l.textos.forEach(function (x, i) { f.appendChild(el('td', t.columnas[i].delicada ? 'ambar' : '', x)); });
     trozo.appendChild(f);
   });
   cuerpo.appendChild(trozo);
   var avisos = document.getElementById('consAvisos');
-  avisos.hidden = !c.aviso.length; avisos.textContent = c.aviso.join(' ');
+  var textoAvisos = c.aviso.concat(m.avisoAnterior ? [m.avisoAnterior] : []);
+  avisos.hidden = !textoAvisos.length; avisos.textContent = textoAvisos.join(' ');
   var quita = document.getElementById('consQuitar');
   quita.hidden = !m.avisoQuitadas; quita.textContent = m.avisoQuitadas;
   document.getElementById('consCuenta').textContent = c.hay ? m.cuenta : '';
@@ -905,6 +934,7 @@ function hojaDeConsulta(m, centro, grupo, aparte) {
   });
   tabla.appendChild(cuerpo); h.appendChild(tabla);
   if (m.avisoQuitadas) h.appendChild(el('p', 'hoja-pie ambar', m.avisoQuitadas));
+  if (m.avisoAnterior) h.appendChild(el('p', 'hoja-pie ambar', m.avisoAnterior));
   (m.avisosEnlaces || []).forEach(function (f) { h.appendChild(el('p', 'hoja-pie ambar', f)); });
   h.appendChild(el('p', 'hoja-pie', m.avisoPersonal));
   return h;
@@ -1155,7 +1185,9 @@ function pintarEjes() {
   poner(document.getElementById('recEjes'), libres.filter(function (x) { return !x.eje.enlace; }));
   poner(document.getElementById('recEjesEnl'), libres.filter(function (x) { return x.eje.enlace; }));
   document.getElementById('recEjesEnlCaja').hidden = !ejes.some(function (e) { return e.enlace; });
-  var dentro = function (id, lista) { poner(document.querySelector('#' + id + ' .rec-pastillas'), lista.filter(function (u) { return porRuta[u.ruta]; }).map(function (u) { return { eje: porRuta[u.ruta], usado: u }; })); };
+  var ant = CONSULTA.anoAnt.activa && !recuentoUsaCurso() ? consultaCursoAnterior_(consultaCursoConsultado()) : '';   // fila 107: los ejes de la tabla de matrículas llevan el año
+  var conAnio = function (e) { return ant ? consultaTituloAnterior_(e, recuentoDef().tablaAnterior, ant) : e; };
+  var dentro = function (id, lista) { poner(document.querySelector('#' + id + ' .rec-pastillas'), lista.filter(function (u) { return porRuta[u.ruta]; }).map(function (u) { return { eje: conAnio(porRuta[u.ruta]), usado: u }; })); };
   dentro('recFilas', RECUENTO.filas); dentro('recCols', RECUENTO.cols);
 }
 
@@ -1171,7 +1203,7 @@ function prepararSoltar(caja, destino) {
 
 function estadoRecuento() {
   var varios = recuentoUsaCurso();
-  return { filas: RECUENTO.filas, cols: RECUENTO.cols, calculo: RECUENTO.calculo, campo: RECUENTO.campo, base: RECUENTO.base, filtros: CONSULTA.filtros, dia: varios ? '' : document.getElementById('consFecha').value };
+  return { filas: RECUENTO.filas, cols: RECUENTO.cols, calculo: RECUENTO.calculo, campo: RECUENTO.campo, base: RECUENTO.base, filtros: CONSULTA.filtros, dia: varios ? '' : document.getElementById('consFecha').value, anoAnterior: CONSULTA.anoAnt.activa };
 }
 
 /* Qué se puede calcular según los ejes y los campos del conjunto. */
@@ -1272,6 +1304,7 @@ function recuentoCargarTodas() {
 function pintarRecuento() {
   var c = CONSULTA.carga;
   if (!c || !c.id) return;
+  consultaPonerAnterior();
   pintarEjes(); pintarCalculo();
   var varios = recuentoUsaCurso(), avisos = document.getElementById('recAvisos');
   if (varios && (!RECUENTO.todas || RECUENTO.todas.id !== c.id)) {
@@ -1291,6 +1324,8 @@ function pintarRecuento() {
   var rec = null;
   if (base.hay) rec = consultaRecuento_(base, estadoRecuento());
   RECUENTO.rec = rec;
+  var avisoAnt = rec ? consultaAvisoAnterior_(rec.anterior, recuentoDef().unidad) : '';   // fila 107
+  if (avisoAnt) { textoAvisos = textoAvisos.concat([avisoAnt]); avisos.hidden = false; avisos.textContent = textoAvisos.join(' '); }
   if (!rec) {
     document.getElementById('recCabeza').textContent = ''; document.getElementById('recCuerpo').textContent = ''; document.getElementById('recSvg').textContent = '';
     document.getElementById('recCuenta').textContent = '';
@@ -1324,17 +1359,17 @@ function medirRecuento(columnas, lineas, grafico) {
 /* La lista de todas las personas que entran en el recuento (hoja «Detalle» del Excel): las columnas de la lista, sin lo delicado. */
 function detalleDeRecuento(rec) {
   var base = recuentoUsaCurso() ? RECUENTO.todas : CONSULTA.carga;
-  var estado = { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: estadoRecuento().dia, conAnulados: rec.conAnulados };
+  var estado = { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: estadoRecuento().dia, conAnulados: rec.conAnulados, anoAnterior: CONSULTA.anoAnt.activa };
   return { base: base, estado: estado, modelo: consultaSalida_(base, estado, false, base.hoy) };
 }
 
 function hojaDeRecuento(rec, centro, d) {
-  var h = el('div', 'hoja'), m = d.modelo;
+  var h = el('div', 'hoja'), m = d.modelo, filtros = consultaFiltrosRecuento_(rec, m.filtros);
   var linea = [centro.codigo ? 'Código ' + centro.codigo : '', centro.direccion, (centro.localidad || '') + (centro.localidad && centro.provincia ? ' (' + centro.provincia + ')' : ''), centro.telefono ? 'Tel. ' + centro.telefono : ''].filter(function (x) { return x; });
   var cabeza = el('div', 'hoja-centro'); cabeza.appendChild(el('strong', '', centro.nombre || 'Centro de datos')); cabeza.appendChild(el('span', '', linea.join(' · ')));
   h.appendChild(cabeza);
   h.appendChild(el('h2', '', m.conjunto + ' · recuento · ' + m.cuando));
-  h.appendChild(el('p', 'hoja-meta', 'Fecha: ' + m.hoy + (m.filtros.length ? ' · Filtros: ' + m.filtros.join('; ') : '')));
+  h.appendChild(el('p', 'hoja-meta', 'Fecha: ' + m.hoy + (filtros.length ? ' · Filtros: ' + filtros.join('; ') : '')));
   h.appendChild(el('p', 'hoja-ejes', 'Filas: ' + (rec.ejesFilas.length ? consultaNombresEjes_(rec.ejesFilas).join(', ') : 'ninguno') + ' · Columnas: ' + (rec.ejesCols.length ? consultaNombresEjes_(rec.ejesCols).join(', ') : 'ninguno') + ' · ' + consultaFraseCalculo_(rec)));
   var t = consultaTablaRecuento_(rec), tabla = el('table'), cab = el('tr');
   t.cabecera.forEach(function (x) { cab.appendChild(el('th', '', x)); });
@@ -1344,6 +1379,8 @@ function hojaDeRecuento(rec, centro, d) {
   tabla.appendChild(cuerpo); h.appendChild(tabla);
   var svg = document.querySelector('#recSvg svg');
   if (svg && !document.getElementById('recGraficoCaja').hidden) { var gc = el('div', 'hoja-grafico'); gc.appendChild(svg.cloneNode(true)); h.appendChild(gc); }
+  var avisoAnt = consultaAvisoAnterior_(rec.anterior, recuentoDef().unidad);
+  if (avisoAnt) h.appendChild(el('p', 'hoja-pie ambar', avisoAnt));
   (d.base.conEnlaces ? consultaAvisosEnlaces_(d.base, rutasEnUso()) : []).forEach(function (f) { h.appendChild(el('p', 'hoja-pie ambar', f)); });
   h.appendChild(el('p', 'hoja-pie', m.avisoPersonal));
   return h;
@@ -1453,7 +1490,7 @@ function consultaEstadoGuardable() {
     filas: RECUENTO.filas.map(copia), cols: RECUENTO.cols.map(copia), calculo: RECUENTO.calculo, campo: RECUENTO.campo, base: RECUENTO.base, tipo: RECUENTO.tipo,
     filtros: CONSULTA.filtros.filter(function (f) { return f.ruta; }).map(function (f) { return { ruta: f.ruta, op: f.op, texto: f.texto }; }),
     visibles: CONSULTA.visibles.slice(), marcadas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }),
-    vista: CONSULTA.vista, grupo: document.getElementById('consGrupo').checked };
+    vista: CONSULTA.vista, grupo: document.getElementById('consGrupo').checked, anoAnterior: CONSULTA.anoAnt.activa };
 }
 
 /* Pone la pestaña como estaba guardada. Lo que ya no existe (un campo, un conjunto) se abre sin ello y se dice en una línea ámbar. */
@@ -1472,6 +1509,9 @@ function consultaPonerEstado(est) {
   }
   document.getElementById('consGrupo').checked = est.grupo;
   CONSULTA.vista = est.vista;
+  /* Fila 107: lo guardado manda. Si trae columnas o ejes de la tabla de matrículas sin el filtro, no se pone solo. */
+  var tabla = consultaTablaAnterior(), usa = !!tabla && (consultaPosibles().some(function (c) { return c.tabla === tabla && CONSULTA.marcadas[c.ruta]; }) || recuentoEjes().some(function (e) { return e.tabla === tabla && recuentoUsado(e.ruta); }));
+  CONSULTA.anoAnt = { activa: est.anoAnterior === true && !!tabla, decidida: est.anoAnterior === true || usa };
   return quitados;
 }
 

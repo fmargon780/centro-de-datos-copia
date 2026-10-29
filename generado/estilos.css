@@ -180,6 +180,8 @@
   .consulta-guardadas select { max-width: min(30em, calc(100vw - 7em)); min-width: 0; }
   #consNombre { padding: 3px 6px; font: inherit; border: 1px solid #b9c4cd; border-radius: 4px; width: 16em; max-width: 100%; }
   .consulta-filtro button { padding: 1px 7px; cursor: pointer; }
+  .filtro-anterior { background: #fff3cd; border: 1px solid #d9a400; color: #664d03; border-radius: 12px; padding: 1px 4px 1px 10px; }   /* fila 107 */
+  .filtro-anterior.apagado { background: #eceff1; border-color: #9aa5ad; color: #55616a; }
   .consulta-derecha { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .consulta-columnas { margin: 8px 0 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
   #consPastillas { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; }

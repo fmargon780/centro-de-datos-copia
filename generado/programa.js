@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v62';
+const VERSION_CD = 'CD v63';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6560,12 +6560,13 @@ const COMPROBACIONES_ = [
   { id: 'quien-monta', fila: 59, que: 'Quién montó la última parte de cada conjunto (la página nueva o la aplicación de hoy), qué conjuntos publica la página, turnos de montaje vigentes y caducados y choques (mal si la página vio que otro se llevaba su turno; solo cuentas)', funcion: 'cmpQuienMonta_' },
   { id: 'pagina-responde', fila: 58, que: 'La página nueva responde al momento mientras el ensayo trabaja: lo más lento que tardó en responder, en milisegundos (bien si no pasa de 500); sin medida si el ensayo no trabajó', funcion: 'cmpPaginaResponde_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
+  { id: 'consultar-curso-anterior', fila: 107, que: 'El filtro «Año: curso anterior» de Consultar con el alumnado de hoy: cuántos alumnos, cuántas líneas (una por alumno) y cuántos salen sin matrícula del curso anterior (solo cifras)', funcion: 'cmpConsultarCursoAnterior_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
+    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 
@@ -9384,9 +9385,10 @@ function cmpConsultarPantalla_(ctx) {
 /* `modo`: `curso` (una parte por curso), `periodo` (el Consejo: una por periodo y el historial) o `unica` (una sola parte). `grupo`: la clave que agrupa («Una hoja por grupo»).
    `vigencia`: cómo se saca «quién estaba ese día»: `registro` (fechas en el propio registro), `tabla` (en las líneas de una tabla), `consejo` o `cargo`.
    `nombresTabla`/`titulos`: nombres cortos de una tabla y de columnas concretas en la cabecera. `ver`: columnas con las que abre; `unidad`: cómo se cuenta («18 grupos»).
+   Fila 107: `tablaAnterior` es la tabla de matrículas por año que admite el filtro «curso anterior» (ConsultarAnterior.gs).
    Fila 100: `eje` son los ejes con los que abre el recuento (filas y columnas; si alguno no existe, se cambia por el primero que haya) y `ejeNombres` el nombre de un eje distinto del de la columna. */
 const CONSULTA_CONJUNTOS_ = [
-  { id: 'alumnado', nombre: 'Alumnado', conjunto: 'alumnado', parte: 'actuales', modo: 'curso', soloPropio: true, grupo: 'unidad', unidad: ['alumno', 'alumnos'], ver: ['apellido1', 'apellido2', 'nombre', 'unidad'], eje: { filas: ['curso'], cols: ['sexo'] }, ejeNombres: { curso: 'Nivel' } },
+  { id: 'alumnado', nombre: 'Alumnado', conjunto: 'alumnado', parte: 'actuales', modo: 'curso', soloPropio: true, tablaAnterior: 'trayectoria', grupo: 'unidad', unidad: ['alumno', 'alumnos'], ver: ['apellido1', 'apellido2', 'nombre', 'unidad'], eje: { filas: ['curso'], cols: ['sexo'] }, ejeNombres: { curso: 'Nivel' } },
   { id: 'personal', nombre: 'Personal', conjunto: 'personal', parte: 'curso', modo: 'curso', unidad: ['persona', 'personas'], vigencia: { tipo: 'registro', desde: 'fechaTomaPosesion', hasta: 'fechaCese' }, ver: ['empleado', 'tipoPersonal', 'puesto'], eje: { filas: ['tipoPersonal'], cols: [] } },
   { id: 'tutorias', nombre: 'Tutorías', conjunto: 'tutorias', parte: 'curso', modo: 'curso', grupo: 'unidad', unidad: ['grupo', 'grupos'], vigencia: { tipo: 'tabla', tabla: 'tutores', desde: 'desde', hasta: 'hasta' },
     nombresTabla: { tutores: 'Tutores' }, titulos: { 'tutores.empleado': 'Tutor/a' }, ver: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'], eje: { filas: ['unidad'], cols: ['tutores.empleado'] } },
@@ -9402,7 +9404,7 @@ const CONSULTA_CONJUNTOS_ = [
    salvo el nombre, censo NEAE y medidas, casillas en bruto, identificadores y cualquier clave nueva) es delicado: se ve en pantalla y no sale. */
 const CONSULTA_SALEN_ = {
   alumnado: ['apellido1', 'apellido2', 'nombre', 'alumno', 'sexo', 'fechaNacimiento', 'localidadNacimiento', 'nacionalidad', 'curso', 'unidad', 'ensenanza', 'estadoMatricula', 'edad', 'centroProcedencia',
-    'modalidad', 'matriculaNivel', 'cursoAnterior', 'repiteCurso', 'matriculado', 'tutores.orden', 'tutores.apellido1', 'tutores.apellido2', 'tutores.nombre'],
+    'modalidad', 'matriculaNivel', 'cursoAnterior', 'repiteCurso', 'matriculado', 'tutores.orden', 'tutores.apellido1', 'tutores.apellido2', 'tutores.nombre', 'trayectoria.ano', 'trayectoria.curso', 'trayectoria.unidad', 'trayectoria.estado'],
   personal: ['empleado', 'apellidos', 'nombre', 'tipoPersonal', 'puesto', 'especialidad', 'situacion', 'fechaTomaPosesion', 'fechaCese', 'listados', 'puestos.listado', 'puestos.puesto', 'puestos.fechaTomaPosesion', 'puestos.fechaCese'],
   tutorias: ['unidad', 'tutorHoy', 'tutores.empleado', 'tutores.apellidos', 'tutores.nombre', 'tutores.periodo', 'tutores.desde', 'tutores.hasta', 'tutores.sustituto', 'tutores.hoy', 'tutores.enPersonal'],
   'consejo-escolar': ['miembro', 'apellidos', 'nombre', 'sector', 'cargo', 'nombramiento', 'cese', 'nato', 'periodos', 'miembroHoy'],
@@ -9616,10 +9618,10 @@ function consultaValor_(col, r, fila, tabla) {
   return (Array.isArray(r.datos[col.tabla]) ? r.datos[col.tabla] : []).map(function (x) { return consultaTexto_(col.tipo, x[col.sub]); });
 }
 
-/* Lo que se elige (`estado`: { columnas: [ruta…], filtros: [{ ruta, op, texto }], dia }) sobre una carga de `consultaCarga_`. Devuelve las columnas, las líneas y cuántos registros hay. Cada línea:
+/* Lo que se elige (`estado`: { columnas: [ruta…], filtros: [{ ruta, op, texto }], dia, anoAnterior }) sobre una carga de `consultaCarga_`. Devuelve las columnas, las líneas y cuántos registros hay. Cada línea:
    `textos` (como se ven), `crudos` (como están, para Excel), `grupo`, `n` (el registro del que sale), `reg` (su clave: curso, un `|` y el identificador) y `clave` (la de la línea, con el lugar de la fila en su tabla).
    Solo una tabla se despliega: la de la primera columna de tabla marcada, o la que diga `estado.tabla` (entonces no se quita ninguna columna). Fila 100: en el alumnado salen solo los matriculados salvo `estado.conAnulados`
-   o un filtro por «Matriculado»; `estado.casilla` ({ tabla, claves, regs }) deja solo las líneas de una casilla del recuento. */
+   o un filtro por «Matriculado»; fila 107: con `estado.anoAnterior` (ConsultarAnterior.gs) la tabla de matrículas deja una línea por alumno, la del curso anterior, o «Sin dato»; `estado.casilla` ({ tabla, claves, regs }) deja solo las líneas de una casilla del recuento. */
 function consultaTablaUna_(carga, estado) {
   const def = consultaDefinicion_(carga.id);
   const posibles = consultaColumnas_(carga.campos, def), porRuta = {};
@@ -9631,10 +9633,13 @@ function consultaTablaUna_(carga, estado) {
   const filtros = (estado.filtros || []).filter(function (f) { return porRuta[f.ruta] && CONSULTA_OPERADORES_.indexOf(f.op) !== -1 && (f.op === 'vacio' || String(f.texto || '').trim() !== ''); });
   const conAnulados = !!estado.conAnulados || filtros.some(function (f) { return f.ruta === 'matriculado'; });
   const registros = consultaVigentes_(carga.registros, def, estado.dia, carga.periodo).filter(function (r) { return def.conjunto !== 'alumnado' || conAnulados || r.matriculado !== false; });
+  const anterior = consultaAnteriorActivo_(def, carga, estado, tabla);
+  if (anterior) columnas = columnas.map(function (c) { return consultaTituloAnterior_(c, tabla, anterior); });
   const etiqueta = carga.curso || carga.periodo || '', casilla = estado.casilla || null, porLinea = !!casilla && casilla.tabla === tabla;
-  const lineas = [], vistos = {};
+  const lineas = [], vistos = {}, sinDatoDe = {};
   registros.forEach(function (r, n) {
-    const filas = tabla ? (Array.isArray(r.datos[tabla]) && r.datos[tabla].length ? r.datos[tabla] : [null]) : [null];
+    let filas = tabla ? (Array.isArray(r.datos[tabla]) && r.datos[tabla].length ? r.datos[tabla] : [null]) : [null];
+    if (anterior) filas = [consultaFilaDelAnio_(r.datos[tabla], anterior)];
     const reg = etiqueta + '|' + r.id;
     filas.forEach(function (fila, fi) {
       const clave = reg + '|' + fi;
@@ -9642,18 +9647,20 @@ function consultaTablaUna_(carga, estado) {
       const pasa = filtros.every(function (f) { const c = porRuta[f.ruta]; return consultaCumple_(f, consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla))); });
       if (!pasa) return;
       vistos[n] = true;
-      lineas.push({ n: n, reg: reg, clave: clave, grupo: def.grupo ? String(r.datos[def.grupo] || '') : '',
+      const sinDato = !!anterior && !fila;
+      if (sinDato) sinDatoDe[n] = true;
+      lineas.push({ n: n, reg: reg, clave: clave, grupo: def.grupo ? String(r.datos[def.grupo] || '') : '', sinDato: sinDato,
         crudos: columnas.map(function (c) { const v = consultaValor_(c, r, fila, tabla); return v === undefined ? null : v; }),
-        textos: columnas.map(function (c) { return consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla)); }) });
+        textos: columnas.map(function (c) { return sinDato && c.tabla === tabla ? CONSULTA_SIN_DATO_ : consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla)); }) });
     });
   });
-  return { columnas: columnas, lineas: lineas, registros: Object.keys(vistos).length, tabla: tabla, filtros: filtros.map(function (f) { return { ruta: f.ruta, op: f.op, texto: String(f.texto || '').trim() }; }) };
+  return { columnas: columnas, lineas: lineas, registros: Object.keys(vistos).length, tabla: tabla, anterior: anterior ? { curso: anterior, sinDato: Object.keys(sinDatoDe).length } : null, filtros: filtros.map(function (f) { return { ruta: f.ruta, op: f.op, texto: String(f.texto || '').trim() }; }) };
 }
 
 /* Con varias partes juntas (`carga.cargas`: todos los cursos o periodos, fila 100) sale una columna más al principio, «Curso escolar» o «Periodo». */
 function consultaTabla_(carga, estado) {
   if (!carga.cargas) return consultaTablaUna_(carga, estado);
-  const ts = carga.cargas.map(function (c) { return consultaTablaUna_(c, estado); });
+  const ts = carga.cargas.map(function (c) { return consultaTablaUna_(c, Object.assign({}, estado, { anoAnterior: false })); });
   const nombre = (consultaDefinicion_(carga.id) || {}).modo === 'periodo' ? 'Periodo' : 'Curso escolar';
   const col = { ruta: '_curso', clave: '_curso', sub: '', tabla: '', tipo: 'texto', nombre: nombre, titulo: nombre, frase: nombre, delicada: false };
   const lineas = [];
@@ -9662,7 +9669,7 @@ function consultaTabla_(carga, estado) {
     t.lineas.forEach(function (l) { lineas.push(Object.assign({}, l, { textos: [et].concat(l.textos), crudos: [et].concat(l.crudos) })); });
   });
   const t0 = ts[0] || { columnas: [], tabla: '', filtros: [] };
-  return { columnas: [col].concat(t0.columnas), lineas: lineas, registros: ts.reduce(function (a, t) { return a + t.registros; }, 0), tabla: t0.tabla, filtros: t0.filtros };
+  return { columnas: [col].concat(t0.columnas), lineas: lineas, registros: ts.reduce(function (a, t) { return a + t.registros; }, 0), tabla: t0.tabla, anterior: null, filtros: t0.filtros };
 }
 
 /* «18 grupos · 21 líneas». */
@@ -9670,6 +9677,65 @@ function consultaCuenta_(id, t) {
   const u = (consultaDefinicion_(id) || {}).unidad || ['registro', 'registros'];
   const a = t.registros + ' ' + (t.registros === 1 ? u[0] : u[1]);
   return t.lineas.length === t.registros ? a : a + ' · ' + t.lineas.length + (t.lineas.length === 1 ? ' línea' : ' líneas');
+}
+
+/* ==== ConsultarAnterior.gs ==== */
+/* Consultar (fila 107): el grupo del curso anterior. En el alumnado, las columnas de la tabla «Matrículas en el centro» (`trayectoria`) pueden verse con un filtro propio, «Año: curso anterior»: deja de cada alumno solo
+   la matrícula del curso anterior al consultado y, si no tiene ninguna, lo deja en una línea con «Sin dato» en vez de quitarlo. No es un renglón de `CONSULTA.filtros`: va aparte (`estado.anoAnterior`), no se edita y se guarda
+   como relativo («curso anterior»), no como «25-26». Con varios cursos a la vez (eje «Curso escolar») no hace nada. */
+
+const CONSULTA_SIN_DATO_ = 'Sin dato';
+
+/* El curso anterior a «26-27» es «25-26». '' si no es un curso. */
+function consultaCursoAnterior_(curso) {
+  const m = /^(\d{2})-(\d{2})$/.exec(String(curso || ''));
+  return m ? parDeCursos_((+m[1] + 99) % 100) : '';
+}
+
+/* El curso anterior al que se consulta (el de la fecha si hay fecha), si el filtro está pedido y vale: conjunto con tabla de matrículas, esa tabla desplegada y un solo curso. Si no, ''. */
+function consultaAnteriorActivo_(def, carga, estado, tabla) {
+  if (!estado.anoAnterior || !def || !def.tablaAnterior || tabla !== def.tablaAnterior || carga.cargas) return '';
+  return consultaCursoAnterior_(estado.dia ? consultaCursoDeDia_(estado.dia) : carga.curso);
+}
+
+/* La matrícula de un año: la última que no esté anulada o trasladada; si todas lo están, la última. Null si no hay ninguna. */
+function consultaFilaDelAnio_(filas, ano) {
+  const del = (Array.isArray(filas) ? filas : []).filter(function (f) { return f && f.ano === ano; });
+  const validas = del.filter(function (f) { return ESTADOS_QUE_NO_CUENTAN_.indexOf(normalizarAlumno_(f.estado)) === -1; });
+  const lista = validas.length ? validas : del;
+  return lista.length ? lista[lista.length - 1] : null;
+}
+
+/* El título de una columna o eje de la tabla con el año: «Grupo 25-26». La del año se queda como está. */
+function consultaTituloAnterior_(col, tabla, anterior) {
+  if (!anterior || col.tabla !== tabla || /\.ano$/.test(col.ruta)) return col;
+  const nuevo = Object.assign({}, col, { nombre: String(col.nombre).replace(/^.* · /, '') + ' ' + anterior });
+  if (col.titulo) nuevo.titulo = col.titulo + ' ' + anterior;
+  return nuevo;
+}
+
+/* «Año: curso anterior (25-26)». */
+function consultaFraseAnterior_(anterior) { return 'Año: curso anterior (' + anterior + ')'; }
+
+/* La línea ámbar de quienes no tienen matrícula ese año. Vacía si no hay nadie. `info`: { curso, sinDato } de la tabla o del recuento. */
+function consultaAvisoAnterior_(info, unidad) {
+  if (!info || !info.sinDato) return '';
+  const u = unidad || ['alumno', 'alumnos'];
+  return info.sinDato + ' ' + (info.sinDato === 1 ? u[0] : u[1]) + ' sin matrícula en el centro en ' + info.curso + ' (nuevos, o falta un fichero de ese curso)';
+}
+
+/* Los filtros de un recuento tal como se escriben: si usa «curso anterior», va el primero (sin repetirlo si ya está). */
+function consultaFiltrosRecuento_(rec, filtros) {
+  return rec.anterior && filtros.indexOf(rec.anterior.frase) === -1 ? [rec.anterior.frase].concat(filtros) : filtros;
+}
+
+/* Solo lee. Con el alumnado del curso de hoy, saca la lista con «curso anterior» y cuenta, solo con cifras: alumnos, líneas (tienen que ser las mismas: una por alumno) y cuántos salen en «Sin dato». */
+function cmpConsultarCursoAnterior_(ctx) {
+  const c = consultaCarga_(ctx.raiz, 'alumnado', '', '');
+  if (!c.hay || !c.campos.some(function (x) { return x.clave === 'trayectoria'; })) return { estado: 'sin datos', cifras: { 'alumnado-con-matriculas': false } };
+  const t = consultaTablaUna_(c, { columnas: ['trayectoria.unidad'], filtros: [], dia: '', anoAnterior: true });
+  const ok = !!t.anterior && t.lineas.length === t.registros;
+  return { estado: ok ? 'bien' : 'mal', cifras: { alumnos: t.registros, lineas: t.lineas.length, 'sin-matricula-anterior': t.anterior ? t.anterior.sinDato : 0 } };
 }
 
 /* ==== ConsultarSalida.gs ==== */
@@ -9692,11 +9758,12 @@ function consultaCuando_(carga, dia) {
 
 /* Los filtros usados, en frases. El de una columna delicada no dice qué texto era: «<columna>: filtrado». */
 function consultaFiltrosEnFrases_(t) {
-  return t.filtros.map(function (f) {
+  const frases = t.filtros.map(function (f) {
     const c = t.todas[f.ruta];
     if (c.delicada) return c.nombre + ': filtrado';
     return c.nombre + ' ' + CONSULTA_FRASE_OP_[f.op] + (f.op === 'vacio' ? '' : ' «' + f.texto + '»');
   });
+  return t.anterior ? [consultaFraseAnterior_(t.anterior.curso)].concat(frases) : frases;
 }
 
 /* El modelo de la hoja y del Excel. `carga` es la de `consultaCarga_`, `estado` lo elegido (columnas, filtros y día). Solo salen las columnas que no son delicadas. */
@@ -9708,14 +9775,17 @@ function consultaSalida_(carga, estado, conGrupos, hoy) {
   const salen = [];
   t.columnas.forEach(function (c, i) { if (!c.delicada) salen.push(i); });
   const quitadas = t.columnas.filter(function (c) { return c.delicada; }).map(function (c) { return c.nombre; });
-  const lineas = t.lineas.map(function (l) { return { grupo: l.grupo, textos: salen.map(function (i) { return l.textos[i]; }), crudos: salen.map(function (i) { return l.crudos[i]; }) }; });
+  const lineas = t.lineas.map(function (l) {   // fila 107: «Sin dato» sale como texto, no como casilla vacía
+    return { grupo: l.grupo, sinDato: !!l.sinDato, textos: salen.map(function (i) { return l.textos[i]; }),
+      crudos: salen.map(function (i) { return l.sinDato && t.columnas[i].tabla === t.tabla ? l.textos[i] : l.crudos[i]; }) };
+  });
   const grupos = [];
   lineas.forEach(function (l) { if (grupos.indexOf(l.grupo) === -1) grupos.push(l.grupo); });
   const porGrupo = !!(conGrupos && def.grupo);
   return {
     conjunto: def.nombre, cuando: consultaCuando_(carga, estado.dia), titulo: def.nombre + ' · ' + consultaCuando_(carga, estado.dia), hoy: consultaDia_(hoy),
     columnas: salen.map(function (i) { return t.columnas[i].titulo; }), tipos: salen.map(function (i) { return t.columnas[i].tipo; }),
-    lineas: lineas, porGrupo: porGrupo, grupos: grupos, filtros: consultaFiltrosEnFrases_(t), quitadas: quitadas,
+    lineas: lineas, porGrupo: porGrupo, grupos: grupos, filtros: consultaFiltrosEnFrases_(t), quitadas: quitadas, avisoAnterior: consultaAvisoAnterior_(t.anterior, def.unidad),
     avisoQuitadas: quitadas.length ? 'Al imprimir o sacar a Excel se quita: ' + quitadas.join(', ') + '.' : '',
     avisoPersonal: CONSULTA_AVISO_PERSONAL_, cuenta: consultaCuenta_(carga.id, t), hojas: consultaHojas_(lineas.length, grupos.length, porGrupo)
   };
@@ -9805,6 +9875,7 @@ function consultaCelda_(ref, tipo, crudo, texto) {
 function consultaFilasLista_(modelo) {
   const sueltas = [CONSULTA_AVISO_PERSONAL_, modelo.titulo + (modelo.filtros.length ? ' · ' + modelo.filtros.join('; ') : '') + ' · ' + modelo.hoy];
   if (modelo.avisoQuitadas) sueltas.push(modelo.avisoQuitadas);
+  if (modelo.avisoAnterior) sueltas.push(modelo.avisoAnterior);
   const filas = sueltas.map(function (t) { return [{ tipo: 'texto', crudo: t, texto: t }]; });
   filas.push(modelo.columnas.map(function (c) { return { tipo: 'texto', crudo: c, texto: c }; }));
   modelo.lineas.forEach(function (l) { filas.push(l.textos.map(function (t, i) { return { tipo: modelo.tipos[i], crudo: l.crudos[i], texto: t }; })); });
@@ -9843,9 +9914,13 @@ function consultaXlsx_(modelo) {
 /* Fila 100: el libro del recuento, con dos hojas: «Recuento» (aviso, título con filtros y fecha, ejes y cálculo, la tabla con sus totales) y «Detalle» (la lista de quiénes entran, sin lo delicado). `rec`: de `consultaRecuento_`; `titulo`
    y `filtros` como en `consultaSalida_`; `detalle`: el modelo de `consultaSalida_` de la lista de partida. */
 function consultaXlsxRecuento_(rec, titulo, filtros, hoy, detalle) {
+  filtros = consultaFiltrosRecuento_(rec, filtros);
   const t = consultaTablaRecuento_(rec), txt = function (x) { return { tipo: 'texto', crudo: x, texto: x }; };
   const ejes = 'Filas: ' + (rec.ejesFilas.length ? consultaNombresEjes_(rec.ejesFilas).join(', ') : 'ninguno') + ' · Columnas: ' + (rec.ejesCols.length ? consultaNombresEjes_(rec.ejesCols).join(', ') : 'ninguno') + ' · ' + consultaFraseCalculo_(rec);
-  const filas = [[txt(CONSULTA_AVISO_PERSONAL_)], [txt(titulo + (filtros.length ? ' · ' + filtros.join('; ') : '') + ' · ' + hoy)], [txt(ejes)], t.cabecera.map(txt)];
+  const filas = [[txt(CONSULTA_AVISO_PERSONAL_)], [txt(titulo + (filtros.length ? ' · ' + filtros.join('; ') : '') + ' · ' + hoy)], [txt(ejes)]];
+  const aviso = consultaAvisoAnterior_(rec.anterior, (consultaDefinicion_(rec.id) || {}).unidad);   // fila 107
+  if (aviso) filas.push([txt(aviso)]);
+  filas.push(t.cabecera.map(txt));
   t.lineas.forEach(function (l) { filas.push(l.map(function (x) { return typeof x === 'string' ? txt(x) : { tipo: 'numero', crudo: x.valor, texto: x.texto }; })); });
   return consultaLibro_([{ nombre: 'Recuento', filas: filas }, { nombre: 'Detalle', filas: consultaFilasLista_(detalle) }]);
 }
@@ -9985,13 +10060,15 @@ function consultaRecuento_(carga, estado) {
   const posCampo = campo ? rutas.length : -1;
   if (campo) rutas.push(campo.ruta);
   const items = [];
+  let anterior = null;
   subs.forEach(function (sub) {
     const et = sub.curso || sub.periodo || '';
-    const t = consultaTablaUna_(sub, { columnas: rutas, filtros: estado.filtros, dia: estado.dia, tabla: tabla, conAnulados: todosEjes.some(function (e) { return e.ruta === 'matriculado'; }) });
+    const t = consultaTablaUna_(sub, { columnas: rutas, filtros: estado.filtros, dia: estado.dia, tabla: tabla, anoAnterior: !!estado.anoAnterior && !carga.cargas, conAnulados: todosEjes.some(function (e) { return e.ruta === 'matriculado'; }) });
+    anterior = t.anterior || anterior;
     t.lineas.forEach(function (l) {
       const valor = function (e) { return porEje[e.ruta].curso ? { o: et, t: et } : consultaEjeValor_(porEje[e.ruta], l.crudos[rutas.indexOf(e.ruta)], e.agrupa); };
       const v = posCampo >= 0 ? Number(l.crudos[posCampo]) : null;
-      items.push({ k: l.reg, lk: l.clave, v: posCampo >= 0 && l.crudos[posCampo] !== null && l.crudos[posCampo] !== '' && isFinite(v) ? v : null, f: filas.map(valor), c: cols.map(valor) });
+      items.push({ k: l.reg, lk: l.clave, sd: !!l.sinDato, v: posCampo >= 0 && l.crudos[posCampo] !== null && l.crudos[posCampo] !== '' && isFinite(v) ? v : null, f: filas.map(valor), c: cols.map(valor) });
     });
   });
   const gFilas = recuentoGrupos_(items, filas.length, 'f'), gCols = recuentoGrupos_(items, cols.length, 'c');
@@ -10004,8 +10081,10 @@ function consultaRecuento_(carga, estado) {
       return dar(its, gf.items, gc.items);
     });
   });
+  const conAnio = function (e) { return Object.assign({}, anterior ? consultaTituloAnterior_(porEje[e.ruta], tabla, anterior.curso) : porEje[e.ruta], { agrupa: e.agrupa }); };
+  if (anterior) anterior = { curso: anterior.curso, sinDato: recuentoDistintos_(items.filter(function (i) { return i.sd; })), frase: consultaFraseAnterior_(anterior.curso) };
   return {
-    id: carga.id, ejesFilas: filas.map(function (e) { return Object.assign({}, porEje[e.ruta], { agrupa: e.agrupa }); }), ejesCols: cols.map(function (e) { return Object.assign({}, porEje[e.ruta], { agrupa: e.agrupa }); }),
+    id: carga.id, anterior: anterior, ejesFilas: filas.map(conAnio), ejesCols: cols.map(conAnio),
     filas: gFilas, cols: gCols, celdas: celdas, totFilas: gFilas.map(function (gf) { return dar(gf.items, gf.items, null); }), totCols: gCols.map(function (gc) { return dar(gc.items, null, gc.items); }),
     total: dar(items, null, null), calculo: calculo, base: base, campo: campo ? campo.nombre : '', deTabla: deTabla, tabla: tabla, todos: items,
     registros: recuentoDistintos_(items), lineas: items.length, conTabla: !!tabla, conAnulados: todosEjes.some(function (e) { return e.ruta === 'matriculado'; })
@@ -10497,6 +10576,7 @@ function consultasLimpiarEstado_(e) {
       .map(function (f) { return { ruta: consultasTextoCorto_(f.ruta, 80), op: ['contiene', 'igual', 'vacio'].indexOf(f.op) !== -1 ? f.op : 'contiene', texto: consultasTextoCorto_(f.texto, 200) }; }),
     vista: e.vista === 'lista' ? 'lista' : 'recuento', grupo: e.grupo === true
   };
+  if (e.anoAnterior === true) s.anoAnterior = true;   // fila 107: se guarda como «curso anterior», nunca como un curso
   if (Array.isArray(e.visibles)) { s.visibles = consultasRutas_(e.visibles); s.marcadas = consultasRutas_(e.marcadas); }
   return s;
 }
