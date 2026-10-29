@@ -688,6 +688,236 @@ function agrupar(avisos, destino, revisado) {
   });
 }
 
+/* ==== JsConsultar.html ==== */
+
+/* La pestaña «Consultar» (fila 99): la lista de un conjunto de datos ya hechos, con las columnas y los filtros que se elijan, que se imprime en una hoja preparada y se saca a Excel.
+   Solo lee. Lo delicado (documentos, teléfonos, direcciones, correos propios, necesidades educativas…) se ve aquí y no sale al imprimir ni a Excel (Consultar.gs decide qué es delicado).
+   Las columnas y los filtros se aplican aquí mismo (ConsultarFilas.gs); el servidor solo trae la parte elegida. */
+var CONSULTA = { carga: null, idColumnas: '', visibles: [], marcadas: {}, filtros: [{ ruta: '', op: 'contiene', texto: '' }], centro: null, medido: false, abierta: false, cursoAntes: null };
+
+function consultaDef() { return consultaDefinicion_(CONSULTA.carga.id); }
+function consultaOpcion() { return CONSULTA.carga.opciones.filter(function (o) { return o.id === CONSULTA.carga.id; })[0]; }
+function consultaPosibles() { return consultaColumnas_(CONSULTA.carga.campos, consultaDef()); }
+function consultaEstado() {
+  return { columnas: CONSULTA.visibles.filter(function (r) { return CONSULTA.marcadas[r]; }), filtros: CONSULTA.filtros, dia: document.getElementById('consFecha').value };
+}
+
+/* Con las columnas de siempre de cada conjunto (las que ya tiene la parte). */
+function consultaColumnasPorDefecto() {
+  CONSULTA.idColumnas = CONSULTA.carga.id;
+  CONSULTA.visibles = consultaDef().ver.slice();
+  CONSULTA.marcadas = {};
+  CONSULTA.visibles.forEach(function (r) { CONSULTA.marcadas[r] = true; });
+  CONSULTA.filtros = [{ ruta: '', op: 'contiene', texto: '' }];
+  document.getElementById('consGrupo').checked = false;
+}
+
+function consultaPedir(id, curso, periodo) {
+  return servidor('webConsultarLeer', id || null, curso || '', periodo || '').then(function (c) {
+    CONSULTA.carga = c;
+    if (CONSULTA.idColumnas !== c.id) consultaColumnasPorDefecto();
+    pintarConsulta();
+  }, function (x) { avisar(x.message, true); });
+}
+
+/* El curso que se pide: el que contiene la fecha si hay fecha; al quitarla, vuelve el que estaba elegido antes. */
+function cursoPedidoConsulta() {
+  var dia = document.getElementById('consFecha').value, caja = document.getElementById('consCurso');
+  if (dia) { if (CONSULTA.cursoAntes === null) CONSULTA.cursoAntes = caja.value; return consultaCursoDeDia_(dia); }
+  var c = CONSULTA.cursoAntes !== null ? CONSULTA.cursoAntes : caja.value;
+  CONSULTA.cursoAntes = null;
+  return c;
+}
+
+function cargarConsultar() {
+  if (!CONSULTA.abierta) { CONSULTA.abierta = true; return consultaPedir(null, '', ''); }
+  return cambiaConsulta();
+}
+
+/* Lo que se pide al elegir otro conjunto, curso, periodo o fecha. */
+function cambiaConsulta() {
+  var c = CONSULTA.carga;
+  return consultaPedir(c ? document.getElementById('consDatos').value : null, cursoPedidoConsulta(), document.getElementById('consPeriodo').value);
+}
+
+function llenarSelect(sel, valores, elegido, texto) {
+  sel.textContent = '';
+  valores.forEach(function (v) { var o = el('option', '', texto(v)); o.value = v; sel.appendChild(o); });
+  sel.value = elegido;
+}
+
+function pintarBarraConsulta() {
+  var c = CONSULTA.carga, op = consultaOpcion(), dia = document.getElementById('consFecha').value;
+  llenarSelect(document.getElementById('consDatos'), c.opciones.map(function (o) { return o.id; }), c.id, function (v) { return c.opciones.filter(function (o) { return o.id === v; })[0].nombre; });
+  var cursos = op && op.modo === 'curso' ? op.cursos.slice() : [];
+  if (c.curso && cursos.indexOf(c.curso) === -1) cursos.unshift(c.curso);
+  document.getElementById('consCursoCaja').hidden = !(op && op.modo === 'curso');
+  llenarSelect(document.getElementById('consCurso'), cursos, c.curso || '', function (v) { return v + (v === c.cursoHoy ? ' (hoy)' : ''); });
+  document.getElementById('consCurso').disabled = !!dia;
+  document.getElementById('consPeriodoCaja').hidden = !(op && op.modo === 'periodo');
+  llenarSelect(document.getElementById('consPeriodo'), op && op.modo === 'periodo' ? op.periodos : [''], c.periodo, function (v) { return v === '' ? 'Historial (todos)' : v; });
+  var conFecha = !!op && (op.vigencia || op.modo === 'curso');
+  document.getElementById('consFechaCaja').hidden = !conFecha;
+  if (!conFecha) document.getElementById('consFecha').value = '';
+  document.getElementById('consGrupoCaja').hidden = !(op && op.grupo);
+  document.getElementById('consGrupo').disabled = !(op && op.grupo);
+}
+
+function pintarFiltrosConsulta() {
+  var caja = document.getElementById('consFiltros'), posibles = consultaPosibles();
+  caja.textContent = '';
+  CONSULTA.filtros.forEach(function (f, i) {
+    var fila = el('span', 'consulta-filtro'), col = el('select'), op = el('select'), texto = el('input'), quitar = el('button', 'accion', '×');
+    col.setAttribute('aria-label', 'Filtrar por la columna'); op.setAttribute('aria-label', 'Cómo filtrar'); texto.setAttribute('aria-label', 'Texto del filtro');
+    var vacia = el('option', '', 'columna…'); vacia.value = ''; col.appendChild(vacia);
+    posibles.forEach(function (p) { var o = el('option', '', p.nombre); o.value = p.ruta; col.appendChild(o); });
+    col.value = f.ruta;
+    [['contiene', 'contiene'], ['igual', 'es igual a'], ['vacio', 'está vacío']].forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; op.appendChild(o); });
+    op.value = f.op; texto.type = 'text'; texto.value = f.texto; texto.placeholder = 'texto'; texto.hidden = f.op === 'vacio';
+    quitar.type = 'button'; quitar.title = 'Quitar este filtro'; quitar.setAttribute('aria-label', 'Quitar este filtro');
+    col.onchange = function () { f.ruta = col.value; pintarTablaConsulta(); };
+    op.onchange = function () { f.op = op.value; texto.hidden = f.op === 'vacio'; pintarTablaConsulta(); };
+    texto.oninput = function () { f.texto = texto.value; pintarTablaConsulta(); };
+    quitar.onclick = function () { CONSULTA.filtros.splice(i, 1); if (!CONSULTA.filtros.length) CONSULTA.filtros.push({ ruta: '', op: 'contiene', texto: '' }); pintarFiltrosConsulta(); pintarTablaConsulta(); };
+    [col, op, texto, quitar].forEach(function (x) { fila.appendChild(x); });
+    caja.appendChild(fila);
+  });
+}
+
+/* Marcar una columna de otra tabla cambia a esa tabla: las de la anterior se desmarcan. */
+function marcarColumnaConsulta(ruta, si) {
+  var col = consultaPosibles().filter(function (c) { return c.ruta === ruta; })[0];
+  CONSULTA.marcadas[ruta] = si;
+  if (si && col && col.tabla) {
+    consultaPosibles().forEach(function (c) { if (c.tabla && c.tabla !== col.tabla) CONSULTA.marcadas[c.ruta] = false; });
+  }
+}
+
+function pintarColumnasConsulta() {
+  var caja = document.getElementById('consPastillas'), posibles = consultaPosibles(), porRuta = {};
+  posibles.forEach(function (p) { porRuta[p.ruta] = p; });
+  caja.textContent = '';
+  CONSULTA.visibles.filter(function (r) { return porRuta[r]; }).forEach(function (r) {
+    var p = porRuta[r], b = el('button', 'pastilla' + (CONSULTA.marcadas[r] ? ' marcada' : '') + (p.delicada ? ' ambar' : ''), p.nombre + (p.delicada ? ' (solo en pantalla)' : ''));
+    b.type = 'button'; b.title = p.frase; b.dataset.ruta = r; b.setAttribute('aria-pressed', CONSULTA.marcadas[r] ? 'true' : 'false');
+    b.onclick = function () { marcarColumnaConsulta(r, !CONSULTA.marcadas[r]); pintarColumnasConsulta(); pintarTablaConsulta(); };
+    caja.appendChild(b);
+  });
+  var mas = document.getElementById('consAnadir');
+  mas.textContent = '';
+  var primera = el('option', '', '+ añadir'); primera.value = ''; mas.appendChild(primera);
+  posibles.filter(function (p) { return CONSULTA.visibles.indexOf(p.ruta) === -1; }).forEach(function (p) {
+    var o = el('option', '', p.nombre + (p.delicada ? ' (solo en pantalla)' : '')); o.value = p.ruta; o.title = p.frase; mas.appendChild(o);
+  });
+  mas.value = '';
+}
+
+function pintarTablaConsulta() {
+  var c = CONSULTA.carga, estado = consultaEstado(), t = consultaTabla_(c, estado), m = consultaSalida_(c, estado, document.getElementById('consGrupo').checked, c.hoy);
+  var cab = document.getElementById('consCabeza'), cuerpo = document.getElementById('consCuerpo');
+  cab.textContent = ''; cuerpo.textContent = '';
+  var tr = el('tr');
+  t.columnas.forEach(function (col) { var th = el('th', col.delicada ? 'ambar' : '', col.titulo); th.title = col.frase; tr.appendChild(th); });
+  cab.appendChild(tr);
+  var trozo = document.createDocumentFragment();
+  t.lineas.forEach(function (l) {
+    var f = el('tr');
+    l.textos.forEach(function (x, i) { f.appendChild(el('td', t.columnas[i].delicada ? 'ambar' : '', x)); });
+    trozo.appendChild(f);
+  });
+  cuerpo.appendChild(trozo);
+  var avisos = document.getElementById('consAvisos');
+  avisos.hidden = !c.aviso.length; avisos.textContent = c.aviso.join(' ');
+  var quita = document.getElementById('consQuitar');
+  quita.hidden = !m.avisoQuitadas; quita.textContent = m.avisoQuitadas;
+  document.getElementById('consCuenta').textContent = c.hay ? m.cuenta : '';
+  document.getElementById('consHojas').textContent = c.hay ? 'Al imprimir saldrían ' + consultaFraseHojas_(m.hojas) + '.' : '';
+  document.getElementById('consSinColumnas').hidden = !c.hay || t.columnas.length > 0;
+  return t;
+}
+
+function pintarConsulta() {
+  var vacio = !CONSULTA.carga.id;
+  document.getElementById('consVacio').hidden = !vacio;
+  document.getElementById('consContenido').hidden = vacio;
+  if (vacio) return;
+  pintarBarraConsulta(); pintarFiltrosConsulta(); pintarColumnasConsulta();
+  var t = pintarTablaConsulta();
+  if (!CONSULTA.medido) {
+    CONSULTA.medido = true;
+    var ancho = window.innerWidth;
+    servidor('webConsultarMedidas', { cargada: true, columnas: t.columnas.length, lineas: t.lineas.length, desbordes: document.documentElement.scrollWidth > ancho ? 1 : 0, ancho: ancho }).then(null, function () { /* medir no es lo importante */ });
+  }
+}
+
+/* La hoja preparada: datos del centro, título, fecha, filtros y la tabla; una hoja por grupo si se marca; al pie, lo que se ha quitado y que lleva datos personales. */
+function hojaDeConsulta(m, centro, grupo, aparte) {
+  var h = el('div', 'hoja');
+  var linea = [centro.codigo ? 'Código ' + centro.codigo : '', centro.direccion, (centro.localidad || '') + (centro.localidad && centro.provincia ? ' (' + centro.provincia + ')' : ''), centro.telefono ? 'Tel. ' + centro.telefono : ''].filter(function (x) { return x; });
+  var cabeza = el('div', 'hoja-centro'); cabeza.appendChild(el('strong', '', centro.nombre || 'Centro de datos')); cabeza.appendChild(el('span', '', linea.join(' · ')));
+  h.appendChild(cabeza);
+  h.appendChild(el('h2', '', m.titulo));
+  h.appendChild(el('p', 'hoja-meta', 'Fecha: ' + m.hoy + (m.filtros.length ? ' · Filtros: ' + m.filtros.join('; ') : '')));
+  if (aparte) h.appendChild(el('h3', '', 'Grupo: ' + (grupo || 'sin grupo')));
+  var tabla = el('table'), cab = el('tr');
+  m.columnas.forEach(function (c) { cab.appendChild(el('th', '', c)); });
+  tabla.appendChild(el('thead')).appendChild(cab);
+  var cuerpo = el('tbody');
+  m.lineas.filter(function (l) { return !aparte || l.grupo === grupo; }).forEach(function (l) {
+    var f = el('tr'); l.textos.forEach(function (x) { f.appendChild(el('td', '', x)); }); cuerpo.appendChild(f);
+  });
+  tabla.appendChild(cuerpo); h.appendChild(tabla);
+  if (m.avisoQuitadas) h.appendChild(el('p', 'hoja-pie ambar', m.avisoQuitadas));
+  h.appendChild(el('p', 'hoja-pie', m.avisoPersonal));
+  return h;
+}
+
+function centroDeConsulta() {
+  if (CONSULTA.centro) return Promise.resolve(CONSULTA.centro);
+  return servidor('webConfiguracionLeer').then(function (r) { CONSULTA.centro = r.centro || {}; return CONSULTA.centro; }, function () { return {}; });
+}
+
+function imprimirConsulta() {
+  var c = CONSULTA.carga;
+  if (!c || !c.hay) return Promise.resolve();
+  var m = consultaSalida_(c, consultaEstado(), document.getElementById('consGrupo').checked, c.hoy);
+  return centroDeConsulta().then(function (centro) {
+    var caja = document.getElementById('hojaImpresion');
+    caja.textContent = '';
+    if (m.porGrupo) m.grupos.forEach(function (g) { caja.appendChild(hojaDeConsulta(m, centro, g, true)); });
+    else caja.appendChild(hojaDeConsulta(m, centro, '', false));
+    document.body.classList.add('imprimiendo');
+    window.print();
+  });
+}
+window.addEventListener('afterprint', function () { document.body.classList.remove('imprimiendo'); });
+
+/* El fichero de Excel se arma aquí mismo y se descarga. */
+function sacarAExcel() {
+  var c = CONSULTA.carga;
+  if (!c || !c.hay) return;
+  var estado = consultaEstado(), m = consultaSalida_(c, estado, false, c.hoy);
+  var blob = new Blob([consultaXlsx_(m)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = consultaNombreFichero_(c, estado.dia); a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+}
+
+document.getElementById('consDatos').onchange = function () { CONSULTA.idColumnas = ''; cambiaConsulta(); };
+document.getElementById('consCurso').onchange = function () { cambiaConsulta(); };
+document.getElementById('consPeriodo').onchange = function () { cambiaConsulta(); };
+document.getElementById('consFecha').onchange = function () { cambiaConsulta(); };
+document.getElementById('consGrupo').onchange = function () { pintarTablaConsulta(); };
+document.getElementById('consFiltroMas').onclick = function () { CONSULTA.filtros.push({ ruta: '', op: 'contiene', texto: '' }); pintarFiltrosConsulta(); };
+document.getElementById('consAnadir').onchange = function () {
+  var r = this.value;
+  if (!r) return;
+  CONSULTA.visibles.push(r); marcarColumnaConsulta(r, true); pintarColumnasConsulta(); pintarTablaConsulta();
+};
+document.getElementById('consImprimir').onclick = function () { imprimirConsulta(); };
+document.getElementById('consExcel').onclick = function () { sacarAExcel(); };
+
 /* ==== JsContactos.html ==== */
 
 /* La pestaña «Contactos del profesorado» (fila 98): una fila por docente del curso de hoy con su correo del centro, su correo personal y su móvil. Lo de Séneca sale en gris; lo escrito, en negro. Cada casilla se guarda al salir de ella.

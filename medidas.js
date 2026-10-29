@@ -46,5 +46,12 @@
     return escribir('listados-pantalla.json', { version: VERSION_CD, filas: entero(m.filas), cajitas: entero(m.cajitas), solapes: entero(m.solapes), desbordes: entero(m.desbordes), ancho: entero(m.ancho), cuando: ahoraMadrid_() });
   }
 
-  window.MedidasPagina = { soporteVisto: soporteVisto, soporteEnvio: soporteEnvio, listadosMedidas: listadosMedidas };
+  /* La pestaña «Consultar» (fila 99) se mide a sí misma la primera vez que carga: solo si cargó, cuántas columnas y líneas y si la página se sale por la derecha. */
+  function consultarMedidas(m) {
+    if (!activo()) return Promise.resolve(null);
+    m = m || {};
+    return escribir('consultar-pantalla.json', { version: VERSION_CD, cargada: m.cargada === true, columnas: entero(m.columnas), lineas: entero(m.lineas), desbordes: entero(m.desbordes), ancho: entero(m.ancho), cuando: ahoraMadrid_() });
+  }
+
+  window.MedidasPagina = { soporteVisto: soporteVisto, soporteEnvio: soporteEnvio, listadosMedidas: listadosMedidas, consultarMedidas: consultarMedidas };
 })();

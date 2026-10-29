@@ -7,7 +7,7 @@
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
   var NO_AQUI = 'Eso no se puede hacer desde esta página.';
   var CLAVE_VISTA = 'centro-de-datos-clave-funciona';
-  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1 };
+  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1, webConsultarLeer: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
@@ -103,7 +103,17 @@
     return C.conCarga(function () { return contactosParaPagina_(raiz()); });
   }
 
+  /* Consultar (fila 99): trae antes solo la parte que toca (la que se ha elegido, o Tutorías del curso de hoy al abrir). */
+  async function consultar(id, curso, periodo) {
+    await C.precargarBase();
+    var rutas = await C.conCarga(function () { var e = consultaEleccion_(leerIndice_(raiz()), id, curso, periodo); return e.parte ? [e.parte.ruta] : []; });
+    await C.precargar(rutas);
+    return C.conCarga(function () { return consultaCarga_(raiz(), id, curso, periodo); });
+  }
+
   var PUERTA = window.PUERTA_PAGINA = {
+    webConsultarLeer: function (id, curso, periodo) { return consultar(id, curso, periodo); },
+    webConsultarMedidas: function (m) { return window.MedidasPagina.consultarMedidas(m); },
     webContactosLeer: function () { return contactos(); },
     webEstado: function () { return estado(); },
     webAvisos: function () { return avisos(); },

@@ -1,24 +1,24 @@
 {
-  "version": "página nueva v19",
-  "commit": "4bb9884",
+  "version": "página nueva v20",
+  "commit": "396a041",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "d922439ef02a27a6ee244a218d133c9400692e6ab112b09b221560de6c424797",
     "actualizar-copia.js": "8aacfacffca636cf96f2e342c23ef5cb508d618ceb2dea8c2d19bd51a80ebc0f",
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
-    "arranque.js": "61072bf4d20ebce0f5da9da52e07d59f534fef978d0dd664c54b273d33e0c9f0",
+    "arranque.js": "7a6157b9a0a37fed8e11d6872e47aa150baadcd5fc258a8f27cd1075c684c75d",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "b6489acbc430d0f8c6ce3f53ab9a02633068acef88979d327ff6178e808d878d",
+    "commit.js": "4b272b89667731ae786c74da05c2bcb5f5a8f30242c7311438424d3bd926dead",
     "ensayo.js": "c298ef74b8a0a78a7d0f5b0a22a947a8137d82dbd7ef340cb4fd6c6700dea507",
     "escritura.js": "923922b5f0125fbebd69b369cb74ffb99bfc53ca7112c4b733f2de3a3bd2cc56",
-    "generado/estilos.css": "aedff1b90f8c4fc143b014d4c651541265f87cd6262f680d361eac11496f714e",
-    "generado/pantalla.js": "6c6471f0b29484245d40d041a59f558cc3b98cdb587e64786df8f3ea62453787",
-    "generado/programa.js": "30d45f237ebcc635ee93399e146a69f7a291ddf8697afbcc69e52ef62332e90c",
-    "index.html": "1fc73571b1eaf1e340bb644aa817167eb60252f9ae7966ffed5abe67870476b8",
-    "medidas.js": "0cb9bc3c979e6f1b59264a4bb8ce8c2960056be07da54898674e98d61f421d4f",
+    "generado/estilos.css": "a8e2c893a80c62cbcb1c4eea45d736ae530a8906f44f1c6347719bf76444f1f0",
+    "generado/pantalla.js": "38b6bf6e6c1ea48f9361fa1574b011c42c7e33f605b7e72ade25af3d2a16c9f0",
+    "generado/programa.js": "b020896216b0f9d4f7676fec81605f54db2ef9a40340c76cc17d0e2381df1b9e",
+    "index.html": "1c8ff87d015f6ba9683ad152a58626c9d92a14839b8d7f9244076708863cd2ff",
+    "medidas.js": "e5e12161a8d483f551d7bd103c1638309f3e4b6670de55944a9e73401954be55",
     "publicar.js": "c7d0fc31c9ddebc0ced17275307f694c09903d9ed3436f5bc9552f2b0ef77008",
-    "servidor.js": "02b715b2d83198ca50441e550d201285282fc3642ba1870d675561d66f2d0f4b",
+    "servidor.js": "6c8d85e3da5dcfc3f92c329ad613abd2ec09382c6a467fa5c4069351cbf12233",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "8985f1db889fc10e6876327fea48225d17424ab5cac973b89350b86eb4f0fa0c"
+    "version.js": "75eb47344bf164b808f4475ec57f43e02cea2a3e9304e972bb3bb6a961d7af66"
   }
 }

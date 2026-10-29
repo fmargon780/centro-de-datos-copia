@@ -17,6 +17,7 @@
 <nav>
   <button class="activa" data-p="listados">Listados</button>
   <button data-p="pestanaAvisos" id="botonAvisos">Avisos</button>
+  <button data-p="consultar">Consultar</button>
   <button data-p="contactos">Contactos del profesorado</button>
   <button data-p="configuracion">Configuración del centro</button>
   <button data-p="acceso" id="botonAcceso" hidden>Acceso y carpeta</button>
@@ -58,6 +59,32 @@
     <div id="listaDeAvisos"><p class="nota-simple">Cargando los avisos…</p></div>
     <details id="revisadosAvisos" class="revisados" hidden><summary id="resumenRevisados"></summary><div id="listaRevisados"></div></details>
     <div id="cajaDiag" class="cabeza-tabla" hidden><label>Buscar un código de diagnóstico <input id="codigoDiag" type="text" placeholder="A-1b2c3d4e" maxlength="12"></label> <button id="buscarDiag" type="button">Buscar</button> <span class="aviso-campo" id="resultadoDiag"></span></div>
+  </section>
+  <section id="consultar">
+    <p class="nota-simple" id="consVacio" hidden>Todavía no hay datos ya hechos que consultar: se montan en cuanto el Centro de datos tiene listados.</p>
+    <div id="consContenido">
+      <div class="consulta-barra">
+        <label>Datos <select id="consDatos"></select></label>
+        <label id="consCursoCaja">Curso <select id="consCurso"></select></label>
+        <label id="consPeriodoCaja" hidden>Periodo <select id="consPeriodo"></select></label>
+        <label id="consFechaCaja">o en la fecha <input type="date" id="consFecha"></label>
+        <span class="consulta-filtros-caja">Filtro <span id="consFiltros"></span><button type="button" class="accion" id="consFiltroMas" title="Añadir otro filtro" aria-label="Añadir otro filtro">+</button></span>
+        <span class="consulta-derecha">
+          <label id="consGrupoCaja"><input type="checkbox" id="consGrupo"> Una hoja por grupo</label>
+          <button type="button" class="accion" id="consImprimir">Imprimir</button>
+          <button type="button" class="accion" id="consExcel">Sacar a Excel</button>
+        </span>
+      </div>
+      <div class="consulta-columnas">Columnas: <span id="consPastillas"></span> <select id="consAnadir" aria-label="Añadir una columna"></select></div>
+      <p class="aviso-pasos" id="consAvisos" hidden></p>
+      <p class="aviso-pasos" id="consQuitar" hidden></p>
+      <p class="nota-simple" id="consSinColumnas" hidden>No hay ninguna columna marcada.</p>
+      <div class="tabla-consulta">
+        <table id="tablaConsulta"><thead id="consCabeza"></thead><tbody id="consCuerpo"></tbody></table>
+      </div>
+      <p class="cuenta consulta-cuenta"><span id="consCuenta"></span> <span id="consHojas"></span></p>
+    </div>
+    <div id="hojaImpresion"></div>
   </section>
   <section id="contactos">
     <div class="cabeza-tabla"><h2 id="tituloContactos">Contactos del profesorado</h2><span class="cuenta" id="resumenContactos"></span><input type="search" id="buscarContactos" placeholder="Buscar por nombre" aria-label="Buscar por nombre"></div>

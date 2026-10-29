@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v57';
+const VERSION_CD = 'CD v58';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6441,6 +6441,7 @@ const COMPROBACIONES_ = [
   { id: 'soporte-boton-unico', fila: 20, que: 'El botón único de soporte carga en la página', funcion: 'cmpSoporteBotonUnico_' },
   { id: 'soporte-envio', fila: 30, que: 'El último envío de un aviso desde el botón de soporte de esta página salió bien o mal, con cuántos van de cada', funcion: 'cmpSoporteEnvio_' },
   { id: 'listados-sin-solapes', fila: 31, que: 'La tabla de Listados de la página: cuántas filas y cuántas cajitas tiene y si algún elemento se solapa con otro o se sale por la derecha', funcion: 'cmpListadosSinSolapes_' },
+  { id: 'consultar-pantalla', fila: 99, que: 'La pestaña Consultar de la página: si cargó con su primera consulta, cuántas columnas y líneas sacó y si la página se sale por la derecha', funcion: 'cmpConsultarPantalla_' },
   { id: 'avisos-pantalla', fila: 32, que: 'La pestaña Avisos: cuántos avisos hay en los datos, cuántos esperan, cuántos están revisados, cuántas marcas huérfanas se han borrado y cuántos avisos no tienen frase llana', funcion: 'cmpAvisosPantalla_' },
   { id: 'clave-github', fila: 33, que: 'La clave de GitHub: si escribe, de qué tipo es y cuántos días faltan para que caduque (solo cifras y estados, nunca la clave)', funcion: 'cmpClaveGithub_' },
   { id: 'antigua-sin-pantalla', fila: 66, que: 'La aplicación de Google sin pantalla sigue trabajando sola: cuántas cosas de fondo se hicieron en las últimas 24 horas, si el disparador de 10 minutos existe y cuántas horas pasaron entre dos vueltas', funcion: 'cmpAntiguaSinPantalla_' },
@@ -6464,7 +6465,7 @@ const COMPROBACIONES_ = [
 
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
+    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 
@@ -9253,6 +9254,413 @@ function cmpListadosSinSolapes_(ctx) {
   const v = medidaPantalla_(ctx.raiz, 'listados-pantalla.json', 'listados-pantalla.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
   return { estado: v.solapes + v.desbordes ? 'mal' : 'bien', cifras: { filas: v.filas, cajitas: v.cajitas, solapes: v.solapes, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
+}
+
+/* La pestaña «Consultar» (fila 99) se mide a sí misma al cargar la primera vez: solo cifras. */
+function webConsultarMedidas(medidas, ctx) {
+  const m = medidas || {};
+  const n = function (x) { return Math.max(0, Math.min(100000, Math.floor(Number(x) || 0))); };
+  const v = { version: VERSION_CD, cargada: m.cargada === true, columnas: n(m.columnas), lineas: n(m.lineas), desbordes: n(m.desbordes), ancho: n(m.ancho), cuando: ahoraMadrid_() };
+  const interno = subcarpetaPorRuta_(carpetaDatos_(), '_interno');
+  const antes = leerJson_(interno, 'consultar-pantalla.json');
+  if (antes && ['version', 'cargada', 'columnas', 'lineas', 'desbordes', 'ancho'].every(function (k) { return antes[k] === v[k]; })) return { ok: true };
+  escribirJson_(interno, 'consultar-pantalla.json', v);
+  return { ok: true };
+}
+
+/* Solo lee. `bien` si la última vez que se midió con esta versión la pestaña cargó y la página no se salía por la derecha; `mal` si no cargó o se salía. */
+function cmpConsultarPantalla_(ctx) {
+  const v = medidaPantalla_(ctx.raiz, 'consultar-pantalla.json', 'consultar-pantalla.json');
+  if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
+  return { estado: !v.cargada || v.desbordes ? 'mal' : 'bien', cifras: { cargada: v.cargada, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
+}
+
+/* ==== Consultar.gs ==== */
+/* Consultar (fila 99): la lista de un conjunto de datos ya hechos, en pantalla, impresa y en Excel. Solo lee las partes de `hecho/`; no escribe nada.
+   Aquí: qué conjuntos se ofrecen, qué claves salen al imprimir o a Excel (las demás son delicadas: se ven en pantalla y no salen) y cómo se lee la parte elegida.
+   Las columnas, los filtros y las líneas están en ConsultarFilas.gs; la hoja impresa y el Excel, en ConsultarSalida.gs y ConsultarExcel.gs. */
+
+/* `modo`: `curso` (una parte por curso), `periodo` (el Consejo: una por periodo y el historial) o `unica` (una sola parte). `grupo`: la clave que agrupa («Una hoja por grupo»).
+   `vigencia`: cómo se saca «quién estaba ese día»: `registro` (fechas en el propio registro), `tabla` (en las líneas de una tabla), `consejo` o `cargo`.
+   `nombresTabla`/`titulos`: nombres cortos de una tabla y de columnas concretas en la cabecera. `ver`: columnas con las que abre; `unidad`: cómo se cuenta («18 grupos»). */
+const CONSULTA_CONJUNTOS_ = [
+  { id: 'alumnado', nombre: 'Alumnado', conjunto: 'alumnado', parte: 'actuales', modo: 'curso', soloPropio: true, grupo: 'unidad', unidad: ['alumno', 'alumnos'], ver: ['apellido1', 'apellido2', 'nombre', 'unidad'] },
+  { id: 'personal', nombre: 'Personal', conjunto: 'personal', parte: 'curso', modo: 'curso', unidad: ['persona', 'personas'], vigencia: { tipo: 'registro', desde: 'fechaTomaPosesion', hasta: 'fechaCese' }, ver: ['empleado', 'tipoPersonal', 'puesto'] },
+  { id: 'tutorias', nombre: 'Tutorías', conjunto: 'tutorias', parte: 'curso', modo: 'curso', grupo: 'unidad', unidad: ['grupo', 'grupos'], vigencia: { tipo: 'tabla', tabla: 'tutores', desde: 'desde', hasta: 'hasta' },
+    nombresTabla: { tutores: 'Tutores' }, titulos: { 'tutores.empleado': 'Tutor/a' }, ver: ['unidad', 'tutores.empleado', 'tutores.desde', 'tutores.hasta'] },
+  { id: 'consejo-escolar', nombre: 'Consejo Escolar', conjunto: 'consejo-escolar', modo: 'periodo', unidad: ['miembro', 'miembros'], vigencia: { tipo: 'consejo' }, ver: ['miembro', 'sector', 'cargo', 'nombramiento', 'cese'] },
+  { id: 'libros', nombre: 'Libros de texto', conjunto: 'libros', parte: 'curso', modo: 'curso', unidad: ['asignatura', 'asignaturas'], ver: ['nivelTexto', 'materia', 'titulo', 'editorial'] },
+  { id: 'empresas', nombre: 'Empresas', conjunto: 'empresas', parte: 'todas', modo: 'unica', unidad: ['empresa', 'empresas'], ver: ['razonSocial', 'nombreComercial', 'contacto'] },
+  { id: 'administraciones', nombre: 'Administraciones', conjunto: 'administraciones', parte: 'todas', modo: 'unica', unidad: ['administración', 'administraciones'], ver: ['nombreCorto', 'clase', 'dependeDe'] },
+  { id: 'cargos', nombre: 'Cargos', conjunto: 'cargos', parte: 'todos', modo: 'unica', unidad: ['registro', 'registros'], vigencia: { tipo: 'cargo' }, ver: ['cargoNombre', 'persona', 'desde', 'hasta'] },
+  { id: 'contactos', nombre: 'Contactos del profesorado', conjunto: 'contactos', parte: 'todos', modo: 'unica', unidad: ['persona', 'personas'], ver: ['empleado', 'correoCentro'] }
+];
+
+/* Lo único que sale al imprimir y a Excel: `clave` o `tabla.columna`, por conjunto. Todo lo demás (documentos, teléfonos, direcciones, correos propios o de familias, datos de tutores legales
+   salvo el nombre, censo NEAE y medidas, casillas en bruto, identificadores y cualquier clave nueva) es delicado: se ve en pantalla y no sale. */
+const CONSULTA_SALEN_ = {
+  alumnado: ['apellido1', 'apellido2', 'nombre', 'alumno', 'sexo', 'fechaNacimiento', 'localidadNacimiento', 'nacionalidad', 'curso', 'unidad', 'ensenanza', 'estadoMatricula', 'edad', 'centroProcedencia',
+    'modalidad', 'matriculaNivel', 'cursoAnterior', 'repiteCurso', 'tutores.orden', 'tutores.apellido1', 'tutores.apellido2', 'tutores.nombre'],
+  personal: ['empleado', 'apellidos', 'nombre', 'tipoPersonal', 'puesto', 'especialidad', 'situacion', 'fechaTomaPosesion', 'fechaCese', 'listados', 'puestos.listado', 'puestos.puesto', 'puestos.fechaTomaPosesion', 'puestos.fechaCese'],
+  tutorias: ['unidad', 'tutorHoy', 'tutores.empleado', 'tutores.apellidos', 'tutores.nombre', 'tutores.periodo', 'tutores.desde', 'tutores.hasta', 'tutores.sustituto', 'tutores.hoy', 'tutores.enPersonal'],
+  'consejo-escolar': ['miembro', 'apellidos', 'nombre', 'sector', 'cargo', 'nombramiento', 'cese', 'nato', 'periodos', 'miembroHoy'],
+  libros: ['nivel', 'nivelTexto', 'materia', 'conLibro', 'isbn', 'editorial', 'titulo', 'anioImplantacion', 'importe', 'digital', 'chequeLibro', 'otroMaterial'],
+  empresas: ['razonSocial', 'nombreComercial', 'contacto'],
+  administraciones: ['clase', 'tercero', 'nombreCorto', 'nombreOficial', 'dir3', 'codigoCentro', 'dependeDe', 'nombresAnteriores.nombre', 'nombresAnteriores.hasta', 'dependeDeAnteriores.nombre', 'dependeDeAnteriores.hasta',
+    'departamentos.nombre', 'departamentos.nivel', 'departamentos.dir3', 'departamentos.contacto'],
+  cargos: ['cargo', 'cargoNombre', 'tratamiento', 'orden', 'persona', 'desde', 'hasta', 'ocupaHoy'],
+  contactos: ['empleado', 'correoCentro']
+};
+
+function consultaSale_(conjunto, ruta) { return (CONSULTA_SALEN_[conjunto] || []).indexOf(ruta) !== -1; }
+
+function consultaDefinicion_(id) { return CONSULTA_CONJUNTOS_.filter(function (d) { return d.id === id; })[0] || null; }
+
+/* El curso escolar que contiene un día (`AAAA-MM-DD`): el curso empieza el 1 de septiembre. '' si el día no es una fecha. */
+function consultaCursoDeDia_(dia) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dia || ''));
+  return m ? parDeCursos_(+m[2] >= 9 ? +m[1] : +m[1] - 1) : '';
+}
+
+/* Los cursos que se ofrecen. Alumnado, solo los que tienen parte `actuales`. El personal, las tutorías y los libros ofrecen los de cualquiera de los tres y el de hoy, para poder avisar de lo que falta en uno. */
+function consultaCursos_(indice, def) {
+  const hechos = indice.hechos || [];
+  let cursos;
+  if (def.soloPropio) cursos = hechos.filter(function (h) { return h.conjunto === def.conjunto && h.parte === def.parte; }).map(function (h) { return h.cursoEscolar; });
+  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
+  return ordenarCursos_(cursos);
+}
+
+/* Los conjuntos que hay en la carpeta, con sus cursos o periodos. `periodos`: '' es el historial; los demás, uno por periodo, el más reciente primero. */
+function consultaOpciones_(indice) {
+  const hechos = indice.hechos || [], lista = [];
+  CONSULTA_CONJUNTOS_.forEach(function (def) {
+    const partes = hechos.filter(function (h) { return h.conjunto === def.conjunto; });
+    const o = { id: def.id, nombre: def.nombre, modo: def.modo, grupo: !!def.grupo, vigencia: !!def.vigencia, cursos: [], periodos: [] };
+    if (def.modo === 'curso') { if (!partes.some(function (h) { return h.parte === def.parte; })) return; o.cursos = consultaCursos_(indice, def); }
+    else if (def.modo === 'periodo') {
+      if (!partes.length) return;
+      if (partes.some(function (h) { return h.parte === 'historial'; })) o.periodos.push('');
+      partes.filter(function (h) { return h.parte === 'periodo'; }).map(function (h) { return h.periodo; }).sort().reverse().forEach(function (p) { o.periodos.push(p); });
+    } else if (!partes.some(function (h) { return h.parte === def.parte; })) return;
+    lista.push(o);
+  });
+  return lista;
+}
+
+/* La parte que toca de un conjunto y la frase (llana, ámbar) de lo que falta o se está poniendo al día. */
+function consultaParte_(indice, def, curso, periodo) {
+  const hechos = (indice.hechos || []).filter(function (h) { return h.conjunto === def.conjunto; });
+  let parte;
+  if (def.modo === 'curso') parte = hechos.filter(function (h) { return h.parte === def.parte && h.cursoEscolar === curso; })[0];
+  else if (def.modo === 'periodo') parte = hechos.filter(function (h) { return periodo ? h.parte === 'periodo' && h.periodo === periodo : h.parte === 'historial'; })[0];
+  else parte = hechos.filter(function (h) { return h.parte === def.parte; })[0];
+  const aviso = [];
+  if (!parte) {
+    if (def.id === 'tutorias') aviso.push('Falta el listado de la función tutorial del curso ' + curso + ': no hay tutorías que enseñar.');
+    else if (def.id === 'personal') aviso.push('Falta el personal del curso ' + curso + ': no hay ningún listado guardado.');
+    else if (def.modo === 'periodo') aviso.push('No hay datos del Consejo Escolar de ese periodo.');
+    else aviso.push('Falta ' + def.nombre.toLowerCase() + ' del curso ' + curso + ': no hay datos guardados.');
+    return { parte: null, aviso: aviso };
+  }
+  if (def.id === 'personal') {
+    const v = (parte.fuentes || []).map(function (f) { return String(f.variante || ''); });
+    const todo = v.some(function (x) { return x === curso; });
+    if (!todo) ['docentes', 'no-docentes'].forEach(function (t) { if (!v.some(function (x) { return x === curso + '/' + t; })) aviso.push('Al personal de ' + curso + ' le falta el listado de ' + (t === 'docentes' ? 'docentes' : 'no docentes') + '.'); });
+  }
+  if (parte.alDia === false) aviso.push('Estos datos se están poniendo al día: puede que falte algo.');
+  return { parte: parte, aviso: aviso };
+}
+
+/* Lo que se ha elegido de verdad: el conjunto (si no existe, Tutorías o el primero), el curso o el periodo (si no valen, el de hoy o el primero) y su parte con las frases de aviso. */
+function consultaEleccion_(indice, id, curso, periodo) {
+  const opciones = consultaOpciones_(indice);
+  const op = opciones.filter(function (o) { return o.id === id; })[0] || opciones.filter(function (o) { return o.id === 'tutorias'; })[0] || opciones[0] || null;
+  if (!op) return { opciones: opciones, op: null, def: null, curso: '', periodo: '', parte: null, aviso: [] };
+  const def = consultaDefinicion_(op.id);
+  let c = '', p = '';
+  if (op.modo === 'curso') c = cursoValido_(curso) ? curso : (op.cursos.indexOf(cursoActual_()) !== -1 ? cursoActual_() : op.cursos[0] || '');
+  if (op.modo === 'periodo') p = op.periodos.indexOf(periodo) !== -1 ? periodo : (op.periodos.indexOf('') !== -1 ? '' : op.periodos[0]);
+  const hecho = consultaParte_(indice, def, c, p);
+  return { opciones: opciones, op: op, def: def, curso: c, periodo: p, parte: hecho.parte, aviso: hecho.aviso };
+}
+
+/* Todo lo que necesita la pantalla de una consulta: los conjuntos que hay, lo elegido y los datos de la parte (sus campos y registros tal como están). Abre solo una parte. */
+function consultaCarga_(raiz, id, curso, periodo) {
+  const e = consultaEleccion_(leerIndice_(raiz), id, curso, periodo);
+  const res = { hoy: hoyMadrid_(), cursoHoy: cursoActual_(), opciones: e.opciones, id: e.op ? e.op.id : '', curso: e.curso, periodo: e.periodo, campos: [], registros: [], aviso: e.aviso, hay: false };
+  if (!e.parte) return res;
+  const obj = abrirParteVecina_(e.parte, {});
+  res.hay = true; res.campos = obj.campos || []; res.registros = obj.registros || [];
+  return res;
+}
+
+/* ==== ConsultarFilas.gs ==== */
+/* Consultar (fila 99): de una parte leída a una tabla. Columnas que se pueden elegir, quién estaba en vigor un día, filtros y líneas (una por fila de la tabla desplegada). Sin tocar nada de Drive. */
+
+const CONSULTA_OPERADORES_ = ['contiene', 'igual', 'vacio'];
+
+/* Todas las columnas que ofrece una parte: una por clave y una por columna de cada tabla, más el identificador. `delicada`: se ve en pantalla y no sale al imprimir ni a Excel. */
+function consultaColumnas_(campos, def) {
+  const cols = [];
+  (campos || []).forEach(function (c) {
+    if (c.tipo === 'tabla') {
+      const tabla = (def.nombresTabla || {})[c.clave] || c.etiqueta;
+      (c.columnas || []).forEach(function (s) {
+        const ruta = c.clave + '.' + s.clave;
+        cols.push({ ruta: ruta, clave: c.clave, sub: s.clave, tabla: c.clave, tipo: s.tipo || 'texto', nombre: tabla + ' · ' + s.etiqueta, titulo: (def.titulos || {})[ruta] || s.etiqueta,
+          frase: (s.etiqueta || '') + ', en ' + (c.etiqueta || '').toLowerCase(), delicada: !consultaSale_(def.conjunto, ruta) });
+      });
+    } else {
+      cols.push({ ruta: c.clave, clave: c.clave, sub: '', tabla: '', tipo: c.tipo || 'texto', nombre: c.etiqueta || c.clave, titulo: (def.titulos || {})[c.clave] || c.etiqueta || c.clave,
+        frase: c.etiqueta || c.clave, delicada: !consultaSale_(def.conjunto, c.clave) });
+    }
+  });
+  cols.push({ ruta: 'id', clave: 'id', sub: '', tabla: '', tipo: 'texto', nombre: 'Identificador', titulo: 'Identificador', frase: 'Identificador del registro (documento, número escolar…)', delicada: true });
+  return cols;
+}
+
+/* Un valor tal como se ve: las fechas `dd/mm/aaaa`, el sí/no «Sí»/«No», una lista con comas. */
+function consultaTexto_(tipo, v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (Array.isArray(v)) return v.map(function (x) { return consultaTexto_('texto', x); }).filter(function (x) { return x; }).join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  if (typeof v === 'boolean' || tipo === 'si-no') return v === true || v === 'true' ? 'Sí' : 'No';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+  if (m && (tipo === 'fecha' || tipo === 'texto')) return m[3] + '/' + m[2] + '/' + m[1];
+  return String(v);
+}
+
+/* ¿Contiene el periodo «2024-2026» este día? Va del 1 de septiembre del primer año al 31 de agosto del último. */
+function consultaPeriodoContiene_(periodo, dia) {
+  const m = /^(\d{4})-(\d{4})$/.exec(String(periodo || ''));
+  return !!m && dia >= m[1] + '-09-01' && dia <= m[2] + '-08-31';
+}
+
+/* Los registros en vigor un día (`AAAA-MM-DD`). Sin día, todos. Un límite que falta no limita, salvo en los cargos (sin `desde` no ocupa ningún día). En las tutorías cada grupo se queda con sus líneas en vigor
+   (si no tiene ninguna, sale con la tabla vacía). En el Consejo, un miembro nato o sin cese cuenta si el periodo contiene el día. */
+function consultaVigentes_(registros, def, dia, periodo) {
+  const v = def.vigencia;
+  if (!dia || !v) return registros;
+  const dentro = function (d, desde, hasta) { return (!d[desde] || d[desde] <= dia) && (!d[hasta] || dia <= d[hasta]); };
+  if (v.tipo === 'registro') return registros.filter(function (r) { return dentro(r.datos, v.desde, v.hasta); });
+  if (v.tipo === 'cargo') return registros.filter(function (r) { return ocupaElCargo_(r.datos, dia); });
+  if (v.tipo === 'tabla') {
+    return registros.map(function (r) {
+      const filas = (Array.isArray(r.datos[v.tabla]) ? r.datos[v.tabla] : []).filter(function (f) { return dentro(f, v.desde, v.hasta); });
+      const datos = Object.assign({}, r.datos); datos[v.tabla] = filas;
+      return { id: r.id, matriculado: r.matriculado, datos: datos };
+    });
+  }
+  return registros.filter(function (r) {
+    const d = r.datos, periodos = periodo ? [periodo] : (d.periodos || []);
+    if (d.nato || !d.nombramiento) return periodos.some(function (p) { return consultaPeriodoContiene_(p, dia); });
+    if (d.nombramiento > dia) return false;
+    if (d.cese) return dia <= d.cese;
+    return periodos.some(function (p) { return consultaPeriodoContiene_(p, dia); });
+  });
+}
+
+/* ¿Cumple el filtro este texto (ya visto, como lo ve la usuaria)? Sin mayúsculas ni tildes. */
+function consultaCumple_(f, texto) {
+  const t = normalizarAlumno_(texto), x = normalizarAlumno_(f.texto);
+  if (f.op === 'vacio') return t === '';
+  if (f.op === 'igual') return t === x;
+  return t.indexOf(x) !== -1;
+}
+
+/* El valor de una columna en una línea: de la fila de la tabla desplegada, del registro o, si es de otra tabla, de todas sus filas juntas. */
+function consultaValor_(col, r, fila, tabla) {
+  if (col.ruta === 'id') return r.id;
+  if (!col.tabla) return r.datos[col.ruta];
+  if (col.tabla === tabla) return fila ? fila[col.sub] : undefined;
+  return (Array.isArray(r.datos[col.tabla]) ? r.datos[col.tabla] : []).map(function (x) { return consultaTexto_(col.tipo, x[col.sub]); });
+}
+
+/* Lo que se elige (`estado`: { columnas: [ruta…], filtros: [{ ruta, op, texto }], dia }) sobre una carga de `consultaCarga_`. Devuelve las columnas, las líneas y cuántos registros hay. Cada línea:
+   `textos` (como se ven), `crudos` (como están, para Excel), `grupo` y `n` (el registro del que sale). Solo una tabla se despliega: la de la primera columna de tabla marcada. */
+function consultaTabla_(carga, estado) {
+  const def = consultaDefinicion_(carga.id);
+  const posibles = consultaColumnas_(carga.campos, def), porRuta = {};
+  posibles.forEach(function (c) { porRuta[c.ruta] = c; });
+  let columnas = (estado.columnas || []).map(function (r) { return porRuta[r]; }).filter(function (c) { return !!c; });
+  const tabla = (columnas.filter(function (c) { return c.tabla; })[0] || {}).tabla || '';
+  columnas = columnas.filter(function (c) { return !c.tabla || c.tabla === tabla; });
+  const filtros = (estado.filtros || []).filter(function (f) { return porRuta[f.ruta] && CONSULTA_OPERADORES_.indexOf(f.op) !== -1 && (f.op === 'vacio' || String(f.texto || '').trim() !== ''); });
+  const registros = consultaVigentes_(carga.registros, def, estado.dia, carga.periodo);
+  const lineas = [], vistos = {};
+  registros.forEach(function (r, n) {
+    const filas = tabla ? (Array.isArray(r.datos[tabla]) && r.datos[tabla].length ? r.datos[tabla] : [null]) : [null];
+    filas.forEach(function (fila) {
+      const pasa = filtros.every(function (f) { const c = porRuta[f.ruta]; return consultaCumple_(f, consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla))); });
+      if (!pasa) return;
+      vistos[n] = true;
+      lineas.push({ n: n, grupo: def.grupo ? String(r.datos[def.grupo] || '') : '',
+        crudos: columnas.map(function (c) { const v = consultaValor_(c, r, fila, tabla); return v === undefined ? null : v; }),
+        textos: columnas.map(function (c) { return consultaTexto_(c.tipo, consultaValor_(c, r, fila, tabla)); }) });
+    });
+  });
+  return { columnas: columnas, lineas: lineas, registros: Object.keys(vistos).length, tabla: tabla, filtros: filtros.map(function (f) { return { ruta: f.ruta, op: f.op, texto: String(f.texto || '').trim() }; }) };
+}
+
+/* «18 grupos · 21 líneas». */
+function consultaCuenta_(id, t) {
+  const u = (consultaDefinicion_(id) || {}).unidad || ['registro', 'registros'];
+  const a = t.registros + ' ' + (t.registros === 1 ? u[0] : u[1]);
+  return t.lineas.length === t.registros ? a : a + ' · ' + t.lineas.length + (t.lineas.length === 1 ? ' línea' : ' líneas');
+}
+
+/* ==== ConsultarSalida.gs ==== */
+/* Consultar (fila 99): lo que sale de la pantalla, en papel y en Excel. Aquí se decide qué columnas salen (nunca las delicadas), cuántas hojas serán y cómo se llama el fichero.
+   El Excel está en ConsultarExcel.gs; la hoja impresa la pinta JsConsultar.html con este mismo modelo. */
+
+const CONSULTA_FILAS_POR_HOJA_ = 40;
+const CONSULTA_AVISO_PERSONAL_ = 'Contiene datos personales del centro';
+const CONSULTA_FRASE_OP_ = { contiene: 'contiene', igual: 'es igual a', vacio: 'está vacío' };
+
+function consultaDia_(dia) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dia || '')); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+
+/* «curso 26-27», «el 01/10/2026», «periodo 2025-2026» o «historial»: lo que se consulta. */
+function consultaCuando_(carga, dia) {
+  if (dia) return 'el ' + consultaDia_(dia) + (carga.curso ? ' (curso ' + consultaCursoDeDia_(dia) + ')' : '');
+  if (carga.curso) return 'curso ' + carga.curso;
+  return carga.periodo ? 'periodo ' + carga.periodo : 'historial';
+}
+
+/* Los filtros usados, en frases. El de una columna delicada no dice qué texto era: «<columna>: filtrado». */
+function consultaFiltrosEnFrases_(t) {
+  return t.filtros.map(function (f) {
+    const c = t.todas[f.ruta];
+    if (c.delicada) return c.nombre + ': filtrado';
+    return c.nombre + ' ' + CONSULTA_FRASE_OP_[f.op] + (f.op === 'vacio' ? '' : ' «' + f.texto + '»');
+  });
+}
+
+/* El modelo de la hoja y del Excel. `carga` es la de `consultaCarga_`, `estado` lo elegido (columnas, filtros y día). Solo salen las columnas que no son delicadas. */
+function consultaSalida_(carga, estado, conGrupos, hoy) {
+  const def = consultaDefinicion_(carga.id), t = consultaTabla_(carga, estado);
+  const todas = {};
+  consultaColumnas_(carga.campos, def).forEach(function (c) { todas[c.ruta] = c; });
+  t.todas = todas;
+  const salen = [];
+  t.columnas.forEach(function (c, i) { if (!c.delicada) salen.push(i); });
+  const quitadas = t.columnas.filter(function (c) { return c.delicada; }).map(function (c) { return c.nombre; });
+  const lineas = t.lineas.map(function (l) { return { grupo: l.grupo, textos: salen.map(function (i) { return l.textos[i]; }), crudos: salen.map(function (i) { return l.crudos[i]; }) }; });
+  const grupos = [];
+  lineas.forEach(function (l) { if (grupos.indexOf(l.grupo) === -1) grupos.push(l.grupo); });
+  const porGrupo = !!(conGrupos && def.grupo);
+  return {
+    conjunto: def.nombre, cuando: consultaCuando_(carga, estado.dia), titulo: def.nombre + ' · ' + consultaCuando_(carga, estado.dia), hoy: consultaDia_(hoy),
+    columnas: salen.map(function (i) { return t.columnas[i].titulo; }), tipos: salen.map(function (i) { return t.columnas[i].tipo; }),
+    lineas: lineas, porGrupo: porGrupo, grupos: grupos, filtros: consultaFiltrosEnFrases_(t), quitadas: quitadas,
+    avisoQuitadas: quitadas.length ? 'Al imprimir o sacar a Excel se quita: ' + quitadas.join(', ') + '.' : '',
+    avisoPersonal: CONSULTA_AVISO_PERSONAL_, cuenta: consultaCuenta_(carga.id, t), hojas: consultaHojas_(lineas.length, grupos.length, porGrupo)
+  };
+}
+
+/* Cuántas hojas saldrán: una por grupo si se marca la casilla; si no, unas tantas según las filas por hoja. */
+function consultaHojas_(lineas, grupos, porGrupo) {
+  if (porGrupo) return { n: grupos, exacto: true };
+  return { n: Math.max(1, Math.ceil(lineas / CONSULTA_FILAS_POR_HOJA_)), exacto: false };
+}
+
+function consultaFraseHojas_(h) {
+  return (h.exacto || h.n === 1 ? '' : 'unas ') + h.n + (h.n === 1 ? ' hoja' : ' hojas');
+}
+
+/* `<Conjunto> <curso o fecha>.xlsx`, con la fecha como 01-10-2026 y sin lo que un nombre de fichero no admite. */
+function consultaNombreFichero_(carga, dia) {
+  const cuando = dia ? consultaDia_(dia).replace(/\//g, '-') : (carga.curso || carga.periodo || 'historial');
+  return (consultaDefinicion_(carga.id).nombre + ' ' + cuando).replace(/[\\\/:*?"<>|]/g, '-') + '.xlsx';
+}
+
+/* ==== ConsultarExcel.gs ==== */
+/* Consultar (fila 99): el .xlsx, escrito sin librerías de fuera (la página no descarga nada). Un Excel es un zip de ficheros XML; aquí el zip va sin comprimir. Devuelve los bytes (Uint8Array). */
+
+function consultaUtf8_(texto) {
+  const sal = [];
+  for (let i = 0; i < texto.length; i++) {
+    let c = texto.charCodeAt(i);
+    if (c >= 0xd800 && c < 0xdc00 && i + 1 < texto.length) { c = 0x10000 + ((c - 0xd800) << 10) + (texto.charCodeAt(++i) - 0xdc00); }
+    if (c < 0x80) sal.push(c);
+    else if (c < 0x800) sal.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) sal.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else sal.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return sal;
+}
+
+let CRC_TABLA_ = null;
+function consultaCrc32_(bytes) {
+  if (!CRC_TABLA_) {
+    CRC_TABLA_ = [];
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; CRC_TABLA_.push(c >>> 0); }
+  }
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLA_[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/* Un zip sin comprimir. `ficheros`: [{ nombre, texto }]. */
+function consultaZip_(ficheros) {
+  const sal = [], central = [];
+  const u16 = function (a, n) { a.push(n & 255, (n >> 8) & 255); }, u32 = function (a, n) { a.push(n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255); };
+  ficheros.forEach(function (f) {
+    const nombre = consultaUtf8_(f.nombre), datos = consultaUtf8_(f.texto), crc = consultaCrc32_(datos), pos = sal.length;
+    [[0x04034b50, 4], [20, 2], [0x0800, 2], [0, 2], [0, 2], [0x21, 2], [crc, 4], [datos.length, 4], [datos.length, 4], [nombre.length, 2], [0, 2]].forEach(function (x) { if (x[1] === 4) u32(sal, x[0]); else u16(sal, x[0]); });
+    nombre.forEach(function (b) { sal.push(b); });
+    datos.forEach(function (b) { sal.push(b); });
+    [[0x02014b50, 4], [20, 2], [20, 2], [0x0800, 2], [0, 2], [0, 2], [0x21, 2], [crc, 4], [datos.length, 4], [datos.length, 4], [nombre.length, 2], [0, 2], [0, 2], [0, 2], [0, 2], [0, 4], [pos, 4]].forEach(function (x) { if (x[1] === 4) u32(central, x[0]); else u16(central, x[0]); });
+    nombre.forEach(function (b) { central.push(b); });
+  });
+  const inicio = sal.length;
+  central.forEach(function (b) { sal.push(b); });
+  u32(sal, 0x06054b50); u16(sal, 0); u16(sal, 0); u16(sal, ficheros.length); u16(sal, ficheros.length); u32(sal, central.length); u32(sal, inicio); u16(sal, 0);
+  return Uint8Array.from(sal);
+}
+
+function consultaXml_(t) { return String(t).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+/* A, B… Z, AA… */
+function consultaLetras_(i) { let s = ''; for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; }
+
+function consultaFechaExcel_(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+  return m ? Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000) : null;
+}
+
+/* El XML de una celda: texto en línea, número o fecha (estilo 1). Lo vacío no escribe celda. */
+function consultaCelda_(ref, tipo, crudo, texto) {
+  if (texto === '' || texto === null || texto === undefined) return '';
+  const f = tipo === 'fecha' || tipo === 'texto' ? consultaFechaExcel_(crudo) : null;   // las columnas de una tabla no dicen su tipo: una fecha `AAAA-MM-DD` es una fecha
+  if (f !== null) return '<c r="' + ref + '" s="1"><v>' + f + '</v></c>';
+  if (typeof crudo === 'number' && isFinite(crudo)) return '<c r="' + ref + '"><v>' + crudo + '</v></c>';
+  return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + consultaXml_(texto) + '</t></is></c>';
+}
+
+/* `modelo`: el de `consultaSalida_`. Primera fila: «Contiene datos personales del centro»; después el título con los filtros, lo que se quita (si algo) y la tabla. */
+function consultaXlsx_(modelo) {
+  const sueltas = [CONSULTA_AVISO_PERSONAL_, modelo.titulo + (modelo.filtros.length ? ' · ' + modelo.filtros.join('; ') : '') + ' · ' + modelo.hoy];
+  if (modelo.avisoQuitadas) sueltas.push(modelo.avisoQuitadas);
+  const xml = [];
+  const poner = function (celdas) { xml.push('<row r="' + (xml.length + 1) + '">' + celdas.join('') + '</row>'); };
+  sueltas.forEach(function (t) { poner([consultaCelda_('A' + (xml.length + 1), 'texto', t, t)]); });
+  poner(modelo.columnas.map(function (c, i) { return consultaCelda_(consultaLetras_(i) + (xml.length + 1), 'texto', c, c); }));
+  modelo.lineas.forEach(function (l) {
+    const r = xml.length + 1;
+    poner(l.textos.map(function (t, i) { return consultaCelda_(consultaLetras_(i) + r, modelo.tipos[i], l.crudos[i], t); }));
+  });
+  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + xml.join('') + '</sheetData></worksheet>';
+  const nombreHoja = consultaXml_(modelo.conjunto.replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31));
+  const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  return consultaZip_([
+    { nombre: '[Content_Types].xml', texto: cab + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { nombre: '_rels/.rels', texto: cab + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { nombre: 'xl/workbook.xml', texto: cab + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + nombreHoja + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { nombre: 'xl/_rels/workbook.xml.rels', texto: cab + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { nombre: 'xl/styles.xml', texto: cab + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>' },
+    { nombre: 'xl/worksheets/sheet1.xml', texto: hoja }
+  ]);
 }
 
 /* ==== Acceso.gs ==== */
