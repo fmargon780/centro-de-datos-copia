@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v64';
+const VERSION_CD = 'CD v65';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6573,15 +6573,15 @@ const COMPROBACIONES_ = [
   { id: 'pagina-responde', fila: 58, que: 'La página nueva responde al momento mientras el ensayo trabaja: lo más lento que tardó en responder, en milisegundos (bien si no pasa de 500); sin medida si el ensayo no trabajó', funcion: 'cmpPaginaResponde_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'consultar-curso-anterior', fila: 107, que: 'El filtro «Año: curso anterior» de Consultar con el alumnado de hoy: cuántos alumnos, cuántas líneas (una por alumno) y cuántos salen sin matrícula del curso anterior (solo cifras)', funcion: 'cmpConsultarCursoAnterior_' },
+  { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
 
 function cmpFuncion_(nombre) {
-  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
-
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
 function cmpIdsDeFicheros_(carpeta, ids) {
   const f = carpeta.getFiles();
@@ -6912,6 +6912,14 @@ function cmpIdsRellenos_(ctx) {
   try { r = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), ARCHIVO_IDS_); } catch (e) { r = null; }
   const sin = r ? r.sinFichero.length : 0;
   return { estado: sin ? 'mal' : 'bien', cifras: { 'sin-id-ahora': ahora, habia: r ? r.habia : 0, rellenadas: r ? r.rellenadas : 0, 'siguen-sin-fichero': sin } };
+}
+
+/* Fila 110: cuántos ficheros de comprobaciones estropeados se han apartado en _interno/ (solo cifras; mal si hay alguno). */
+function cmpComprobIlegibles_(ctx) {
+  const it = subcarpetaPorRuta_(ctx.raiz, '_interno').getFiles();
+  let n = 0;
+  while (it.hasNext()) if (/^comprobaciones-ilegible-/.test(it.next().getName())) n++;
+  return { estado: 'dato', cifras: { apartados: n } };
 }
 
 /* El id de una entrada para comparar con lo que hay en Drive: el suyo y, si viene vacío, el del fichero que está en su `ruta` (se cuenta en `cuenta.n`). */
@@ -8204,8 +8212,23 @@ const COMPROB_VIGENCIA_SIN_DATOS_MS_ = 10 * 60 * 1000;
 
 function leerComprob_(raiz) {
   const base = { resultados: {}, errores: {}, subida: { estado: 'todavia-no', dia: '', hash: '', ultimaMs: 0, version: '', malos: [], intentosDia: 0, diaIntentos: '' } };
-  const a = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'comprobaciones.json');
+  const a = leerJsonComprob_(raiz);
   return a ? Object.assign(base, a, { subida: Object.assign(base.subida, a.subida || {}) }) : base;
+}
+
+/* Fila 110: si el fichero no se puede leer se vuelve a leer una vez; si sigue mal, se aparta sin borrarlo ni abrirlo (comprobaciones-ilegible-<aaaammdd-hhmm>.json) y se sigue como si no existiera:
+   la siguiente pasada escribe uno nuevo. Solo vale para este fichero (guarda resultados que se rehacen); los demás ilegibles siguen avisando (fila 108). */
+function leerJsonComprob_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  for (let i = 0; i < 2; i++) {
+    try { return leerJson_(interno, 'comprobaciones.json'); } catch (e) { if (!e || e.name !== 'SyntaxError') throw e; }
+  }
+  try {
+    const it = interno.getFilesByName('comprobaciones.json');
+    const ahora = ahoraMadrid_();
+    if (it.hasNext()) it.next().setName('comprobaciones-ilegible-' + ahora.slice(0, 10).replace(/-/g, '') + '-' + ahora.slice(11, 16).replace(':', '') + '.json');
+  } catch (e) { /* la página solo lee: apartarlo lo hace el trabajo de fondo */ }
+  return null;
 }
 
 function escribirComprob_(raiz, comp) { escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), 'comprobaciones.json', comp); }
@@ -8389,7 +8412,7 @@ function mirarClaveEnGitHub_(clave, info) {
 function revisarClave_(raiz, cadaMs) {
   const clave = PropertiesService.getScriptProperties().getProperty('GH_CLAVE');
   if (!clave) return;
-  if (!leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'comprobaciones.json')) return;   // antes de la primera pasada no hay nada que revisar ni que crear
+  if (!leerJsonComprob_(raiz)) return;   // antes de la primera pasada no hay nada que revisar ni que crear
   const comp = leerComprob_(raiz), s = comp.subida;
   const c = s.clave = s.clave || {};
   const ahoraMs = new Date().getTime();
@@ -8413,7 +8436,7 @@ function revisarClave_(raiz, cadaMs) {
 /* ¿Toca mirar la clave? Lo usa el testigo de entrada/ para que el disparador siga arrancando aunque no llegue nada. */
 function claveTocaMirar_(raiz, cadaMs) {
   if (!PropertiesService.getScriptProperties().getProperty('GH_CLAVE')) return false;
-  if (!leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'comprobaciones.json')) return false;
+  if (!leerJsonComprob_(raiz)) return false;
   const s = leerComprob_(raiz).subida, c = s.clave || {};
   const rota = s.estado === 'sin-permiso' || s.estado === 'caducada';
   return !c.mirada || new Date().getTime() - c.mirada >= (rota ? CLAVE_ESPERA_ROTA_MS_ : cadaMs);
