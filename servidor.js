@@ -30,7 +30,7 @@
       var r0 = raiz();
       cargarAprendido_(r0);
       var r = { version: window.VERSION_PAGINA, correo: 'Lee y guarda', esDueno: false, carpeta: { ok: true, nombre: 'CENTRO DE DATOS', url: ENLACE_CARPETA } };
-      try { r.hechos = resumenHechosPagina_(r0); r.avisoClave = r.hechos.claveAviso; delete r.hechos.claveAviso; if (!r.avisoClave) delete r.avisoClave; if (claveFunciona(r0)) r.claveFunciona = true; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
+      try { r.hechos = resumenHechosPagina_(r0); r.avisoClave = r.hechos.claveAviso; delete r.hechos.claveAviso; if (!r.avisoClave) delete r.avisoClave; if (claveFunciona(r0)) r.claveFunciona = true; } catch (e) { if (e instanceof C.Falta) throw e; r.avisoEntrada = 'No he podido comprobar los datos ya hechos.' + detalleLectura_(e); }
       /* Las líneas del ensayo (filas 46 y 47): solo esta página las lleva. */
       try {
         /* Fila 58: mientras el ensayo trabaja no se compara nada: cada cajita enseña su último resultado (si lo tenía) y, si su conjunto aún se está rehaciendo, la nota «poniéndose al día…». */

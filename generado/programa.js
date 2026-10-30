@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v63';
+const VERSION_CD = 'CD v64';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1442,7 +1442,19 @@ function buscarCarpetaCD_() {
 function leerJson_(carpeta, nombre) {
   const it = carpeta.getFilesByName(nombre);
   if (!it.hasNext()) return null;
-  return JSON.parse(it.next().getBlob().getDataAsString('UTF-8'));
+  const texto = it.next().getBlob().getDataAsString('UTF-8');
+  try {
+    return JSON.parse(texto);
+  } catch (e) {
+    /* El error sigue siendo el mismo (quien lo espera lo reconoce); solo se le apunta cuál es el fichero, sin nada de su contenido. */
+    e.fichero = (carpeta.getName() ? carpeta.getName() + '/' : '') + nombre;
+    throw e;
+  }
+}
+
+/* Para los avisos de pantalla: si el fallo es de lectura de un fichero, dice cuál. */
+function detalleLectura_(e) {
+  return e && e.fichero ? ' No se puede leer el fichero «' + e.fichero + '».' : '';
 }
 
 /* Siempre sobre el mismo fichero: su id no cambia. */
@@ -10801,7 +10813,7 @@ function webEstado(ctx) {
   try { if (!r.recolocando) r.sigue = repasarConsejo_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar lo que esperaba en «Sin clasificar».'; }
   try { if (!r.recolocando) r.sigue = repasarAulaEspecifica_(raiz, RECOLOCAR_TOPE_PAGINA_MS_) || r.sigue; } catch (e) { r.avisoEntrada = 'No he podido repasar lo que esperaba en «Sin clasificar».'; }
   try { if (!r.recolocando && hayEntrada_(raiz)) recogerEntrada_(); } catch (e) { r.avisoEntrada = 'No he podido recoger la carpeta de entrada.'; }
-  try { r.hechos = resumenHechosPagina_(raiz); r.hechosQuedan = !r.recolocando && r.hechos.quedan; r.avisoClave = ctx.esDueno ? r.hechos.claveAviso : null; delete r.hechos.claveAviso; if (ctx.esDueno && claveRecuperada_(raiz)) r.claveFunciona = true; } catch (e) { r.avisoEntrada = 'No he podido comprobar los datos ya hechos.'; }
+  try { r.hechos = resumenHechosPagina_(raiz); r.hechosQuedan = !r.recolocando && r.hechos.quedan; r.avisoClave = ctx.esDueno ? r.hechos.claveAviso : null; delete r.hechos.claveAviso; if (ctx.esDueno && claveRecuperada_(raiz)) r.claveFunciona = true; } catch (e) { r.avisoEntrada = 'No he podido comprobar los datos ya hechos.' + detalleLectura_(e); }
   try { r.sobrasTutorias = sobrasTutoriasPagina_(raiz); } catch (e) { r.sobrasTutorias = []; }
   r.centroNombre = '';
   try {

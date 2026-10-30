@@ -144,7 +144,7 @@
   function detalle(e) {
     var msg = e && e.name !== 'SyntaxError' ? String(e.message || '').slice(0, 260) : '';
     var pila = ((e && e.stack) || '').split('\n').map(function (l) { var m = /at (?:async )?([\w$.]+)/.exec(l); return m ? m[1] : ''; }).filter(Boolean).slice(0, 2).join(' < ');
-    return [e && e.name, msg, pila].filter(Boolean).join(' · ');
+    return [e && e.name, msg, e && e.fichero ? 'fichero «' + e.fichero + '»' : '', pila].filter(Boolean).join(' · ');
   }
 
   /* La línea pequeña de «Poniendo al día…», justo debajo de «Datos ya hechos». */

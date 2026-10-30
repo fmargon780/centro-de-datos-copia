@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v25",
-  "commit": "af492d8",
+  "version": "página nueva v26",
+  "commit": "c683d1b",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "58e07a262beef5471451601597705cdba224fce8eaeed0c8f243e85201e5ad3d",
@@ -8,17 +8,17 @@
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "7a6157b9a0a37fed8e11d6872e47aa150baadcd5fc258a8f27cd1075c684c75d",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "26460a9ed5b4036ebc8477f4248849516921c5d19b65cb25d2cd9aea0809aaa7",
-    "ensayo.js": "c298ef74b8a0a78a7d0f5b0a22a947a8137d82dbd7ef340cb4fd6c6700dea507",
+    "commit.js": "58b31ba4aa25cd2bf88e9c03353190720f664c00512d2a933a9daf96d0a35db2",
+    "ensayo.js": "c1df55ae1d4227f4b63cc0067bb184932009fe8d7940d216ed224fd767eb72c8",
     "escritura.js": "a049acbbfd3389d81ad98d67b3028a3e90e0ca2955eb7b8391907b1e546807e8",
     "generado/estilos.css": "0b9a627204af512b6d9a97a13abfe130097f35d38ef52d351940e89ba22f5591",
     "generado/pantalla.js": "29994b21970ef00303b2c16b5d36452ef6dca98ccf278db7a9ad8333aa2c4816",
-    "generado/programa.js": "0b4e0c501dc288bf37a5a5f287dd1e8da00631d56406f7fb3b34cc279554a926",
+    "generado/programa.js": "24bed47cf7863d6e3f69bb49829716b3b82b556d4db4ddd240a95b776ca57a6b",
     "index.html": "d8a15d7698076a21c5281fa32c55361274b8330e94aaa669563d306c68195923",
     "medidas.js": "b90bc11db319e94d00e317c7c2f1e9785449cfb2958df88da641639e4bafd6fc",
     "publicar.js": "c7d0fc31c9ddebc0ced17275307f694c09903d9ed3436f5bc9552f2b0ef77008",
-    "servidor.js": "40fd27e5e39fd2f9a8656f20a080a6d06181e646b247f0b5f74996d6baac21d5",
+    "servidor.js": "5408ec771fb28e07a4ef55fbc50b01f550dda07136d04f6b4a5b285bb4643dc3",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
-    "version.js": "8feecf667371787f6d87bcdc26893092905766db2fa05e11463033d87aa73ce7"
+    "version.js": "70b6e79214c8a8c6467a25bb6233d30ec6f904f98d808d7bc930c931d11648a4"
   }
 }
