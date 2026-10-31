@@ -337,6 +337,7 @@ function textoDeUnConjunto(c) {
   }
   if (c.consejo) return textoDelConsejo(c);
   if (c.libros !== undefined && c.conjunto === 'libros') return textoDeLibros(c);
+  if (c.ausencias !== undefined && c.conjunto === 'ausencias') return textoDeAusencias(c);
   if (c.entero) return textoDelEntero(c);
   if (c.contactos) return textoDeContactos(c);
   var t = c.actuales.map(function (a, i) {
@@ -357,6 +358,17 @@ function textoDeLibros(c) {
   var k = c.libros;
   if (!k) return c.etiqueta + ': poniéndose al día';
   var t = [c.etiqueta + ' ' + k.cursoEscolar + ': ' + numeroConPuntos(k.libros) + (k.libros === 1 ? ' libro' : ' libros') + ' en ' + numeroConPuntos(k.niveles) + (k.niveles === 1 ? ' nivel' : ' niveles')];
+  if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
+  t.push(c.alDia ? 'al día' : 'poniéndose al día');
+  if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
+  return t.join(' · ');
+}
+
+/* Las ausencias: cuántas, de cuántas personas (si se sabe cuál es la columna de la persona), del curso de hoy (o el más reciente). */
+function textoDeAusencias(c) {
+  var k = c.ausencias;
+  if (!k) return c.etiqueta + ': poniéndose al día';
+  var t = [c.etiqueta + ': ' + numeroConPuntos(k.ausencias) + (k.ausencias === 1 ? ' ausencia' : ' ausencias') + (k.personas === null ? '' : ' de ' + numeroConPuntos(k.personas) + (k.personas === 1 ? ' persona' : ' personas')) + ', curso ' + k.cursoEscolar];
   if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
   t.push(c.alDia ? 'al día' : 'poniéndose al día');
   if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
@@ -729,7 +741,7 @@ function consultaPonerAnterior() {
 /* Con las columnas de siempre de cada conjunto (las que ya tiene la parte). */
 function consultaColumnasPorDefecto() {
   CONSULTA.idColumnas = CONSULTA.carga.id;
-  CONSULTA.visibles = consultaDef().ver.slice();
+  CONSULTA.visibles = consultaDef().ver === 'todas' ? consultaPosibles().filter(function (c) { return c.ruta !== 'id'; }).map(function (c) { return c.ruta; }) : consultaDef().ver.slice();
   CONSULTA.marcadas = {};
   CONSULTA.visibles.forEach(function (r) { CONSULTA.marcadas[r] = true; });
   CONSULTA.filtros = [{ ruta: '', op: 'contiene', texto: '' }];
