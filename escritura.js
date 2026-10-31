@@ -212,21 +212,43 @@
     throw new Error('La carpeta tiene demasiados ficheros por abrir.');
   }
 
+  /* El turno común entre personas (turno-escritura.js): su fichero se lee y escribe directo, sin pasar por los .gs. */
+  var elTurno = null;
+  function turno() {
+    if (!elTurno) {
+      elTurno = window.TurnoEscritura.crear({
+        leer: async function () { try { return JSON.parse(new TextDecoder().decode(await leerSuelto(window.TurnoEscritura.RUTA))); } catch (e) { return {}; } },
+        escribir: function (t) { return escribirSuelto(window.TurnoEscritura.RUTA, JSON.stringify(t)); },
+        quitar: function () { return borrarSuelto(window.TurnoEscritura.RUTA); },
+        persona: (function () { try { return (localStorage.getItem('centro-de-datos-pagina-quien') || '').trim(); } catch (e) { return ''; } })()
+      });
+    }
+    return elTurno;
+  }
+
+  /* ¿Toca algo compartido? Lo que el ensayo guarda en su propia carpeta no hace falta que espere a nadie. */
+  function fueraDelEnsayo(op) {
+    var c = op.t === 'contenido' || op.t === 'borrar' ? op.f.padre : op.c, r = (c && c.ruta) || '';
+    return !/^_interno\/ensayo-pagina(\/|$)/.test(r);
+  }
+
   /* `alterna`: una raíz distinta (el ensayo de la fila 46, pagina/ensayo.js) para que los .gs lean y escriban en ella; al terminar la carpeta de verdad vuelve a ser la de siempre. */
   async function unaVez(fn, alterna) {
-    var propios = {};   // lo que las vueltas de este guardado ya han escrito (una vuelta repetida no choca con lo suyo)
+    var propios = {}, suelta = null;   // lo que las vueltas de este guardado ya han escrito (una vuelta repetida no choca con lo suyo)
     try {
       for (var vuelta = 0; vuelta < VUELTAS; vuelta++) {
         if (vuelta) await new Promise(function (ok) { setTimeout(ok, 150 + Math.random() * 450); });
         C.reiniciar(alterna);
         var p = await probar(fn), ops = compactar(p.ops);
         if (!ops.length) return p.resultado;
+        if (!alterna && !suelta && ops.some(fueraDelEnsayo)) suelta = await turno().tomar();   // las escrituras de verdad, de una persona cada vez (fila 115)
+        if (suelta && !(await turno().renovar())) { suelta = null; continue; }   // si el turno se perdió por tardar, se vuelve a pedir
         if (await huboCambios(ops, propios)) continue;
         await reproducir(ops, propios);
         var bien = await sigueIgual(ops);
         if (bien) return p.resultado;
       }
-    } finally { C.reiniciar(); }
+    } finally { C.reiniciar(); if (suelta) await suelta(); }
     throw new Error('Otra persona está guardando a la vez y no he podido terminar. Vuelve a probar dentro de un momento.');
   }
 

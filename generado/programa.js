@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v66';
+const VERSION_CD = 'CD v67';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1454,6 +1454,8 @@ function leerJson_(carpeta, nombre) {
   try {
     return JSON.parse(texto);
   } catch (e) {
+    const resto = jsonConRestos_(texto);   // un JSON entero con restos detrás (fila 115): se lee la parte entera
+    if (resto) return resto.valor;
     /* El error sigue siendo el mismo (quien lo espera lo reconoce); solo se le apunta cuál es el fichero, sin nada de su contenido. */
     e.fichero = (carpeta.getName() ? carpeta.getName() + '/' : '') + nombre;
     throw e;
@@ -1558,6 +1560,82 @@ function cambiarCarpeta_(enlace) {
   }
   PropertiesService.getScriptProperties().setProperty('CARPETA_ID', carpeta.getId());
   return { ok: true, mensaje: 'Ahora los datos están en ' + carpeta.getName() + '. Las demás aplicaciones tienen que apuntar a la carpeta nueva.' };
+}
+
+/* ==== JsonRestos.gs ==== */
+/* Un fichero de datos que se guardó mal (fila 115): un JSON entero seguido de restos de otra versión más larga. Es lo que dejaba Drive para ordenador cuando dos personas guardaban el mismo fichero
+   a la vez. La causa se evita con el turno común de escritura (pagina/turno-escritura.js); esto cura lo que ya estaba así: se lee la parte entera, y al abrir la página se aparta una copia
+   (<nombre>-ilegible-<aaaammdd-hhmm>.json, en _interno, sin abrirla) y el fichero se queda con su JSON entero. Nada se borra. */
+
+/* Si el texto es un JSON entero (objeto o lista) seguido de más texto, devuelve { valor, fin } (fin = dónde acaba el JSON entero); si no, null. */
+function jsonConRestos_(texto) {
+  let i = 0;
+  while (i < texto.length && /\s/.test(texto.charAt(i))) i++;
+  const abre = texto.charAt(i);
+  if (abre !== '{' && abre !== '[') return null;
+  let prof = 0, cadena = false, fin = -1;
+  for (let k = i; k < texto.length && fin < 0; k++) {
+    const c = texto.charAt(k);
+    if (cadena) { if (c === '\\') k++; else if (c === '"') cadena = false; continue; }
+    if (c === '"') cadena = true;
+    else if (c === '{' || c === '[') prof++;
+    else if (c === '}' || c === ']') { prof--; if (prof === 0) fin = k + 1; }
+  }
+  if (fin < 0 || !/\S/.test(texto.slice(fin))) return null;
+  try { return { valor: JSON.parse(texto.slice(i, fin)), fin: fin }; } catch (e) { return null; }
+}
+
+/* Los ficheros .json de la raíz y de _interno, más hecho/estado.json (los que escriben a la vez la página de cualquiera y el trabajo de fondo). */
+function jsonDeLaCarpeta_(raiz) {
+  const lista = [];
+  [raiz, subcarpetaPorRuta_(raiz, '_interno')].forEach(function (c) {
+    const it = c.getFiles();
+    while (it.hasNext()) { const f = it.next(); if (/\.json$/.test(f.getName()) && f.getName().indexOf('-ilegible-') === -1) lista.push(f); }
+  });
+  const h = raiz.getFoldersByName('hecho');
+  if (h.hasNext()) { const it = h.next().getFilesByName('estado.json'); if (it.hasNext()) lista.push(it.next()); }
+  return lista;
+}
+
+/* Cuántos de esos ficheros no se pueden leer, y cuántos de ellos solo tienen restos detrás del JSON entero. */
+function contarJsonIlegibles_(raiz) {
+  let sin = 0, restos = 0;
+  jsonDeLaCarpeta_(raiz).forEach(function (f) {
+    const texto = f.getBlob().getDataAsString('UTF-8');
+    try { JSON.parse(texto); } catch (e) { sin++; if (jsonConRestos_(texto)) restos++; }
+  });
+  return { sin: sin, restos: restos };
+}
+
+/* Aparta una copia de cada fichero con restos y lo deja con su JSON entero. Devuelve cuántos arregló. */
+function repararJsonRestos_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno'), ahora = ahoraMadrid_();
+  const sello = ahora.slice(0, 10).replace(/-/g, '') + '-' + ahora.slice(11, 16).replace(':', '');
+  let n = 0;
+  jsonDeLaCarpeta_(raiz).forEach(function (f) {
+    const texto = f.getBlob().getDataAsString('UTF-8');
+    try { JSON.parse(texto); return; } catch (e) { /* se mira si solo son restos */ }
+    const r = jsonConRestos_(texto);
+    if (!r) return;
+    interno.createFile(f.getName().replace(/\.json$/, '') + '-ilegible-' + sello + '.json', texto, 'application/json');
+    f.setContent(texto.slice(0, r.fin).replace(/^\s+/, ''));
+    n++;
+  });
+  return n;
+}
+
+/* ¿Está alguien guardando desde la página? (_interno/turno-escritura.json, con su caducidad). La vuelta de fondo espera a la siguiente para no cruzarse. */
+function turnoEscrituraVigente_(raiz) {
+  try {
+    const t = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), 'turno-escritura.json');
+    return !!(t && typeof t.hasta === 'number' && t.hasta > new Date().getTime());
+  } catch (e) { return false; }
+}
+
+/* Fila 115: cuántos ficheros JSON de la carpeta no se pueden leer (solo cifras; tiene que salir 0). */
+function cmpJsonIlegibles_(ctx) {
+  const c = contarJsonIlegibles_(ctx.raiz);
+  return { estado: c.sin ? 'mal' : 'bien', cifras: { 'sin-leer': c.sin, 'solo-con-restos': c.restos } };
 }
 
 /* ==== Indice.gs ==== */
@@ -6592,12 +6670,12 @@ const COMPROBACIONES_ = [
   { id: 'ausencias-una-ficha', fila: 114, que: 'Ninguna ausencia sin identificador ni repetido dentro de una parte', funcion: 'cmpAusenciasUnaFicha_' },
   { id: 'consultar-curso-anterior', fila: 107, que: 'El filtro «Año: curso anterior» de Consultar con el alumnado de hoy: cuántos alumnos, cuántas líneas (una por alumno) y cuántos salen sin matrícula del curso anterior (solo cifras)', funcion: 'cmpConsultarCursoAnterior_' },
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
+  { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ];
-
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
+    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -9226,6 +9304,7 @@ function hayDisparador_() {
 function vueltaDeFondo_(raiz) {
   const hecho = [];
   let sigue = false;
+  try { if (!turnoEscrituraVigente_(raiz)) repararJsonRestos_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }
   try { asegurarDisparador_(); } catch (e) { /* si no se puede crear, la comprobación lo dice */ }
   try { revisarClave_(raiz, CLAVE_MIRAR_PAGINA_MS_); hecho.push('clave'); } catch (e) { /* mirar la clave nunca rompe la vuelta */ }
   try { sigue = colocarExpedientes_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('expedientes'); } catch (e) { /* se reintenta en la próxima vuelta */ }
@@ -9312,6 +9391,7 @@ function recogerEntrada_(ctx) {
   const entrada = subcarpetaPorRuta_(raiz, 'entrada');
   ponerAlDia_(raiz);
   const deFondo = !!(ctx && ctx.correo === 'entrada');   // la arranca el disparador: sin pantalla antigua, también hace la vuelta de fondo (Fondo.gs)
+  if (deFondo && turnoEscrituraVigente_(raiz)) return 0;   // alguien guarda desde la página: esta vuelta espera a la de dentro de 10 minutos (fila 115)
   if (recolocarSiToca_(raiz, ENTRADA_TOPE_MS_) || repasarAdmision_(raiz, ENTRADA_TOPE_MS_)) {   // primero se termina de recolocar
     if (deFondo) ajustarTestigo_(raiz, true);   // sin pantalla que lo siga, el disparador tiene que volver
     return 0;
