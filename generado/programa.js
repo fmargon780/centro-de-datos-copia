@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v67';
+const VERSION_CD = 'CD v68';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -2587,7 +2587,7 @@ const CAMPOS_PERSONAL_ = [
   { clave: 'puestos', etiqueta: 'Filas en los listados', apartado: 'Puesto', tipo: 'tabla', calculado: 'puestos',
     columnas: [{ clave: 'listado', etiqueta: 'Listado' }, { clave: 'puesto', etiqueta: 'Puesto' }, { clave: 'fechaTomaPosesion', etiqueta: 'Fecha de toma de posesión' }, { clave: 'fechaCese', etiqueta: 'Fecha de cese' }] },
   { clave: 'telefono', etiqueta: 'Teléfono', apartado: 'Contacto', tipo: 'texto', col: ['Teléfono'] },
-  { clave: 'correo', etiqueta: 'Correo electrónico', apartado: 'Contacto', tipo: 'texto', col: ['Correo', 'Correo electrónico'] },
+  { clave: 'correo', etiqueta: 'Correo electrónico', apartado: 'Contacto', tipo: 'texto', col: ['Correo', 'Correo electrónico', 'Cuenta Google/Microsoft'] },
   { clave: 'listados', etiqueta: 'Listados en los que sale', apartado: 'Listado', tipo: 'lista', calculado: 'listados' },
   { clave: 'celdas', etiqueta: 'Casillas del listado', apartado: 'Listado', tipo: 'tabla', calculado: 'celdas', columnas: [{ clave: 'columna', etiqueta: 'Columna' }, { clave: 'valor', etiqueta: 'Valor' }] }
 ];
@@ -2667,7 +2667,7 @@ const CONJUNTOS_ = [
       { clave: 'censo-neae', lector: 'censo', versionLector: 1, porCurso: true }], campos: CAMPOS_ALUMNADO_ },
   /* El personal (fila 11): una parte por cada curso con algún listado `personal`, sin `actuales` ni `antiguos`, sin entregas ni ficha completa. `porCursos`: sus fuentes son
      todos los listados `personal` con curso (no hay un «primero»). `sufijoAvisos`: cómo cuenta la página sus avisos. */
-  { conjunto: 'personal', titulo: 'Personal', cuenta: 'personas', acuerdoHecho: ACUERDO_HECHO_, montador: 'personal', versionMontador: 1, porCursos: true,
+  { conjunto: 'personal', titulo: 'Personal', cuenta: 'personas', acuerdoHecho: ACUERDO_HECHO_, montador: 'personal', versionMontador: 2, porCursos: true,
     entregas: [], aplicaciones: {}, sufijoAvisos: 'del personal',
     fuentes: [{ clave: 'personal', lector: 'personal', versionLector: 1 }], campos: CAMPOS_PERSONAL_ },
   /* Los libros de texto (fila 37): una parte por cada curso con algún listado `libros` (un fichero por nivel), como el personal. Sin entregas ni ficha completa. */
