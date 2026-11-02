@@ -48,6 +48,7 @@
       try { r.centroNombre = ((leerJson_(r0, 'configuracion.json') || {}).centro || {}).nombre || ''; } catch (x) { if (x instanceof C.Falta) throw x; }
       var e = estadoListados_(r0);
       r.filas = e.filas; r.movimientos = e.movimientos; r.cursoActual = e.cursoActual; r.cursos = e.cursos; r.pendientes = e.pendientes;
+      try { r.instrucciones = instruccionesParaPagina_(r0); } catch (x) { if (x instanceof C.Falta) throw x; r.instrucciones = {}; }
       r.cursosElegibles = cursosElegibles_(r0);
       r.tipos = tiposParaPagina_(r0); r.periodos = PERIODOS_;
       return r;

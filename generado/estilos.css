@@ -70,6 +70,7 @@
   .rejilla { min-width: 0; }
   .cabeza-tabla { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
   .cabeza-tabla h2 { margin: 0; font-size: 15px; }
+  .cabeza-tabla .ayuda-tabla { font-size: 13px; color: #555; margin-left: 12px; }
   .cabeza-tabla .cuenta { color: #555; }
   .cabeza-tabla .curso-tabla { margin-left: auto; margin-right: 16px; font-size: 13px; color: #444; }
   .cabeza-tabla { align-items: center; }
@@ -109,6 +110,13 @@
   tr.fila-historico { color: #555; }
   tr.fila-historico .etiqueta { background: #e1e6ea; color: #445; }
   .etiqueta { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; font-size: 11px; background: #f3d98a; color: #5a4300; }
+  .como { padding: 6px 8px; border-bottom: 1px solid #e3e8ec; }
+  .como h3 { margin: 0 0 2px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .como .texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+  .como .vacio { margin: 0; font-size: 13px; color: #555; }
+  .como .error { margin: 4px 0 0; font-size: 13px; color: #a12b2b; }
+  .como textarea { display: block; width: 100%; min-height: 96px; padding: 5px 8px; font: inherit; font-size: 13px; border: 1px solid #c9d2da; border-radius: 4px; resize: vertical; }
+  .como .botones { display: flex; gap: 8px; margin-top: 6px; }
   .enlace { color: #1f6fb2; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; font-size: 14px; }
     .panel-movimientos ul { list-style: none; margin: 6px 0 0; padding: 0; }
   .panel-movimientos li { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; padding: 3px 0; border-bottom: 1px solid #eef1f3; overflow-wrap: anywhere; }

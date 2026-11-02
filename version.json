@@ -1,25 +1,25 @@
 {
-  "version": "página nueva v31",
-  "commit": "4ac3a75",
+  "version": "página nueva v32",
+  "commit": "abcdfa1",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
-    "acciones.js": "66b588b6a797966296439002aa2a4c2441841af36ba3f4a038ff307640254189",
+    "acciones.js": "2087b86e7b65d85451f3061babec6b4e316152322e21557e00c7025b06f2b818",
     "actualizar-copia.js": "8aacfacffca636cf96f2e342c23ef5cb508d618ceb2dea8c2d19bd51a80ebc0f",
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "1f8cc7f0222a7eac3e6e3388b8b63c4811b1443c172a08e680fc16d31f42d679",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "d93acb27cb81827c5606e64688b0fe7016c20310a0a64f7229139e48b60c0fba",
+    "commit.js": "5d7364bf3c6f2f607177ebc9f9e8066af2e98cfd0186494a13f2a73a111d6bb8",
     "ensayo.js": "eeb42eee06ada1d053d0088dcb9fd9e01692905e11764850bd6fa92ede83a498",
     "escritura.js": "4a0722a375ce9aa6c180004f531efc8d16b060d737e301b6a47599e3d50cbd89",
-    "generado/estilos.css": "a8b5935414e5674fd460692985bb638d332b1fb4ab01e033076d96912271b50f",
-    "generado/pantalla.js": "1bb4ef675255ec077217d34ce06ad9e924f46bf6e7d59beddd3caea1b8860b6b",
-    "generado/programa.js": "51bbfa93266462a00098bfc40a2946e84fbb844c29ecd8fc1a950aaef39bcdb8",
-    "index.html": "9349365f9601e28d5461b39c3b061aff2be1ec8a71bd89590a85a219cac2fcf7",
+    "generado/estilos.css": "81fe50e2a1f57bd694167560882d089ebb9227937770f9ec571ba913f2eb001e",
+    "generado/pantalla.js": "ad4d8aa74a5647161de8dd71ad666381a8dcdff659d621c5396a93a132489ece",
+    "generado/programa.js": "ea96d58f22c8765d5d10c4cb90105c33e13b4e63fe42da8f8f25a7dd8de9bce0",
+    "index.html": "f9f418a7d3ddadbfa4652ae05b081be8cb56abd7fbe1e69518a992f967d2b8f1",
     "medidas.js": "b90bc11db319e94d00e317c7c2f1e9785449cfb2958df88da641639e4bafd6fc",
     "publicar.js": "446769cac6bdec8735a624cb25341ae3b41a2eb3d6f0a3e5499dc189924945ef",
-    "servidor.js": "76e7dce3a2af384b7464e1daa835e8d5f59fcc283cb315d99c3af1fa7c10020d",
+    "servidor.js": "d8c653e75f8eeef0552e44a04876e2f06d9b26dd3d4ce4b67d37062fd60dc895",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
     "turno-escritura.js": "cf40690dc74316e6dc8f546a949765454b90c9d9d1bc2ccb58354255a5c32aeb",
-    "version.js": "edfba70bcbaaec9d39e7e0579c6d16be6b90f89ae8b1739ca0ac42a96657a030"
+    "version.js": "b5347780aa574babc84ac42b9cdde8742e920fe0441107cc96935a081381291c"
   }
 }

@@ -150,15 +150,58 @@ function filaDeGrupo(g) {
   tr.appendChild(el('td', '', f.usan));
   Array.prototype.forEach.call(tr.children, function (c) { c.title = c.textContent; });
   if (f.alumnos) { tr.className += ' fila-alumnos'; tr.onclick = function () { alternarAlumnos(tr, f); }; }
-  else if (reales.length) { tr.className += ' fila-grupo'; tr.onclick = function () { alternarGrupo(tr, reales); }; }
+  else { tr.className += ' fila-grupo'; tr.onclick = function () { alternarGrupo(tr, f, reales); }; }   // también las grises: se abren para ver o escribir cómo se obtiene
   return tr;
 }
 
-function alternarGrupo(tr, lista) {
+/* Fila 128: «Cómo se obtiene» de un tipo de listado. Es del tipo, no del curso: se ve igual en todos los cursos. El texto se pinta siempre como texto. */
+function bloqueComo(f) {
+  var d = el('div', 'como');
+  function pintar(editando) {
+    var texto = (ESTADO.instrucciones || {})[f.clave] || '';
+    d.textContent = '';
+    var h = el('h3', '', 'Cómo se obtiene');
+    d.appendChild(h);
+    if (!editando) {
+      var e = el('button', 'enlace', texto ? 'Cambiar' : 'Escribir');
+      e.type = 'button';
+      e.onclick = function () { pintar(true); };
+      h.appendChild(e);
+      d.appendChild(texto ? el('p', 'texto', texto) : el('p', 'vacio', 'Este listado todavía no tiene instrucciones.'));
+      return;
+    }
+    var t = el('textarea');
+    t.value = texto;
+    t.setAttribute('aria-label', 'Cómo se obtiene ' + f.nombre);
+    t.placeholder = 'De dónde sacar el fichero y qué hay que tener en cuenta';
+    var botones = el('div', 'botones'), g = el('button', 'accion', 'Guardar'), c = el('button', 'accion', 'Cancelar'), error = el('p', 'error');
+    g.type = c.type = 'button';
+    error.hidden = true;
+    c.onclick = function () { pintar(false); };
+    g.onclick = function () {
+      g.disabled = c.disabled = true;
+      error.hidden = true;
+      servidor('webInstruccionesGuardar', f.clave, t.value).then(function (r) {
+        if (!r || !r.ok) { g.disabled = c.disabled = false; error.textContent = (r && r.mensaje) || 'No he podido guardarlo.'; error.hidden = false; return; }
+        ESTADO.instrucciones = ESTADO.instrucciones || {};
+        if (r.texto) ESTADO.instrucciones[f.clave] = r.texto; else delete ESTADO.instrucciones[f.clave];
+        pintar(false);
+      }, function (x) { g.disabled = c.disabled = false; avisar(x.message, true); });
+    };
+    botones.appendChild(g); botones.appendChild(c);
+    d.appendChild(t); d.appendChild(error); d.appendChild(botones);
+    t.focus();
+  }
+  pintar(false);
+  return d;
+}
+
+function alternarGrupo(tr, f, lista) {
   var siguiente = tr.nextSibling;
   if (siguiente && siguiente.className === 'sub') { siguiente.parentNode.removeChild(siguiente); return; }
   var fila = el('tr', 'sub'), td = el('td');
   td.colSpan = 4;
+  td.appendChild(bloqueComo(f));
   lista.forEach(function (f) { td.appendChild(lineaDeListado(f)); });
   fila.appendChild(td);
   fila.onclick = function (e) { e.stopPropagation(); };
@@ -1937,6 +1980,7 @@ function alternarAlumnos(tr, f) {
       });
     }
     caja.oninput = pintar;
+    td.appendChild(bloqueComo(f));
     td.appendChild(caja); td.appendChild(cuerpo);
     fila.appendChild(td);
     tr.parentNode.insertBefore(fila, tr.nextSibling);

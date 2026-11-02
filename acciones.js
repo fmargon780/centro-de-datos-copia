@@ -150,11 +150,15 @@
   function consultaUsar(id) {
     return conCarpeta(function () { return hacer(quienGuardado(), function (ctx) { return webConsultasUsar(id, ctx); }, false, true); });
   }
+  /* Fila 128: cómo se obtiene cada listado (_interno/instrucciones-listados.json). Cambiar el texto pide el nombre (quienEres), como la configuración. */
+  function instruccionesGuardar(clave, texto) {
+    return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webInstruccionesGuardar(clave, texto, ctx); }, false, true); }); });
+  }
   function avisoVisto(huella, conjunto, visto) {
     return conCarpeta(function () { return quienEres().then(function (q) { return hacer(q, function (ctx) { return webAvisoVisto(huella, conjunto, visto, ctx); }, false, true); }); });
   }
 
-  Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto, webConsultasGuardar: consultaGuardar, webConsultasBorrar: consultaBorrar, webConsultasUsar: consultaUsar });
+  Object.assign(window.PUERTA_PAGINA, { webSubirTrozo: subirTrozo, webCompletarFicha: completar, webQuitarPendiente: quitarPendiente, webCambiarFicha: cambiar, webConfiguracionGuardar: guardarConfiguracion, webAvisoVisto: avisoVisto, webConsultasGuardar: consultaGuardar, webConsultasBorrar: consultaBorrar, webConsultasUsar: consultaUsar, webInstruccionesGuardar: instruccionesGuardar });
   /* Fila 66: sin pantalla antigua, el disparador de la aplicación de Google solo arranca si hay un fichero en entrada/. Al abrir la carpeta se deja el testigo de la vuelta de fondo (Fondo.gs), que no se quita. */
   function asegurarFondo() {
     return conCarpeta(function () { return C.transaccion(function () { asegurarTestigoFondo_(carpetaDatos_()); repararJsonRestos_(carpetaDatos_()); }); });

@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v70';
+const VERSION_CD = 'CD v71';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -6940,6 +6940,70 @@ function cmpCorreccionesAplicadas_(ctx) {
   return { estado: malPuestas + faltan ? 'mal' : 'bien', cifras: { revisadas: revisadas, 'con-otro-valor': malPuestas, 'ya-no-vigentes-esperan-al-montaje': viejas, 'parte-al-dia': alDia, 'lineas-que-faltan-o-sobran': faltan } };
 }
 
+/* ==== Instrucciones.gs ==== */
+/* Cómo se obtiene cada listado (fila 128): unas instrucciones escritas por cada tipo de listado, de dónde sacar el fichero y qué tener en cuenta.
+   Viven en `_interno/instrucciones-listados.json` (se muda con la carpeta): { contrato, actualizado, textos: { <clave del tipo>: texto } }.
+   Una entrada por tipo, sin curso ni variante. No es un conjunto de datos: no entra en `indice.json`, ni en el contrato, ni en `diagnostico/`.
+   Las escribe la página (acciones.js, dentro de una transacción como la configuración del centro) y las lee cualquiera que entre. */
+
+const ARCHIVO_INSTRUCCIONES_ = 'instrucciones-listados.json';
+const MAX_INSTRUCCION_ = 2000;
+
+/* La comprobación de este fichero (fila 128): solo lee y solo cuenta. */
+const COMPROBACIONES_INSTRUCCIONES_ = [
+  { id: 'instrucciones-listados', fila: 128, que: 'Cuántos listados tienen escritas sus instrucciones de cómo se obtienen y que el fichero se lee (solo cuentas, nunca el texto; sin fichero no es error; mal solo si no se puede leer)', funcion: 'cmpInstrucciones_' }
+];
+
+/* El fichero, limpio: solo claves con texto. Un fichero ilegible cuenta como vacío (`ilegible`). */
+function leerInstrucciones_(raiz) {
+  let d = null, ilegible = false;
+  try { d = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_INSTRUCCIONES_); } catch (e) { if (!e || e.name !== 'SyntaxError') throw e; ilegible = true; }
+  const v = { textos: {}, ilegible: ilegible, descartadas: 0 };
+  const t = d && typeof d === 'object' && d.textos && typeof d.textos === 'object' ? d.textos : {};
+  Object.keys(t).forEach(function (k) {
+    if (typeof t[k] === 'string' && t[k].trim() && /^[0-9a-z-]+$/.test(k)) v.textos[k] = t[k];
+    else v.descartadas++;
+  });
+  return v;
+}
+
+function escribirInstrucciones_(raiz, v) {
+  escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_INSTRUCCIONES_, { contrato: 1, actualizado: ahoraMadrid_(), textos: v.textos });
+}
+
+/* Lo que lleva el estado de la página: { clave: texto }. */
+function instruccionesParaPagina_(raiz) {
+  return leerInstrucciones_(raiz).textos;
+}
+
+/* Guarda las instrucciones de UN tipo de listado; con el texto vacío las quita. Con el cerrojo puesto. */
+function webInstruccionesGuardar(clave, texto, ctx) {
+  cargarAprendido_(carpetaDatos_());
+  if (typeof clave !== 'string' || !entradaCatalogo_(clave)) throw new Error('Ese listado no existe.');
+  const limpio = String(texto === null || texto === undefined ? '' : texto).replace(/\r\n?/g, '\n').trim();
+  if (limpio.length > MAX_INSTRUCCION_) return { ok: false, mensaje: 'Es demasiado largo (' + MAX_INSTRUCCION_ + ' letras como mucho).' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const raiz = carpetaDatos_(), v = leerInstrucciones_(raiz);
+    if (limpio) v.textos[clave] = limpio; else delete v.textos[clave];
+    escribirInstrucciones_(raiz, v);
+    return { ok: true, clave: clave, texto: limpio };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Solo lee. Solo cifras, nunca el texto: cuántos listados tienen instrucciones, cuántas entradas ya no corresponden a ningún tipo y cuántas se han descartado.
+   Sin fichero no es error: «sin datos». Mal solo si el fichero no se puede leer. */
+function cmpInstrucciones_(ctx) {
+  cargarAprendido_(ctx.raiz);
+  const v = leerInstrucciones_(ctx.raiz), claves = Object.keys(v.textos);
+  if (!claves.length && !v.ilegible && !v.descartadas) return { estado: 'sin datos', cifras: { 'con-instrucciones': 0 } };
+  const sinTipo = claves.filter(function (k) { return !entradaCatalogo_(k); }).length;
+  return { estado: v.ilegible ? 'mal' : 'bien', cifras: { 'con-instrucciones': claves.length, 'sin-tipo': sinTipo, descartadas: v.descartadas, ilegible: v.ilegible ? 1 : 0 } };
+}
+
 /* ==== ComprobCatalogo.gs ==== */
 /* El catálogo de comprobaciones: una tabla de datos. Cada una tiene un `id` fijo (no se renombra nunca), la fila de la que sale, una frase llana y una función que SOLO LEE.
    Una función recibe el contexto de la pasada ({ raiz, indice, avance, comp, ahoraMs, cache }) y devuelve { estado, cifras }.
@@ -7017,9 +7081,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_);
 function cmpFuncion_(nombre) {
-  return { cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -11485,6 +11549,7 @@ function webEstado(ctx) {
   } catch (x) { /* sin configuración legible: sin nombre */ }
   const e = estadoListados_(raiz);
   r.filas = e.filas; r.movimientos = e.movimientos; r.cursoActual = e.cursoActual; r.cursos = e.cursos; r.pendientes = e.pendientes;
+  try { r.instrucciones = instruccionesParaPagina_(raiz); } catch (x) { r.instrucciones = {}; }
   r.cursosElegibles = cursosElegibles_(raiz);
   r.tipos = tiposParaPagina_(raiz); r.periodos = PERIODOS_;
   if (!r.recolocando) delete r.recolocando;
