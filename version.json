@@ -1,25 +1,25 @@
 {
-  "version": "página nueva v30",
-  "commit": "311a87a",
+  "version": "página nueva v31",
+  "commit": "a9004d7",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
-    "acciones.js": "6a4c168270ef25aaf5d1ade2344b3109d28fd9fca34031f07c6c37a6d7ea40c0",
+    "acciones.js": "66b588b6a797966296439002aa2a4c2441841af36ba3f4a038ff307640254189",
     "actualizar-copia.js": "8aacfacffca636cf96f2e342c23ef5cb508d618ceb2dea8c2d19bd51a80ebc0f",
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
-    "arranque.js": "7a6157b9a0a37fed8e11d6872e47aa150baadcd5fc258a8f27cd1075c684c75d",
+    "arranque.js": "1f8cc7f0222a7eac3e6e3388b8b63c4811b1443c172a08e680fc16d31f42d679",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "a684dc5783687a27f9ff29631df2c5c20e334a12fd2e9f1807aa2fd5ba44a609",
+    "commit.js": "a7abdae02302d9a639d76169ef073df262b01d95d7191cc16ab452b9eca41740",
     "ensayo.js": "eeb42eee06ada1d053d0088dcb9fd9e01692905e11764850bd6fa92ede83a498",
     "escritura.js": "4a0722a375ce9aa6c180004f531efc8d16b060d737e301b6a47599e3d50cbd89",
-    "generado/estilos.css": "a2e703c14fc61fd4c528b0ce7d6d912f75e3e71de5c9ba4fa92ffac085bbfecf",
-    "generado/pantalla.js": "146040f85ea8dfc253045e710609c95edcdf039b1ca7a6d343edc5e48a021b97",
-    "generado/programa.js": "1d41c57dd0f188b06f1d65599785ec73284b921f329f239ad7bcc94aee30e58a",
-    "index.html": "a6f9f6c8400609859a4de4b059e54eaf326d874f7142d67ee9637d844b7e3caa",
+    "generado/estilos.css": "a8b5935414e5674fd460692985bb638d332b1fb4ab01e033076d96912271b50f",
+    "generado/pantalla.js": "1bb4ef675255ec077217d34ce06ad9e924f46bf6e7d59beddd3caea1b8860b6b",
+    "generado/programa.js": "51bbfa93266462a00098bfc40a2946e84fbb844c29ecd8fc1a950aaef39bcdb8",
+    "index.html": "9349365f9601e28d5461b39c3b061aff2be1ec8a71bd89590a85a219cac2fcf7",
     "medidas.js": "b90bc11db319e94d00e317c7c2f1e9785449cfb2958df88da641639e4bafd6fc",
     "publicar.js": "446769cac6bdec8735a624cb25341ae3b41a2eb3d6f0a3e5499dc189924945ef",
-    "servidor.js": "5408ec771fb28e07a4ef55fbc50b01f550dda07136d04f6b4a5b285bb4643dc3",
+    "servidor.js": "76e7dce3a2af384b7464e1daa835e8d5f59fcc283cb315d99c3af1fa7c10020d",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
     "turno-escritura.js": "cf40690dc74316e6dc8f546a949765454b90c9d9d1bc2ccb58354255a5c32aeb",
-    "version.js": "c2f4470ad3084b350338139198abb47c71749b43bf9e55922df84b3c6fe38729"
+    "version.js": "edfba70bcbaaec9d39e7e0579c6d16be6b90f89ae8b1739ca0ac42a96657a030"
   }
 }

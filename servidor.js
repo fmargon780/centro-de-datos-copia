@@ -7,7 +7,7 @@
   var ENLACE_CARPETA = 'https://drive.google.com/drive/search?q=CENTRO%20DE%20DATOS';
   var NO_AQUI = 'Eso no se puede hacer desde esta página.';
   var CLAVE_VISTA = 'centro-de-datos-clave-funciona';
-  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webContactosLeer: 1, webConsultarLeer: 1, webConsultarTodos: 1, webConsultarEnlaces: 1, webConsultarEnlacesTodas: 1, webConsultasLeer: 1 };
+  var LECTURAS = { webEstado: 1, webAvisos: 1, webAnteriores: 1, webAlumnosDe: 1, webConfiguracionLeer: 1, webConsultarLeer: 1, webConsultarTodos: 1, webConsultarEnlaces: 1, webConsultarEnlacesTodas: 1, webConsultasLeer: 1 };
 
   function raiz() { return carpetaDatos_(); }
   function ctx() { return { correo: '', esDueno: false, lanzador: 2 }; }
@@ -93,16 +93,6 @@
     });
   }
 
-  /* Los contactos del profesorado (fila 98): trae antes la parte de los contactos y la del personal del curso de hoy, que son lo que se enseña. */
-  async function contactos() {
-    await C.precargarBase();
-    var rutas = await C.conCarga(function () {
-      return (leerIndice_(raiz()).hechos || []).filter(function (h) { return h.conjunto === 'contactos' || (h.conjunto === 'personal' && h.cursoEscolar === cursoActual_()); }).map(function (h) { return h.ruta; });
-    });
-    await C.precargar(rutas);
-    return C.conCarga(function () { return contactosParaPagina_(raiz()); });
-  }
-
   /* Consultar (fila 99): trae antes solo la parte que toca (la que se ha elegido, o Tutorías del curso de hoy al abrir). */
   async function consultar(id, curso, periodo) {
     await C.precargarBase();
@@ -145,7 +135,6 @@
     webConsultarTodos: function (id) { return consultarTodas(id); },
     webConsultarLeer: function (id, curso, periodo) { return consultar(id, curso, periodo); },
     webConsultarMedidas: function (m) { return window.MedidasPagina.consultarMedidas(m); },
-    webContactosLeer: function () { return contactos(); },
     webEstado: function () { return estado(); },
     webAvisos: function () { return avisos(); },
     webAnteriores: function (c, v) { return anteriores(c, v); },

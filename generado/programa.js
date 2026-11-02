@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v69';
+const VERSION_CD = 'CD v70';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -2491,6 +2491,9 @@ function repasarConsejo_(raiz, topeMs) {
 const ACUERDO_HECHO_ = 1;
 const DUENO_CD_ = 'centro-de-datos-ies';
 const SIN_DATO_ = '?';
+/* Las aplicaciones que pueden mandar correcciones (`cambios` en cada conjunto, fila 127). */
+const APP_AUSENCIAS_ = 'ausencias-guardias-ies', APP_BD_ALUMNADO_ = 'bd-alumnado-ies', APP_GESTOR_ = 'gestor-asuntos-ies';
+const APPS_CON_CAMBIOS_ = [APP_AUSENCIAS_, APP_BD_ALUMNADO_, APP_GESTOR_];
 const ESTADOS_QUE_NO_CUENTAN_ = ['anulada', 'trasladada'];
 const CABECERAS_DOMICILIO_ = {
   direccion: ['Dirección', 'Domicilio'],
@@ -2654,12 +2657,28 @@ const CAMPOS_CONTACTOS_ = [
   { clave: 'movil', etiqueta: 'Móvil', apartado: 'Contacto', tipo: 'texto', dueno: DUENO_CD_, fuente: 'personal' }
 ];
 
+/* Los campos de las correcciones (fila 127): una línea por corrección vigente. `valor`, `original` y `anterior` son del tipo del dato corregido (texto, número, fecha o sí/no), no siempre texto. */
+const CAMPOS_CORRECCIONES_ = [
+  { clave: 'conjunto', etiqueta: 'Conjunto', apartado: 'Dato', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'registro', etiqueta: 'Registro corregido', apartado: 'Dato', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'campo', etiqueta: 'Dato corregido', apartado: 'Dato', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'tipo', etiqueta: 'Estable o temporal', apartado: 'Corrección', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'valor', etiqueta: 'Valor que vale hoy', apartado: 'Corrección', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'original', etiqueta: 'Valor original', apartado: 'Corrección', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'anterior', etiqueta: 'Valor al caducar la temporal', apartado: 'Corrección', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'hasta', etiqueta: 'Último día de la temporal', apartado: 'Corrección', tipo: 'fecha', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'app', etiqueta: 'Aplicación', apartado: 'Quién', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'quien', etiqueta: 'Persona', apartado: 'Quién', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'cuando', etiqueta: 'Cuándo', apartado: 'Quién', tipo: 'texto', dueno: DUENO_CD_, fuente: 'correcciones' },
+  { clave: 'aplicada', etiqueta: 'Se ve en el conjunto', apartado: 'Corrección', tipo: 'si-no', dueno: DUENO_CD_, fuente: 'correcciones' }
+];
+
 /* Los conjuntos. fuentes: qué claves del catálogo lo alimentan, con qué lector (HechosLeer.gs) y su versión.
    Los nombres de lector y de montador son palabras: lectorDe_ y montadorDe_ (más abajo, en otros ficheros) los convierten en función. */
 const CONJUNTOS_ = [
   { conjunto: 'alumnado', titulo: 'Alumnado', cuenta: 'alumnos', acuerdoHecho: ACUERDO_HECHO_, montador: 'alumnado', versionMontador: 5,
     /* Quién puede entregar al conjunto y cómo se llama; y su ficha completa (el fichero que juntará partes y entregas). */
-    entregas: ['bd-alumnado-ies'], aplicaciones: { 'bd-alumnado-ies': 'BD Alumnado' },
+    entregas: ['bd-alumnado-ies'], aplicaciones: { 'bd-alumnado-ies': 'BD Alumnado' }, cambios: APPS_CON_CAMBIOS_,
     fichaCompleta: { clave: 'alumnado-bd', fichero: 'ALUMNADO-BD.json', acuerdo: 2, version: 1 },
     fuentes: [{ clave: 'alumnado', lector: 'regalum', versionLector: 2 }, { clave: 'matricula', lector: 'matricula', versionLector: 1, porCurso: true, esMatricula: true },
       { clave: 'expediente-primaria', lector: 'expedientePrimaria', versionLector: 1, porAlumno: true, soloActuales: true },
@@ -2668,7 +2687,7 @@ const CONJUNTOS_ = [
   /* El personal (fila 11): una parte por cada curso con algún listado `personal`, sin `actuales` ni `antiguos`, sin entregas ni ficha completa. `porCursos`: sus fuentes son
      todos los listados `personal` con curso (no hay un «primero»). `sufijoAvisos`: cómo cuenta la página sus avisos. */
   { conjunto: 'personal', titulo: 'Personal', cuenta: 'personas', acuerdoHecho: ACUERDO_HECHO_, montador: 'personal', versionMontador: 2, porCursos: true,
-    entregas: [], aplicaciones: {}, sufijoAvisos: 'del personal',
+    entregas: [], aplicaciones: {}, cambios: APPS_CON_CAMBIOS_, sufijoAvisos: 'del personal',
     fuentes: [{ clave: 'personal', lector: 'personal', versionLector: 1 }], campos: CAMPOS_PERSONAL_ },
   /* Los libros de texto (fila 37): una parte por cada curso con algún listado `libros` (un fichero por nivel), como el personal. Sin entregas ni ficha completa. */
   { conjunto: 'libros', titulo: 'Libros de texto', cuenta: 'libros', acuerdoHecho: ACUERDO_HECHO_, montador: 'libros', versionMontador: 1, porCursos: true,
@@ -2676,40 +2695,43 @@ const CONJUNTOS_ = [
     fuentes: [{ clave: 'libros', lector: 'libros', versionLector: 1 }], campos: CAMPOS_LIBROS_ },
   /* Las ausencias del personal (fila 114, Ausencias.gs): una parte por cada curso con un listado `ausencias`. No tiene campos fijos: las columnas del fichero son sus campos (van en la parte, no aquí). Sin diagnóstico: son datos de trabajadores. */
   { conjunto: 'ausencias', titulo: 'Ausencias', cuenta: 'ausencias', acuerdoHecho: ACUERDO_HECHO_, montador: 'ausencias', versionMontador: 1, porCursos: true, sinDiagnostico: true,
-    entregas: [], aplicaciones: {}, sufijoAvisos: 'de las ausencias',
+    entregas: [], aplicaciones: {}, cambios: [APP_AUSENCIAS_], sufijoAvisos: 'de las ausencias',
     fuentes: [{ clave: 'ausencias', lector: 'ausencias', versionLector: 1 }], campos: [] },
   /* Las tutorías (fila 21): una parte por cada curso con un PDF de la función tutorial. Además de su listado mira la parte del personal y la `actuales` del alumnado del mismo curso
      (`mira`) y se rehace cuando cambia el día en que una línea empieza o acaba (`conDias`). Van después de esos dos. */
   { conjunto: 'tutorias', titulo: 'Tutorías', cuenta: 'grupos', acuerdoHecho: ACUERDO_HECHO_, montador: 'tutorias', versionMontador: 1, porCursos: true, mira: ['personal', 'alumnado'], conDias: true,
-    entregas: [], aplicaciones: {}, sufijoAvisos: 'de las tutorías',
+    entregas: [], aplicaciones: {}, cambios: APPS_CON_CAMBIOS_, sufijoAvisos: 'de las tutorías',
     fuentes: [{ clave: 'tutorias', lector: 'tutorias', versionLector: 3 }], campos: CAMPOS_TUTORIAS_ },
   /* El Consejo Escolar (fila 22): no va por cursos sino por periodos. Una parte `periodo` por cada listado con periodo y un `historial` que sale de ellas (`porPeriodos`). Mira el personal y el alumnado
      (`mira`) y el historial se rehace el día en que cambia «miembro hoy» (`conDias`, sus días en `avance.dias`). Va detrás de los otros tres. */
   { conjunto: 'consejo-escolar', titulo: 'Consejo Escolar', cuenta: 'nombramientos', acuerdoHecho: ACUERDO_HECHO_, montador: 'consejo', versionMontador: 1, porCursos: true, porPeriodos: true,
-    mira: ['personal', 'alumnado'], conDias: true, entregas: [], aplicaciones: {}, sufijoAvisos: 'del Consejo Escolar',
+    mira: ['personal', 'alumnado'], conDias: true, entregas: [], aplicaciones: {}, cambios: [APP_GESTOR_], sufijoAvisos: 'del Consejo Escolar',
     fuentes: [{ clave: 'consejo-escolar', lector: 'consejo', versionLector: 1 }], campos: CAMPOS_CONSEJO_ },
   /* Las empresas (fila 23): el primer conjunto que se entrega entero. No tiene listados ni campos propios: su única fuente es la entrega vigente de `entregadoPor` (la lista entera) y sus campos y registros los dice
      ella (HechosEnteros.gs). Una sola parte, `todas`. Otro conjunto así es otra línea como esta. `entregadas` y `quienEntrega` son palabras de la línea de la página. */
   { conjunto: 'empresas', titulo: 'Empresas', cuenta: 'empresas', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
-    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregadas', quienEntrega: 'el Gestor de asuntos', sufijoAvisos: 'de empresas',
+    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregadas', quienEntrega: 'el Gestor de asuntos', cambios: [APP_GESTOR_], sufijoAvisos: 'de empresas',
     fuentes: [], campos: [] },
   /* Las Administraciones (fila 24): otro conjunto entregado entero por el Gestor, igual que las empresas, con las dos claves opcionales del registro: `desglose` (por qué clave de `datos` se reparte la cuenta que dice la
      página y cómo se llama cada trozo) y `unicos` (claves de `datos` cuyo valor no debería repetirse entre registros: si se repite, aviso, y el registro entra igual). */
   { conjunto: 'administraciones', titulo: 'Administraciones', cuenta: 'administraciones', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
-    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregadas', quienEntrega: 'el Gestor de asuntos', sufijoAvisos: 'de administraciones',
+    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregadas', quienEntrega: 'el Gestor de asuntos', cambios: [APP_GESTOR_], sufijoAvisos: 'de administraciones',
     desglose: { clave: 'clase', trozos: [{ valor: 'organismo', uno: 'organismo', varios: 'organismos' }, { valor: 'centro', uno: 'centro', varios: 'centros' }] },
     unicos: ['tercero', 'codigoCentro'], fuentes: [], campos: [] },
   /* Los cargos (fila 25): entregado entero por el Gestor y con tres claves más, opcionales y válidas para cualquier conjunto así: `pasoPropio` (una palabra de `pasoPropioDe_`: lo que se hace después de montar, aquí unir
      con el personal y decir quién ocupa hoy), `camposPropios` (los campos que añade ese paso) y `cuentaPor` (por qué clave de `datos` se cuentan los valores distintos que dice la página). `mira`: los conjuntos
      de los que depende (todas sus partes); `conDias`: se rehace el día en que cambia «ocupa hoy». `parteNombre`: la parte se llama `todos`. `avisosPropios`: los avisos que da el paso, además de los de todo conjunto así. */
   { conjunto: 'cargos', titulo: 'Cargos', cuenta: 'cargos', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies', parteNombre: 'todos',
-    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregados', quienEntrega: 'el Gestor de asuntos', sufijoAvisos: 'de cargos',
+    entregas: ['gestor-asuntos-ies'], aplicaciones: { 'gestor-asuntos-ies': 'Gestor de asuntos' }, entregadas: 'entregados', quienEntrega: 'el Gestor de asuntos', cambios: [APP_GESTOR_], sufijoAvisos: 'de cargos',
     pasoPropio: 'cargos', camposPropios: CAMPOS_CARGOS_, cuentaPor: 'cargo', avisosPropios: ['sin-ficha', 'ficha-dudosa', 'fechas'], mira: ['personal'], conDias: true, fuentes: [], campos: [] },
   /* Los contactos del profesorado (fila 98): sale del personal del curso de hoy (los listados `personal` de ese curso son sus fuentes) y de lo escrito a mano (`_interno/contactos-a-mano.json`, HechosContactos.gs). Una sola parte, `todos`.
      `cambios`: qué aplicaciones pueden mandarle cambios (`CAMBIOS contactos <aplicación>.json`); no recibe entregas. `datosSinCampo`: claves de `datos` que no son un campo. Sin diagnóstico: son contactos. */
   { conjunto: 'contactos', titulo: 'Contactos del profesorado', cuenta: 'contactos', acuerdoHecho: ACUERDO_HECHO_, montador: 'contactos', versionMontador: 1, deContactos: true, parteNombre: 'todos', sinDiagnostico: true,
-    entregas: [], aplicaciones: { 'ausencias-guardias-ies': 'Ausencias y Guardias', 'centro-de-datos-ies': 'Centro de datos' }, cambios: ['ausencias-guardias-ies'], datosSinCampo: ['origen'], sufijoAvisos: 'de contactos',
-    fuentes: [], campos: CAMPOS_CONTACTOS_ }
+    entregas: [], aplicaciones: { 'ausencias-guardias-ies': 'Ausencias y Guardias', 'centro-de-datos-ies': 'Centro de datos' }, cambios: APPS_CON_CAMBIOS_, corregibles: ['correoCentro', 'correoPersonal', 'movil'], datosSinCampo: ['origen'], sufijoAvisos: 'de contactos',
+    fuentes: [], campos: CAMPOS_CONTACTOS_ },
+  /* Las correcciones vigentes de todos los conjuntos (fila 127, HechosCorrecciones.gs): una sola parte, `todas`, que sale de _interno/correcciones.json y de las partes ya hechas (para decir el valor original). Va la última. Sin diagnóstico: lleva datos de personas. */
+  { conjunto: 'correcciones', titulo: 'Correcciones', cuenta: 'correcciones', acuerdoHecho: ACUERDO_HECHO_, montador: 'correcciones', versionMontador: 1, deCorrecciones: true, parteNombre: 'todas', sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'de correcciones', fuentes: [], campos: CAMPOS_CORRECCIONES_ }
 ];
 
 /* Los campos de un conjunto como van en el fichero: sin las pistas de dónde sale cada uno, y con su dueño y su fuente.
@@ -4991,7 +5013,7 @@ function montarHistorialConsejo_(raiz, t, avance, cache, indice) {
 const FUENTE_ENTREGA_ = { clave: 'entrega', lector: 'entrega', versionLector: 1 };
 
 /* ¿Tiene este conjunto algo que le haga existir antes de que haya listados (una entrega, o lo publicado)? Los que van por cursos, por periodos o se entregan enteros salen solo cuando tienen fuentes o partes. */
-function sinListadoPropio_(conj) { return !!(conj.porCursos || conj.entregadoPor || conj.deContactos); }
+function sinListadoPropio_(conj) { return !!(conj.porCursos || conj.entregadoPor || conj.deContactos || conj.deCorrecciones); }
 
 /* El lector: la entrega tal como llegó, ya como objeto. Solo vive en _interno/leido/. { lector, clave, variante, huella, entrega, problema } */
 function leerEntrega_(bytes, fuente, huella, conj, entrada) {
@@ -5602,12 +5624,11 @@ function pasoDeCargos_(conj, objeto, ctx) {
 }
 
 /* ==== HechosContactos.gs ==== */
-/* El conjunto `contactos` (fila 98): correo del centro, correo personal y móvil de cada docente. Lo que trae Séneca se usa; lo escrito a mano manda. Lo escrito vive en _interno/contactos-a-mano.json y solo lo escribe el
-   trabajo de fondo (ContactosCambios.gs). Son datos de personas: ningún valor sale de aquí hacia diagnostico/, comprobaciones, avisos con valor ni documentos; en Drive solo viven en la parte y en el fichero de lo escrito. */
+/* El conjunto `contactos` (fila 98): correo del centro, correo personal y móvil de cada docente. Lo que trae Séneca se usa; lo corregido por las aplicaciones manda (desde la fila 127 son correcciones como las de cualquier conjunto: Correcciones.gs
+   las escribe en la parte al cerrar el montaje, y su `origen` dice de dónde sale cada dato). Lo guardado vive en _interno/correcciones.json y solo lo escribe el trabajo de fondo (ContactosCambios.gs). Son datos de personas: ningún valor sale de aquí hacia diagnostico/, comprobaciones, avisos con valor ni documentos; en Drive solo viven en la parte y en el fichero de lo escrito. */
 const CAMPOS_DE_CONTACTO_ = ['correoCentro', 'correoPersonal', 'movil'];
-const ARCHIVO_CONTACTOS_ = 'contactos-a-mano.json';
+const ARCHIVO_CONTACTOS_ = 'contactos-a-mano.json';   // el de la fila 98: ya solo se lee, una vez, para pasarlo a correcciones.json
 const DOMINIOS_DEL_CENTRO_ = ['g.educaand.es', 'juntadeandalucia.es'];
-const CONTACTOS_IGNORADOS_MAX_ = 20;
 const MOTIVO_MOVIL_ = 'El móvil tiene que tener 9 cifras y empezar por 6 o 7.';
 const MOTIVO_CORREO_ = 'El correo tiene que llevar un nombre, una arroba y un dominio con punto, sin espacios.';
 
@@ -5634,17 +5655,20 @@ function validarContacto_(campo, texto) {
   return v ? { ok: true, valor: v } : { ok: false, motivo: campo === 'movil' ? MOTIVO_MOVIL_ : MOTIVO_CORREO_ };
 }
 
-/* Como se enseña: el móvil «612 345 678»; el correo, tal cual. */
-function textoDeContacto_(campo, valor) {
-  return campo === 'movil' && /^\d{9}$/.test(String(valor)) ? String(valor).replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3') : String(valor || '');
-}
+/* ---- Lo corregido ---- */
 
-/* ---- Lo escrito a mano ---- */
-
-/* { version, personas: { id: { empleado, correoCentro: { valor, quien, app, cuando }, … } }, ignorados: [{ clave, detalle, app, cuando }], ignoradosTotal }. `valor` '' es un borrado. */
+/* Lo guardado para los contactos, visto como lo vio la fila 98: { version, personas: { id: { empleado, dato: { valor, quien, app, cuando } } }, ignorados, ignoradosTotal }. Solo cuenta lo que vale hoy; `version` es la de todo lo guardado. */
 function contactosAMano_(raiz) {
-  const a = leerJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_CONTACTOS_) || {};
-  return { version: a.version || 0, personas: a.personas || {}, ignorados: Array.isArray(a.ignorados) ? a.ignorados : [], ignoradosTotal: a.ignoradosTotal || 0 };
+  const store = leerCorrecciones_(raiz), v = vigentesDe_(store, 'contactos', hoyMadrid_()), personas = {};
+  Object.keys(v).forEach(function (id) {
+    const p = personas[id] = {};
+    Object.keys(v[id]).forEach(function (campo) {
+      const e = v[id][campo].temporal || v[id][campo].estable;
+      p[campo] = { valor: e.valor, quien: e.quien, app: e.app, cuando: e.cuando };
+      if (e.empleado) p.empleado = e.empleado;
+    });
+  });
+  return { version: store.version, personas: personas, ignorados: store.ignorados.filter(function (i) { return i.conjunto === 'contactos'; }), ignoradosTotal: (store.ignoradosPor || {}).contactos || 0 };
 }
 
 function hayContactosAMano_(am) { return Object.keys(am.personas).length > 0 || am.ignorados.length > 0; }
@@ -5684,7 +5708,8 @@ function contactosDeSeneca_(d) {
   return s;
 }
 
-/* La parte `todos`. `personal` = la parte del personal del curso de hoy (o null). Un registro por docente de esa parte y por cualquiera con algo escrito a mano. */
+/* La parte `todos`. `personal` = la parte del personal del curso de hoy (o null). Un registro por docente de esa parte y por cualquiera con algo corregido que valga hoy. Aquí solo va lo de Séneca: lo corregido lo escribe
+   aplicarCorrecciones_ al cerrar el montaje (y le pone su `origen`). */
 function montarContactos_(conj, personal, am) {
   const delPersonal = {}, ids = [];
   (personal ? personal.registros : []).forEach(function (r) {
@@ -5696,11 +5721,7 @@ function montarContactos_(conj, personal, am) {
     const r = delPersonal[id], mano = am.personas[id] || {}, seneca = r ? contactosDeSeneca_(r.datos) : {};
     const datos = { empleado: (r && r.datos.empleado) || mano.empleado || '' }, origen = {};
     if (!datos.empleado) delete datos.empleado;
-    CAMPOS_DE_CONTACTO_.forEach(function (c) {
-      const a = mano[c];
-      if (a && a.valor) { datos[c] = a.valor; origen[c] = { de: 'a-mano', quien: a.quien, app: a.app, cuando: a.cuando }; }
-      else if (seneca[c]) { datos[c] = seneca[c]; origen[c] = a ? { de: 'seneca', borradoPor: { quien: a.quien, app: a.app, cuando: a.cuando } } : { de: 'seneca' }; }
-    });
+    CAMPOS_DE_CONTACTO_.forEach(function (c) { if (seneca[c]) { datos[c] = seneca[c]; origen[c] = { de: 'seneca' }; } });
     if (Object.keys(origen).length) datos.origen = origen;
     return { id: id, datos: datos };
   });
@@ -5727,108 +5748,127 @@ function montarParteDeContactos_(raiz, t, avance, cache, indice) {
   };
 }
 
-/* ---- Lo que enseña la pantalla ---- */
-
-function diaHoraDeContacto_(iso) {
-  const ms = Date.parse(iso);
-  const m = isNaN(ms) ? null : /^\d{4}-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(ahoraMadrid_(new Date(ms)));
-  return m ? m[2] + '/' + m[1] + ' ' + m[3] + ':' + m[4] : '';
-}
-
-/* «Pepa Ruiz · 28/10 12:40», «Juan Pérez, desde Ausencias · 29/10 10:12» o «Séneca»; '' si la persona no tiene ningún dato. Cuenta el cambio más reciente de los tres datos (un borrado también). */
-function ultimoCambioDeContacto_(origen) {
-  let mejor = null, hay = false;
-  CAMPOS_DE_CONTACTO_.forEach(function (c) {
-    const o = origen && origen[c];
-    if (!o) return;
-    hay = true;
-    const x = o.de === 'a-mano' ? o : (o.borradoPor || null);
-    if (x && (!mejor || Date.parse(x.cuando) > Date.parse(mejor.cuando))) mejor = x;
-  });
-  if (!hay) return '';
-  if (!mejor) return 'Séneca';
-  const de = mejor.app && mejor.app !== DUENO_CD_ ? ', desde ' + (mejor.app === 'ausencias-guardias-ies' ? 'Ausencias' : mejor.app) : '';
-  return (mejor.quien || '') + de + ' · ' + diaHoraDeContacto_(mejor.cuando);
-}
-
-/* La tabla de la pestaña: una fila por docente del curso de hoy, por orden alfabético, con lo que la pantalla necesita para pintarla (`valores`, de dónde sale cada uno en `origen` y lo que traería Séneca sin lo escrito).
-   Quien solo está por tener algo escrito a mano y ya no está en Séneca no sale. */
-function contactosParaPagina_(raiz) {
-  const indice = leerIndice_(raiz), hp = parteVecinaTutorias_(indice, 'personal', cursoActual_(), 'curso'), hc = partesDelConjunto_(indice, 'contactos', 'todos')[0];
-  const res = { curso: cursoActual_(), hay: !!hc, filas: [] };
-  if (!hc) return res;
-  const docentes = {};
-  if (hp) abrirParteVecina_(hp, {}).registros.forEach(function (r) { if (r.datos.tipoPersonal !== 'no-docente') docentes[r.id] = r; });
-  abrirParteVecina_(hc, {}).registros.forEach(function (r) {
-    if (!docentes[r.id]) return;
-    const valores = {};
-    CAMPOS_DE_CONTACTO_.forEach(function (c) { if (r.datos[c]) valores[c] = r.datos[c]; });
-    res.filas.push({ id: r.id, empleado: r.datos.empleado || '', valores: valores, origen: r.datos.origen || {}, seneca: contactosDeSeneca_(docentes[r.id].datos) });
-  });
-  return res;
-}
-
 /* ==== ContactosCambios.gs ==== */
-/* Los cambios de contactos (fila 98). Una aplicación (y la propia página nueva) deja en entrada/ un `CAMBIOS contactos <aplicación>.json` con TODOS sus cambios que aún no ve publicados; el trabajo de fondo lo recoge, aplica cada
-   cambio solo si es posterior al guardado («gana el último»), rehace la parte y borra el fichero: lo vigente queda en _interno/contactos-a-mano.json, que solo escribe este código desde la vuelta de fondo.
-   Un cambio que no vale (persona que no se reconoce, valor mal formado) se ignora y se cuenta; en los avisos va una frase llana sin ningún valor. */
-const NOMBRE_CAMBIOS_CONTACTOS_ = 'CAMBIOS contactos centro-de-datos-ies.json';
+/* Las correcciones que mandan las aplicaciones (filas 98 y 127). Una aplicación deja en entrada/ un `CAMBIOS <conjunto> <aplicación>.json` con TODOS sus cambios que aún no ve publicados (si la aplicación puede mandar cambios a ese conjunto:
+   `cambios` en su línea de CONJUNTOS_, y `recibe` de indice.json lo dice). Cada cambio: { id, campo, valor, tipo: 'estable' | 'temporal', hasta, quitar, quien, cuando, empleado }. El trabajo de fondo lo recoge, aplica cada
+   cambio solo si es posterior al guardado («gana el último»), rehace las partes y borra el fichero: lo vigente queda en _interno/correcciones.json (Correcciones.gs), que solo escribe el fondo.
+   Sin `tipo` se entiende `estable`, y un `valor` vacío sin `tipo` es `quitar` (así mandaba Ausencias y Guardias antes de la fila 127). Un cambio que no vale se ignora y se cuenta; en los avisos va una frase llana sin ningún valor. */
+const CORRECCIONES_TIPOS_ESCALARES_ = ['texto', 'numero', 'fecha', 'si-no'];
 
 /* ['cambios contactos ausencias-guardias-ies.json', 'contactos', 'ausencias-guardias-ies'] o null. */
 function cambiosDeEntrada_(nombre) { return /^cambios ([a-z0-9-]+) ([a-z0-9-]+)\.json$/.exec(normalizarNombre_(nombre)); }
 
-/* ¿Puede esa aplicación mandar cambios a ese conjunto? La propia página siempre. */
+function conjuntoDeCambios_(conjunto) { return CONJUNTOS_.filter(function (c) { return c.conjunto === conjunto && c.cambios; })[0] || null; }
+
+/* ¿Puede esa aplicación mandar cambios a ese conjunto? */
 function aceptaCambios_(conjunto, app) {
-  const conj = CONJUNTOS_.filter(function (c) { return c.conjunto === conjunto && c.cambios; })[0];
-  return !!conj && (app === DUENO_CD_ || conj.cambios.indexOf(app) !== -1);
+  const conj = conjuntoDeCambios_(conjunto);
+  return !!conj && conj.cambios.indexOf(app) !== -1;
 }
 
-/* Aplica los cambios de `o` sobre lo escrito a mano. Devuelve { aplicados, ignorados, viejos }. Escribe _interno/contactos-a-mano.json solo si algo cambió. */
-function aplicarCambiosDeContactos_(raiz, o, app) {
+/* El dato `campo` de un conjunto, si se puede corregir: { tipo } (tipo null = libre: lo que entrega la aplicación dueña, sin campos fijos). */
+function campoDeCorreccion_(conj, campo) {
+  if (typeof campo !== 'string' || campo === 'id' || !/^[A-Za-z][A-Za-z0-9]{0,39}$/.test(campo)) return null;
+  if (conj.corregibles) return conj.corregibles.indexOf(campo) !== -1 ? { tipo: 'texto' } : null;
+  if (conj.campos.length) { const d = conj.campos.filter(function (c) { return c.clave === campo; })[0]; return d && CORRECCIONES_TIPOS_ESCALARES_.indexOf(d.tipo) !== -1 ? { tipo: d.tipo } : null; }
+  return { tipo: null };
+}
+
+/* El valor de un cambio con la forma de su dato: { ok, valor } o { ok: false, detalle } (una frase sin ningún valor). */
+function valorDeCorreccion_(conj, campo, def, valor) {
+  const mal = function (d) { return { ok: false, detalle: d }; };
+  if (conj.deContactos) {
+    const v = typeof valor === 'string' ? validarContacto_(campo, valor) : { ok: false, motivo: '' };
+    return v.ok && v.valor !== '' ? v : mal(campo === 'movil' ? 'Un cambio traía un móvil con una forma que no vale.' : 'Un cambio traía un correo con una forma que no vale.');
+  }
+  const forma = 'Una corrección traía un valor con una forma que no vale.';
+  let v = null;
+  if (def.tipo === 'numero') v = typeof valor === 'number' ? (isFinite(valor) ? valor : null) : convertirValorHecho_(valor, 'numero');
+  else if (def.tipo === 'fecha') v = typeof valor === 'string' && /^\d{4}-\d\d-\d\d$/.test(valor.trim()) ? valor.trim() : convertirValorHecho_(valor, 'fecha');
+  else if (def.tipo === 'si-no') v = typeof valor === 'boolean' ? valor : convertirValorHecho_(valor, 'si-no');
+  else if (typeof valor === 'string') v = convertirValorHecho_(valor, 'texto');
+  else if (def.tipo === null && (typeof valor === 'boolean' || (typeof valor === 'number' && isFinite(valor)))) v = valor;
+  return v === null || v === undefined ? mal(forma) : { ok: true, valor: v };
+}
+
+/* Aplica los cambios de `o` sobre lo guardado. Devuelve { aplicados, ignorados, viejos }. Escribe _interno/correcciones.json solo si algo cambió. */
+function aplicarCambiosDeCorrecciones_(raiz, o, app) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
-  try { return aplicarCambiosDeContactosInterno_(raiz, o, app); } finally { lock.releaseLock(); }
+  try { return aplicarCambiosDeCorreccionesInterno_(raiz, o, app); } finally { lock.releaseLock(); }
 }
 
-function aplicarCambiosDeContactosInterno_(raiz, o, app) {
-  const am = contactosAMano_(raiz), indice = leerIndice_(raiz), hp = parteVecinaTutorias_(indice, 'personal', cursoActual_(), 'curso');
-  const conocidos = {}, porNombre = {};
+/* Quién es quién en los contactos: { conocidos: id → nombre, porNombre: nombre normalizado → ids } con el personal del curso de hoy y lo que ya hay guardado. */
+function personasParaContactos_(raiz, store) {
+  const indice = leerIndice_(raiz), hp = parteVecinaTutorias_(indice, 'personal', cursoActual_(), 'curso'), conocidos = {}, porNombre = {};
   (hp ? abrirParteVecina_(hp, {}).registros : []).forEach(function (r) {
     conocidos[r.id] = r.datos.empleado || '';
     if (r.datos.tipoPersonal === 'no-docente') return;
     const k = claveNombreConsejo_(r.datos.apellidos && r.datos.nombre ? r.datos.apellidos + ' ' + r.datos.nombre : r.datos.empleado);
     if (k) (porNombre[k] = porNombre[k] || []).push(r.id);
   });
-  Object.keys(am.personas).forEach(function (id) { if (conocidos[id] === undefined) conocidos[id] = am.personas[id].empleado || ''; });
-  const cuenta = { aplicados: 0, ignorados: 0, viejos: 0 };
+  store.lista.forEach(function (e) { if (e.conjunto === 'contactos' && conocidos[e.id] === undefined) conocidos[e.id] = e.empleado || ''; });
+  return { conocidos: conocidos, porNombre: porNombre };
+}
+
+function aplicarCambiosDeCorreccionesInterno_(raiz, o, app) {
+  const conj = conjuntoDeCambios_(o.conjunto), store = leerCorrecciones_(raiz), hoy = hoyMadrid_(), cuenta = { aplicados: 0, ignorados: 0, viejos: 0 };
+  const personas = conj.deContactos ? personasParaContactos_(raiz, store) : null;
   let cambio = false;
   const ignorar = function (c, detalle) {
-    const clave = [app, c && c.id, c && c.campo, c && c.cuando, detalle].join('|');
-    if (am.ignorados.some(function (i) { return i.clave === clave; })) return;
-    am.ignorados.push({ clave: clave, detalle: detalle, app: app, cuando: ahoraMadrid_() });
-    am.ignorados = am.ignorados.slice(-CONTACTOS_IGNORADOS_MAX_);
-    am.ignoradosTotal++; cuenta.ignorados++; cambio = true;
+    const clave = [app, conj.conjunto, c && c.id, c && c.campo, c && c.cuando, detalle].join('|');
+    if (store.ignorados.some(function (i) { return i.clave === clave; })) return;
+    store.ignorados.push({ clave: clave, detalle: detalle, conjunto: conj.conjunto, app: app, cuando: ahoraMadrid_() });
+    store.ignorados = store.ignorados.slice(-CORRECCIONES_IGNORADAS_MAX_);
+    store.ignoradosTotal++; store.ignoradosPor[conj.conjunto] = (store.ignoradosPor[conj.conjunto] || 0) + 1; cuenta.ignorados++; cambio = true;
   };
+  const noBien = 'Un cambio no estaba bien hecho.';
   o.lista.forEach(function (c) {
-    if (!c || typeof c !== 'object' || Array.isArray(c)) { ignorar(null, 'Un cambio no estaba bien hecho.'); return; }
-    const ms = Date.parse(c.cuando);
-    if (CAMPOS_DE_CONTACTO_.indexOf(c.campo) === -1 || typeof c.valor !== 'string' || typeof c.cuando !== 'string' || isNaN(ms)) { ignorar(c, 'Un cambio no estaba bien hecho.'); return; }
-    let id = typeof c.id === 'string' ? c.id : '';
-    if (conocidos[id] === undefined) {
-      const k = claveNombreConsejo_(c.empleado), coinciden = k ? porNombre[k] || [] : [];
+    if (!c || typeof c !== 'object' || Array.isArray(c)) { ignorar(null, noBien); return; }
+    const ms = Date.parse(c.cuando), def = campoDeCorreccion_(conj, c.campo), tipo = c.tipo === undefined ? 'estable' : c.tipo;
+    if (!def || typeof c.cuando !== 'string' || isNaN(ms) || (tipo !== 'estable' && tipo !== 'temporal')) { ignorar(c, noBien); return; }
+    const quitar = c.quitar === true || (c.tipo === undefined && typeof c.valor === 'string' && !c.valor.trim());
+    let id = typeof c.id === 'string' ? c.id.trim() : '';
+    if (personas && personas.conocidos[id] === undefined) {
+      const k = claveNombreConsejo_(c.empleado), coinciden = k ? personas.porNombre[k] || [] : [];
       id = coinciden.length === 1 ? coinciden[0] : '';
     }
-    if (!id) { ignorar(c, 'Un cambio era de una persona que no se reconoce.'); return; }
-    const v = validarContacto_(c.campo, c.valor);
-    if (!v.ok) { ignorar(c, c.campo === 'movil' ? 'Un cambio traía un móvil con una forma que no vale.' : 'Un cambio traía un correo con una forma que no vale.'); return; }
-    const actual = (am.personas[id] || {})[c.campo];
-    if (actual && Date.parse(actual.cuando) >= ms) { cuenta.viejos++; return; }
-    const p = am.personas[id] = am.personas[id] || {};
-    p.empleado = conocidos[id] || (typeof c.empleado === 'string' ? c.empleado.trim() : '') || p.empleado || '';
-    p[c.campo] = { valor: v.valor, quien: typeof c.quien === 'string' && c.quien.trim() ? c.quien : app, app: app, cuando: c.cuando };
-    cuenta.aplicados++; cambio = true;
+    if (!id) { ignorar(c, personas ? 'Un cambio era de una persona que no se reconoce.' : 'Una corrección era de un registro que no se reconoce.'); return; }
+    let valor, hasta = '';
+    if (!quitar) {
+      const v = valorDeCorreccion_(conj, c.campo, def, c.valor);
+      if (!v.ok) { ignorar(c, v.detalle); return; }
+      valor = v.valor;
+      if (tipo === 'temporal') {
+        hasta = typeof c.hasta === 'string' ? c.hasta.trim() : '';
+        if (!/^\d{4}-\d\d-\d\d$/.test(hasta) || isNaN(Date.parse(hasta + 'T00:00:00Z'))) { ignorar(c, 'Una corrección temporal no traía bien su día de fin.'); return; }
+        if (hasta < hoy) { cuenta.viejos++; return; }
+      }
+    }
+    const huecos = store.lista.filter(function (e) { return e.conjunto === conj.conjunto && e.id === id && e.campo === c.campo; });
+    const quien = typeof c.quien === 'string' && c.quien.trim() ? c.quien : app;
+    const empleado = personas ? personas.conocidos[id] || (typeof c.empleado === 'string' ? c.empleado.trim() : '') || (huecos[0] || {}).empleado || '' : undefined;
+    const poner = function (nuevo, hueco) {
+      if (empleado !== undefined) nuevo.empleado = empleado;
+      nuevo.quien = quien; nuevo.app = app; nuevo.cuando = c.cuando;
+      if (hueco) store.lista[store.lista.indexOf(hueco)] = nuevo; else store.lista.push(nuevo);
+      cuenta.aplicados++; cambio = true;
+    };
+    if (quitar) {
+      /* Se quita la temporal que vale; si no hay, la estable. Queda una tumba: un envío repetido y más viejo no la resucita. */
+      const viva = huecos.filter(function (e) { return !e.quitado && e.tipo === 'temporal' && e.hasta >= hoy; })[0];
+      const objetivo = viva || huecos.filter(function (e) { return e.tipo === 'estable'; })[0] || null;
+      if (huecos.some(function (e) { return e.quitado && Date.parse(e.cuando) >= ms; }) || (objetivo && (objetivo.quitado || Date.parse(objetivo.cuando) >= ms))) { cuenta.viejos++; return; }
+      poner({ conjunto: conj.conjunto, id: id, campo: c.campo, tipo: objetivo ? objetivo.tipo : 'estable', quitado: true }, objetivo);
+      return;
+    }
+    const hueco = huecos.filter(function (e) { return e.tipo === tipo; })[0] || null;
+    if (hueco && Date.parse(hueco.cuando) >= ms) { cuenta.viejos++; return; }
+    const nuevo = { conjunto: conj.conjunto, id: id, campo: c.campo, tipo: tipo, valor: valor };
+    if (tipo === 'temporal') nuevo.hasta = hasta;
+    poner(nuevo, hueco);
   });
-  if (cambio) { am.version++; escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_CONTACTOS_, am); }
+  if (cambio) escribirCorrecciones_(raiz, store);
   return cuenta;
 }
 
@@ -5839,32 +5879,246 @@ function recibirCambios_(raiz, nombre, bytes) {
   let o = null;
   try { o = JSON.parse(bytesATexto_(bytes)); } catch (e) { return null; }
   if (!o || o.cambios !== 1 || o.conjunto !== m[1] || o.origen !== m[2] || !Array.isArray(o.lista)) return null;
-  const cuenta = aplicarCambiosDeContactos_(raiz, o, m[2]);
-  apuntarMovimiento_(raiz, { quien: m[2], via: 'entrada', fichero: nombre, que: 'guardado', mensaje: 'Cambios de contactos aplicados: ' + cuenta.aplicados + (cuenta.ignorados ? ' · ignorados: ' + cuenta.ignorados : '') });
-  ajustarTestigo_(raiz, true);   // la parte se rehace en la próxima tanda
+  const cuenta = aplicarCambiosDeCorrecciones_(raiz, o, m[2]);
+  apuntarMovimiento_(raiz, { quien: m[2], via: 'entrada', fichero: nombre, que: 'guardado', mensaje: 'Correcciones aplicadas: ' + cuenta.aplicados + (cuenta.ignorados ? ' · ignoradas: ' + cuenta.ignorados : '') });
+  ajustarTestigo_(raiz, true);   // las partes se rehacen en la próxima tanda
   return Object.assign({ estado: 'aplicado' }, cuenta);
 }
 
-/* Lo que hace la página nueva al guardar una casilla: deja en entrada/ SU `CAMBIOS contactos …` con todos sus cambios aún no vistos publicados (los de este navegador, que trae `c.pendientes`, y los que ya hubiera en el fichero, de otro
-   navegador), el último de cada persona y dato. `c` = { id, empleado, campo, valor, quien, pendientes }. Devuelve { estado: 'ok', valor, cuando } o { estado: 'mal', motivo }. */
-function guardarCambioDeContacto_(raiz, c) {
-  const v = validarContacto_(c.campo, c.valor);
-  if (!v.ok) return { estado: 'mal', motivo: v.motivo };
-  if (!c.id || typeof c.id !== 'string') return { estado: 'mal', motivo: 'No sé de quién es ese dato.' };
-  const cuando = ahoraMadrid_();
-  const nuevo = { id: c.id, empleado: String(c.empleado || ''), campo: c.campo, valor: v.valor, quien: String(c.quien || DUENO_CD_), cuando: cuando };
-  const entrada = subcarpetaPorRuta_(raiz, 'entrada'), it = entrada.getFilesByName(NOMBRE_CAMBIOS_CONTACTOS_), f = it.hasNext() ? it.next() : null;
-  let antes = [];
-  if (f) { try { const o = JSON.parse(f.getBlob().getDataAsString('UTF-8')); if (o && Array.isArray(o.lista)) antes = o.lista; } catch (e) { antes = []; } }
-  const ultimo = {};
-  antes.concat(Array.isArray(c.pendientes) ? c.pendientes : [], [nuevo]).forEach(function (x) {
-    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || CAMPOS_DE_CONTACTO_.indexOf(x.campo) === -1 || isNaN(Date.parse(x.cuando))) return;
-    const k = x.id + '|' + x.campo;
-    if (!ultimo[k] || Date.parse(x.cuando) >= Date.parse(ultimo[k].cuando)) ultimo[k] = x;
+/* ==== Correcciones.gs ==== */
+/* Las correcciones (fila 127). Una aplicación corrige o añade un dato de cualquier conjunto y se lo entrega al Centro de datos (ContactosCambios.gs recoge el `CAMBIOS <conjunto> <aplicación>.json`).
+   Aquí vive lo guardado, _interno/correcciones.json, que SOLO escribe el trabajo de fondo (Entrada.gs → recogerEntrada_), nunca la página:
+   { version, lista: [{ conjunto, id, campo, tipo: 'estable' | 'temporal', valor, hasta, quitado, empleado, quien, app, cuando }], ignorados: [{ clave, detalle, conjunto, app, cuando }], ignoradosTotal, ignoradosPor: { conjunto: cuántos } }.
+   Por cada (conjunto, registro, dato) caben una estable y una temporal. Una corrección quitada queda como «tumba» (`quitado`) unos días para que un envío repetido y más viejo no la resucite.
+   Al montar una parte (cerrarMontaje_) se escribe el valor vigente en `datos` y, en el registro, `corregido: { dato: { tipo, original, anterior, hasta, app, cuando } }`. Son datos de personas: ningún valor sale hacia diagnostico/, comprobaciones, avisos ni documentos. */
+const ARCHIVO_CORRECCIONES_ = 'correcciones.json';
+const CORRECCIONES_IGNORADAS_MAX_ = 20;
+const CORRECCIONES_TUMBA_MS_ = 60 * 86400000;
+/* Lo guardado, leído al empezar a calcular las tareas (HechosTandas.gs): así la clave de montaje y el montaje ven lo mismo. */
+let CORRECCIONES_DE_TAREAS_ = null;
+function fijarCorrecciones_(store) { CORRECCIONES_DE_TAREAS_ = store || null; }
+
+function correccionesVacias_() { return { version: 0, lista: [], ignorados: [], ignoradosTotal: 0, ignoradosPor: {} }; }
+
+/* Lo escrito en _interno/correcciones.json. Si aún no existe y queda el fichero antiguo de los contactos (fila 98), sale de él, ya como correcciones estables. */
+function leerCorrecciones_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  const a = leerJson_(interno, ARCHIVO_CORRECCIONES_);
+  if (a) return { version: a.version || 0, lista: Array.isArray(a.lista) ? a.lista : [], ignorados: Array.isArray(a.ignorados) ? a.ignorados : [], ignoradosTotal: a.ignoradosTotal || 0, ignoradosPor: a.ignoradosPor || {} };
+  const v = leerJson_(interno, ARCHIVO_CONTACTOS_);
+  return v ? correccionesDeContactosAMano_(v) : correccionesVacias_();
+}
+
+/* Lo ya escrito en los contactos pasa a correcciones estables con su quién, app y cuándo. Un borrado antiguo (valor vacío) no pasa: ya no existe, ahora se «quita». */
+function correccionesDeContactosAMano_(v) {
+  const c = correccionesVacias_();
+  c.version = v.version || 0; c.ignoradosTotal = v.ignoradosTotal || 0; c.ignoradosPor = { contactos: c.ignoradosTotal };
+  c.ignorados = (Array.isArray(v.ignorados) ? v.ignorados : []).map(function (i) { return Object.assign({ conjunto: 'contactos' }, i); });
+  Object.keys(v.personas || {}).sort().forEach(function (id) {
+    const p = v.personas[id];
+    CAMPOS_DE_CONTACTO_.forEach(function (campo) {
+      const a = p[campo];
+      if (a && a.valor) c.lista.push({ conjunto: 'contactos', id: id, campo: campo, tipo: 'estable', valor: a.valor, empleado: p.empleado || '', quien: a.quien, app: a.app, cuando: a.cuando });
+    });
   });
-  const texto = JSON.stringify({ cambios: 1, conjunto: 'contactos', origen: DUENO_CD_, generado: cuando, lista: Object.keys(ultimo).map(function (k) { return ultimo[k]; }) });
-  if (f) f.setContent(texto); else entrada.createFile(NOMBRE_CAMBIOS_CONTACTOS_, texto, 'application/json');
-  return { estado: 'ok', valor: v.valor, cuando: cuando };
+  return c;
+}
+
+function escribirCorrecciones_(raiz, store) {
+  store.version++;
+  escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), ARCHIVO_CORRECCIONES_, store);
+}
+
+/* Lo que vale hoy de un conjunto: { id: { dato: { estable, temporal } } }. Una temporal vale hasta su día de fin incluido; las quitadas no cuentan. */
+function vigentesDe_(store, conjunto, hoy) {
+  const m = {};
+  store.lista.forEach(function (e) {
+    if (e.conjunto !== conjunto || e.quitado || (e.tipo === 'temporal' && !(e.hasta >= hoy))) return;
+    const p = m[e.id] = m[e.id] || {};
+    (p[e.campo] = p[e.campo] || {})[e.tipo] = e;
+  });
+  return m;
+}
+
+/* Una marca corta de lo vigente de un conjunto hoy (o de todos, con `null`): cambia si entra, sale o se renueva una corrección, o si pasa el día de fin de una temporal. '' si no hay ninguna. */
+function huellaDeCorrecciones_(store, conjunto, hoy) {
+  const v = store.lista.filter(function (e) { return (conjunto === null || e.conjunto === conjunto) && !e.quitado && (e.tipo !== 'temporal' || e.hasta >= hoy); })
+    .map(function (e) { return [e.id, e.campo, e.tipo, e.cuando].join('~'); }).sort().join('|');
+  return v ? huella_(Utilities.newBlob(v).getBytes()).slice(0, 12) : '';
+}
+
+function igualValor_(a, b) {
+  const vacio = function (x) { return x === undefined || x === null || String(x).trim() === ''; };
+  return vacio(a) || vacio(b) ? vacio(a) && vacio(b) : String(a).trim() === String(b).trim();
+}
+
+/* Lo que se hace al cerrar el montaje de una parte: escribir en ella lo corregido que vale hoy. Una estable que ya es igual al original no se aplica y se apunta en `avance.retirar` (el fondo la retira). */
+function aplicarCorrecciones_(raiz, conj, objeto, avance) {
+  if (conj.deCorrecciones || !objeto || !Array.isArray(objeto.registros)) return 0;
+  const store = CORRECCIONES_DE_TAREAS_ || leerCorrecciones_(carpetaDatos_()), v = vigentesDe_(store, conj.conjunto, hoyMadrid_()), porId = {};
+  if (!Object.keys(v).length) return 0;
+  objeto.registros.forEach(function (r) { porId[r.id] = r; });
+  let aplicadas = 0;
+  Object.keys(v).forEach(function (id) {
+    const r = porId[id];
+    if (!r) return;
+    r.datos = r.datos || {};
+    Object.keys(v[id]).forEach(function (campo) {
+      const t = v[id][campo].temporal, original = r.datos[campo];
+      let s = v[id][campo].estable;
+      if (s && igualValor_(original, s.valor)) {
+        avance.retirar = avance.retirar || [];
+        if (!avance.retirar.some(function (x) { return x.conjunto === s.conjunto && x.id === s.id && x.campo === s.campo && x.cuando === s.cuando; })) avance.retirar.push({ conjunto: s.conjunto, id: s.id, campo: s.campo, cuando: s.cuando });
+        s = null;
+      }
+      const e = t || s;
+      if (!e) return;
+      const dato = { tipo: e.tipo, app: e.app, cuando: e.cuando };
+      if (original !== undefined) dato.original = original;
+      if (t) { dato.hasta = t.hasta; const antes = s ? s.valor : original; if (antes !== undefined) dato.anterior = antes; }
+      r.datos[campo] = e.valor;
+      (r.corregido = r.corregido || {})[campo] = dato;
+      if (r.datos.origen && typeof r.datos.origen === 'object') r.datos.origen[campo] = Object.assign({ de: 'a-mano', quien: e.quien, app: e.app, cuando: e.cuando }, t ? { tipo: 'temporal', hasta: t.hasta } : {});
+      aplicadas++;
+    });
+  });
+  return aplicadas;
+}
+
+/* ---- Lo que hace el trabajo de fondo antes de recoger los ficheros (Entrada.gs) ---- */
+
+/* Pasa lo escrito en los contactos (fila 98) a _interno/correcciones.json la primera vez, y retira lo que ya no vale: las temporales pasadas de fecha, las tumbas viejas y las estables que un listado ya trae igual
+   (`avance.retirar`, que apuntó el montaje). Devuelve cuántas cosas cambió. */
+function mantenerCorrecciones_(raiz) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return mantenerCorreccionesInterno_(raiz); } finally { lock.releaseLock(); }
+}
+
+function mantenerCorreccionesInterno_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno'), hay = interno.getFilesByName(ARCHIVO_CORRECCIONES_).hasNext();
+  const store = leerCorrecciones_(raiz), hoy = hoyMadrid_(), ahora = new Date().getTime();
+  const avance = leerAvance_(raiz), retirar = Array.isArray(avance.retirar) ? avance.retirar : [];
+  let cambios = hay ? 0 : (store.lista.length || store.ignorados.length ? 1 : 0);
+  const quedan = [];
+  store.lista.forEach(function (e) {
+    if (e.quitado) { if (ahora - Date.parse(e.cuando) > CORRECCIONES_TUMBA_MS_) cambios++; else quedan.push(e); return; }
+    if (e.tipo === 'temporal' && !(e.hasta >= hoy)) { cambios++; return; }
+    if (e.tipo === 'estable' && retirar.some(function (x) { return x.conjunto === e.conjunto && x.id === e.id && x.campo === e.campo && x.cuando === e.cuando; })) {
+      cambios++; quedan.push({ conjunto: e.conjunto, id: e.id, campo: e.campo, tipo: 'estable', quitado: true, quien: DUENO_CD_, app: DUENO_CD_, cuando: e.cuando }); return;
+    }
+    quedan.push(e);
+  });
+  if (cambios) { store.lista = quedan; escribirCorrecciones_(raiz, store); ajustarTestigo_(raiz, true); }
+  if (retirar.length) { delete avance.retirar; escribirAvance_(raiz, avance); }
+  return cambios;
+}
+
+/* ¿Hay algo que retirar o pasar? (Para que la vuelta del disparador no salga sin hacerlo.) */
+function correccionesPorMantener_(raiz) {
+  const avance = leerAvance_(raiz);
+  if (Array.isArray(avance.retirar) && avance.retirar.length) return true;
+  const store = leerCorrecciones_(raiz), hoy = hoyMadrid_(), ahora = new Date().getTime();
+  const hay = subcarpetaPorRuta_(raiz, '_interno').getFilesByName(ARCHIVO_CORRECCIONES_).hasNext();
+  return (!hay && (store.lista.length > 0 || store.ignorados.length > 0)) || store.lista.some(function (e) {
+    return e.quitado ? ahora - Date.parse(e.cuando) > CORRECCIONES_TUMBA_MS_ : (e.tipo === 'temporal' && !(e.hasta >= hoy));
+  });
+}
+
+/* Lo que lee «Consultar» (y cualquier lector): una temporal cuyo día de fin ya pasó deja de valer aunque la parte aún no se haya rehecho; vuelve su `anterior` (o ningún dato si no había). */
+function caducarCorregidos_(registros, hoy) {
+  registros.forEach(function (r) {
+    Object.keys(r.corregido || {}).forEach(function (campo) {
+      const c = r.corregido[campo];
+      if (c.tipo !== 'temporal' || !(c.hasta < hoy)) return;
+      if (c.anterior === undefined) delete r.datos[campo]; else r.datos[campo] = c.anterior;
+      if (r.datos.origen && r.datos.origen[campo]) {   // contactos: de dónde sale el dato que vuelve
+        const o = r.datos.origen[campo];
+        if (c.anterior === undefined) delete r.datos.origen[campo]; else if (c.anterior === c.original) r.datos.origen[campo] = { de: 'seneca' }; else { delete o.tipo; delete o.hasta; }
+      }
+      delete r.corregido[campo];
+    });
+  });
+  return registros;
+}
+
+/* ==== HechosCorrecciones.gs ==== */
+/* El conjunto `correcciones` (fila 127): lo que las aplicaciones han corregido o añadido en cualquier conjunto y vale hoy, una línea por corrección, con el valor original, el que quedará al caducar una temporal, la aplicación y el día,
+   para que cada aplicación pueda enseñar los dos valores y sus avisos. Una sola parte, `todas` (hecho/correcciones/todas.json). Sale de _interno/correcciones.json y de las partes ya hechas de los demás conjuntos (de ahí el
+   original: lo apunta aplicarCorrecciones_ en `corregido` de cada registro). Lleva datos de personas: solo vive en Drive, nunca en diagnostico/, comprobaciones ni avisos con valor. */
+
+function hayCorrecciones_(store) {
+  return store.lista.some(function (e) { return !e.quitado; }) || store.ignorados.some(function (i) { return i.conjunto !== 'contactos'; });
+}
+
+/* Una sola parte, `todas`. */
+function partesDeCorrecciones_() { return [{ parte: 'todas', cursoEscolar: '', anio: 0, entera: true }]; }
+
+/* Las correcciones que valen hoy, de todos los conjuntos, ordenadas. */
+function correccionesVigentes_(store, hoy) {
+  return store.lista.filter(function (e) { return !e.quitado && (e.tipo !== 'temporal' || e.hasta >= hoy); })
+    .sort(function (a, b) { const x = [a.conjunto, a.id, a.campo, a.tipo].join('\u0001'), y = [b.conjunto, b.id, b.campo, b.tipo].join('\u0001'); return x < y ? -1 : (x > y ? 1 : 0); });
+}
+
+/* Los listados de los que sale todo lo demás: así `alDia` dice si los datos corregidos se hicieron con los ficheros de ahora. */
+function fuentesDeParteCorrecciones_(indice) {
+  const claves = {};
+  CONJUNTOS_.forEach(function (c) { c.fuentes.forEach(function (f) { claves[f.clave] = true; }); if (c.entregadoPor) claves[FUENTE_ENTREGA_.clave] = true; });
+  return indice.listados.filter(function (e) { return claves[e.clave]; }).map(function (e) { return { clave: e.clave, variante: e.variante || '', huella: e.huella }; })
+    .sort(function (a, b) { return a.clave + '/' + a.variante < b.clave + '/' + b.variante ? -1 : 1; });
+}
+
+/* Lo que rehace la parte: el número del montador, qué corrección vale hoy (cambia al pasar el día de fin de una temporal), los avisos y las partes de los conjuntos corregidos tal como están. */
+function claveDeMontajeCorrecciones_(conj, indice, store) {
+  const hoy = hoyMadrid_(), conjuntos = {};
+  correccionesVigentes_(store, hoy).forEach(function (e) { conjuntos[e.conjunto] = true; });
+  const partes = (indice.hechos || []).filter(function (h) { return conjuntos[h.conjunto]; }).map(function (h) { return h.ruta + ':' + h.huella; }).sort().join('|');
+  const vigentes = huellaDeCorrecciones_(store, null, hoy);
+  const ignoradas = store.ignorados.filter(function (i) { return i.conjunto !== 'contactos'; }).map(function (i) { return i.clave; }).join('~');
+  const corta = function (t) { return t ? huella_(Utilities.newBlob(t).getBytes()).slice(0, 12) : ''; };
+  return conj.versionMontador + '|' + vigentes + '|' + corta(ignoradas) + '|' + corta(partes);
+}
+
+/* Dónde está cada registro corregido: { conjunto: { id: [registro, …] } } mirando solo las partes de los conjuntos que tienen alguna corrección. */
+function registrosCorregidos_(indice, vigentes, cache) {
+  const quien = {}, hallados = {};
+  vigentes.forEach(function (e) { (quien[e.conjunto] = quien[e.conjunto] || {})[e.id] = true; });
+  Object.keys(quien).forEach(function (conjunto) {
+    hallados[conjunto] = {};
+    partesDelConjunto_(indice, conjunto).forEach(function (h) {
+      let parte = null;
+      try { parte = abrirParteVecina_(h, cache); } catch (e) { parte = null; }
+      ((parte && parte.registros) || []).forEach(function (r) { if (quien[conjunto][r.id]) (hallados[conjunto][r.id] = hallados[conjunto][r.id] || []).push(r); });
+    });
+  });
+  return hallados;
+}
+
+function montarCorrecciones_(conj, store, indice, cache) {
+  const hoy = hoyMadrid_(), vigentes = correccionesVigentes_(store, hoy), hallados = registrosCorregidos_(indice, vigentes, cache);
+  const registros = vigentes.map(function (e) {
+    const rs = (hallados[e.conjunto] || {})[e.id] || [];
+    const visto = rs.filter(function (r) { return r.corregido && r.corregido[e.campo] && r.corregido[e.campo].cuando === e.cuando; })[0] || null;
+    const datos = { conjunto: e.conjunto, registro: e.id, campo: e.campo, tipo: e.tipo, valor: e.valor };
+    if (visto && visto.corregido[e.campo].original !== undefined) datos.original = visto.corregido[e.campo].original;
+    if (visto && visto.corregido[e.campo].anterior !== undefined) datos.anterior = visto.corregido[e.campo].anterior;
+    if (e.tipo === 'temporal') datos.hasta = e.hasta;
+    datos.app = e.app; datos.quien = e.quien; datos.cuando = e.cuando; datos.aplicada = !!visto;
+    return { id: [e.conjunto, e.id, e.campo, e.tipo].join('/'), datos: datos };
+  });
+  const avisos = store.ignorados.filter(function (i) { return i.conjunto !== 'contactos'; }).map(function (i) { return { tipo: 'correcciones-ignorada', id: null, datos: { detalle: i.detalle } }; });
+  return { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: conj.parteNombre, cursoEscolar: '', generado: ahoraMadrid_(), origen: DUENO_CD_, campos: conj.campos.map(function (c) { return Object.assign({}, c); }), registros: registros, avisos: avisos };
+}
+
+/* La tarea «montar»: monta la parte y apunta las cuentas (solo cifras) para estado.json. */
+function montarParteDeCorrecciones_(raiz, t, avance, cache, indice) {
+  const t0 = new Date().getTime(), store = CORRECCIONES_DE_TAREAS_ || leerCorrecciones_(raiz);
+  const objeto = montarCorrecciones_(t.conj, store, indice, cache);
+  cerrarMontaje_(raiz, t, avance, objeto, t0);
+  const cuenta = function (f) { return objeto.registros.filter(f).length; };
+  avance.cifras = avance.cifras || {};
+  avance.cifras[t.ruta] = { correcciones: objeto.registros.length, estables: cuenta(function (r) { return r.datos.tipo === 'estable'; }), temporales: cuenta(function (r) { return r.datos.tipo === 'temporal'; }),
+    sinVerEnElConjunto: cuenta(function (r) { return !r.datos.aplicada; }), cambiosIgnorados: Object.keys(store.ignoradosPor || {}).filter(function (k) { return k !== 'contactos'; }).reduce(function (n, k) { return n + store.ignoradosPor[k]; }, 0) };
 }
 
 /* ==== HechosTandas.gs ==== */
@@ -5892,6 +6146,7 @@ function escribirAvance_(raiz, avance) { escribirJson_(subcarpetaPorRuta_(raiz, 
    Cada uno: { fuente, entrada, k } con `k` = cómo se llama lo leído. Null si falta el primero. */
 function fuentesNecesarias_(indice, avance, conj) {
   if (conj.entregadoPor) return fuentesDeEntero_(indice, conj);
+  if (conj.deCorrecciones) return [];   // no sale de ningún listado: de lo guardado y de las partes ya hechas
   if (conj.deContactos) return fuentesDeContactos_(indice);
   if (conj.porPeriodos) return fuentesDeConsejo_(indice, conj);
   if (conj.porCursos) return fuentesPorCursos_(indice, conj);
@@ -5928,7 +6183,8 @@ function firmaDeFuentes_(indice) {
 
 /* Las fuentes de una parte, con la huella con que se leyó cada una: el primer listado; si la parte es de un curso, los de ese curso; y, si ese curso tiene matrícula,
    las fuentes «solo para las actuales» (los expedientes). */
-function fuentesDeParte_(conj, parte, necesarias, avance) {
+function fuentesDeParte_(conj, parte, necesarias, avance, indice) {
+  if (conj.deCorrecciones) return fuentesDeParteCorrecciones_(indice);
   if (conj.entregadoPor) return fuenteDeParteEntero_(necesarias, avance);
   if (conj.deContactos) return fuentesDeParteContactos_(necesarias);
   if (conj.porPeriodos) return fuentesDeParteConsejo_(parte, necesarias, avance);
@@ -5946,11 +6202,19 @@ function fuentesDeParte_(conj, parte, necesarias, avance) {
 
 function mismasFuentes_(a, b) { return JSON.stringify(a || []) === JSON.stringify(b || []); }
 
-/* Lo que se monta con las mismas fuentes: el número del montador y, en `antiguos`, qué cursos se publican (cambia con el día). */
+/* La clave de montaje de la parte: la de siempre y, si el conjunto tiene correcciones vigentes (fila 127), la marca de cuáles. Sin correcciones queda igual que antes. */
 function claveDeMontaje_(conj, parte, partes, indice, avance, necesarias) {
+  const base = claveDeMontajeBase_(conj, parte, partes, indice, avance, necesarias);
+  const h = conj.deCorrecciones || !CORRECCIONES_DE_TAREAS_ ? '' : huellaDeCorrecciones_(CORRECCIONES_DE_TAREAS_, conj.conjunto, hoyMadrid_());
+  return h ? base + '|c' + h : base;
+}
+
+/* Lo que se monta con las mismas fuentes: el número del montador y, en `antiguos`, qué cursos se publican (cambia con el día). */
+function claveDeMontajeBase_(conj, parte, partes, indice, avance, necesarias) {
   /* Con un día prestado (el ensayo de la página nueva, fila 57) la clave lo lleva al final: si la aplicación de hoy monta con otro día, el ensayo se rehace. Sin día prestado, queda como siempre. */
   const prestado = DIAS_PRESTADOS_[rutaDeParte_(conj.conjunto, parte)], hoy = prestado || hoyMadrid_(), cola = prestado ? '|hoy=' + prestado : '';
   if (conj.entregadoPor) return claveDeMontajeEntero_(conj, indice, avance, hoy) + cola;
+  if (conj.deCorrecciones) return claveDeMontajeCorrecciones_(conj, indice, CORRECCIONES_DE_TAREAS_ || correccionesVacias_());
   if (conj.deContactos) return claveDeMontajeContactos_(conj, parte, indice);
   if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) + cola;
@@ -5962,23 +6226,25 @@ function claveDeMontaje_(conj, parte, partes, indice, avance, necesarias) {
 function tareasDeHechos_(indice, avance, soloConj) {
   const tareas = [];
   if (indice.ocupado) return tareas;
+  const guardadas = leerCorrecciones_(carpetaDatos_());   // fila 127: lo corregido, leído una vez; la clave de montaje y el montaje ven lo mismo
+  fijarCorrecciones_(guardadas);
   CONJUNTOS_.forEach(function (conj) {
     if (soloConj && [].concat(soloConj).indexOf(conj.conjunto) === -1) return;
     if (!soloConj && EXCLUIDOS_MONTAJE_.indexOf(conj.conjunto) !== -1) return;   // lo está montando la página nueva con su turno vigente (fila 59, Turno.gs)
     const necesarias = fuentesNecesarias_(indice, avance, conj);
     if (!necesarias) return;
     const aMano = conj.deContactos ? contactosAMano_(carpetaDatos_()) : null;   // lo escrito a mano de los contactos (no se lee desde los listados)
-    if (sinListadoPropio_(conj) && !necesarias.length && !(indice.hechos || []).some(function (h) { return h.conjunto === conj.conjunto; }) && !(aMano && hayContactosAMano_(aMano))) return;
+    if (sinListadoPropio_(conj) && !necesarias.length && !(indice.hechos || []).some(function (h) { return h.conjunto === conj.conjunto; }) && !(aMano && hayContactosAMano_(aMano)) && !(conj.deCorrecciones && hayCorrecciones_(guardadas))) return;
     const antesDeConj = tareas.length;
     const porLeer = necesarias.filter(function (x) { return !leidoAlDia_(avance, x); });
     if (porLeer.length) { if (!conj.deContactos) porLeer.forEach(function (x) { tareas.push({ que: 'leer', conj: conj, fuente: x.fuente, entrada: x.entrada, k: x.k }); }); return; }   // los contactos esperan a que el personal esté leído
-    const partes = conj.deContactos ? partesDeContactos_(necesarias, aMano) : conj.entregadoPor ? partesDeEntero_(necesarias, conj) : conj.porPeriodos ? partesDeConsejo_(necesarias) : conj.porCursos ? partesPorCursos_(necesarias) : partesDe_(conj.montador)(avance.leidos[conj.fuentes[0].clave]);
+    const partes = conj.deCorrecciones ? partesDeCorrecciones_() : conj.deContactos ? partesDeContactos_(necesarias, aMano) : conj.entregadoPor ? partesDeEntero_(necesarias, conj) : conj.porPeriodos ? partesDeConsejo_(necesarias) : conj.porCursos ? partesPorCursos_(necesarias) : partesDe_(conj.montador)(avance.leidos[conj.fuentes[0].clave]);
     const rutas = partes.map(function (p) { return rutaDeParte_(conj.conjunto, p); });
     (indice.hechos || []).filter(function (h) { return h.conjunto === conj.conjunto && rutas.indexOf(h.ruta) === -1; })
       .forEach(function (h) { tareas.push({ que: 'quitar', conj: conj, entrada: h }); });
     partes.forEach(function (p, i) {
       const h = (indice.hechos || []).filter(function (x) { return x.ruta === rutas[i]; })[0];
-      const fuentes = fuentesDeParte_(conj, p, necesarias, avance);
+      const fuentes = fuentesDeParte_(conj, p, necesarias, avance, indice);
       const clave = claveDeMontaje_(conj, p, partes, indice, avance, necesarias);
       if (!h || !mismasFuentes_(h.fuentes, fuentes) || avance.montado[rutas[i]] !== clave) {
         tareas.push({ que: 'montar', conj: conj, parte: p, partes: partes, ruta: rutas[i], previa: h || null, fuentes: fuentes, necesarias: necesarias, clave: clave });
@@ -6107,6 +6373,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   }
   /* montar */
   if (conj.entregadoPor) { montarParteDeEntero_(raiz, t, avance, cache, indice); return; }
+  if (conj.deCorrecciones) { montarParteDeCorrecciones_(raiz, t, avance, cache, indice); return; }
   if (conj.deContactos) { montarParteDeContactos_(raiz, t, avance, cache, indice); return; }
   if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
   const t0 = new Date().getTime();
@@ -6135,6 +6402,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
 
 /* Lo último de montar una parte, sea de quien sea: escribirla, apuntarla en el índice (al final) y dejar dicho en el avance qué se hizo. */
 function cerrarMontaje_(raiz, t, avance, objeto, t0) {
+  aplicarCorrecciones_(raiz, t.conj, objeto, avance);   // fila 127: lo corregido que vale hoy
   const entrada = escribirParte_(raiz, t.conj, t.parte, objeto, t.previa, t.fuentes);
   cambiarIndiceHechos_(raiz, function (ind) {
     ind.hechos = ind.hechos || [];
@@ -6173,7 +6441,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
   'ausencias-fichero': 'ausenciasFichero',
-  'contactos-cambio-ignorado': 'contactosCambioIgnorado'
+  'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
 /* Tipo de aviso → contador: los de la tabla y, de cada conjunto que se entrega entero, los tres suyos (`<conjunto>-sin-id`, `<conjunto>-id-repetido`, `<conjunto>-entrega`) y, si tiene `unicos`, `<conjunto>-dato-repetido` y, si tiene `avisosPropios`, los que diga (`<conjunto>-<aviso>`). */
@@ -6379,6 +6647,7 @@ const FRASES_AVISO_ = {
   'ausencias-fichero': '{detalle}',
   'libros-fichero': '{detalle}',
   'contactos-cambio-ignorado': 'Un cambio de contactos no se ha aplicado. {detalle}',
+  'correcciones-ignorada': 'Una corrección de otra aplicación no se ha aplicado. {detalle}',
   'libros-repetido': 'La asignatura {materia} de {nivel} sale dos veces con el mismo libro; se ha usado la última fila.',
   'libros-dato': 'En la asignatura {materia} de {nivel}, la casilla «{columna}» no se entiende y no se ha usado.',
   'consejo-fichero': '{detalle}',
@@ -6630,6 +6899,47 @@ function cmpPuerta_(r) {
   return { id: palabras[r.id] ? r.id : 'desconocida', estado: COMPROB_ESTADOS_.indexOf(r.estado) !== -1 ? r.estado : 'error', cifras: cifras, otros: otros };
 }
 
+/* ==== ComprobCorrecciones.gs ==== */
+/* Las comprobaciones de las correcciones (fila 127). Solo leen y solo cuentan: ningún valor, nombre ni id sale de aquí. */
+const COMPROBACIONES_CORRECCIONES_ = [
+  { id: 'correcciones-cruce', fila: 127, que: 'Cuántas correcciones hay guardadas y cuántas valen hoy (estables y temporales), cuántas tumbas de las quitadas, cuántas temporales pasadas de fecha esperan a retirarse, cuántos cambios se han ignorado y cuántas líneas tiene la parte (solo cuentas, nunca un valor)', funcion: 'cmpCorreccionesCruce_' },
+  { id: 'correcciones-aplicadas', fila: 127, que: 'Lo corregido que vale hoy está escrito en las partes de su conjunto con el valor de la corrección y la parte de correcciones tiene una línea por cada una (mal si algo no coincide estando la parte al día; solo cuentas)', funcion: 'cmpCorreccionesAplicadas_' }
+];
+
+function cmpCorreccionesCruce_(ctx) {
+  const store = leerCorrecciones_(ctx.raiz), hoy = hoyMadrid_(), vig = correccionesVigentes_(store, hoy);
+  const h = (ctx.indice.hechos || []).filter(function (x) { return x.conjunto === 'correcciones'; })[0] || null;
+  if (!store.lista.length && !store.ignoradosTotal && !h) return { estado: 'sin datos', cifras: { correcciones: 0 } };
+  return { estado: 'dato', cifras: {
+    guardadas: store.lista.length, 'valen-hoy': vig.length, estables: vig.filter(function (e) { return e.tipo === 'estable'; }).length, temporales: vig.filter(function (e) { return e.tipo === 'temporal'; }).length,
+    quitadas: store.lista.filter(function (e) { return e.quitado; }).length, 'temporales-caducadas': store.lista.filter(function (e) { return !e.quitado && e.tipo === 'temporal' && e.hasta < hoy; }).length,
+    'cambios-ignorados': store.ignoradosTotal, 'lineas-en-la-parte': h ? h.registros : 0, 'veces-que-se-ha-escrito': store.version } };
+}
+
+/* Lo corregido que vale hoy: cada `corregido` de las partes que sigue vigente lleva el valor de su corrección, y (con la parte de correcciones al día) hay una línea por corrección vigente. */
+function cmpCorreccionesAplicadas_(ctx) {
+  const store = leerCorrecciones_(ctx.raiz), hoy = hoyMadrid_(), vig = correccionesVigentes_(store, hoy);
+  const h = (ctx.indice.hechos || []).filter(function (x) { return x.conjunto === 'correcciones'; })[0] || null;
+  if (!vig.length && !h) return { estado: 'sin datos', cifras: { correcciones: 0 } };
+  const conjuntos = {};
+  vig.forEach(function (e) { conjuntos[e.conjunto] = true; });
+  let malPuestas = 0, viejas = 0, revisadas = 0;
+  (ctx.indice.hechos || []).filter(function (x) { return conjuntos[x.conjunto]; }).forEach(function (x) {
+    const p = cmpAbrirParte_(ctx, x);
+    if (!p) return;
+    p.obj.registros.forEach(function (r) {
+      Object.keys(r.corregido || {}).forEach(function (campo) {
+        const c = r.corregido[campo], e = vig.filter(function (v) { return v.conjunto === x.conjunto && v.id === r.id && v.campo === campo && v.cuando === c.cuando; })[0];
+        revisadas++;
+        if (!e) viejas++; else if (JSON.stringify(r.datos[campo]) !== JSON.stringify(e.valor)) malPuestas++;
+      });
+    });
+  });
+  const alDia = !!h && (ctx.avance.montado || {})[h.ruta] === claveDeMontajeCorrecciones_(CONJUNTOS_.filter(function (c) { return c.deCorrecciones; })[0], ctx.indice, store);
+  const faltan = alDia ? Math.abs(h.registros - vig.length) : 0;
+  return { estado: malPuestas + faltan ? 'mal' : 'bien', cifras: { revisadas: revisadas, 'con-otro-valor': malPuestas, 'ya-no-vigentes-esperan-al-montaje': viejas, 'parte-al-dia': alDia, 'lineas-que-faltan-o-sobran': faltan } };
+}
+
 /* ==== ComprobCatalogo.gs ==== */
 /* El catálogo de comprobaciones: una tabla de datos. Cada una tiene un `id` fijo (no se renombra nunca), la fila de la que sale, una frase llana y una función que SOLO LEE.
    Una función recibe el contexto de la pasada ({ raiz, indice, avance, comp, ahoraMs, cache }) y devuelve { estado, cifras }.
@@ -6707,9 +7017,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-];
+].concat(COMPROBACIONES_CORRECCIONES_);
 function cmpFuncion_(nombre) {
-  return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -9373,7 +9683,7 @@ function comprobacionesPorHacerFondo_(raiz) {
 /* ¿Toca una vuelta de fondo entera? Sí si quedaba algo, si hay comprobaciones que repetir, si toca mirar la clave o si hace más de una hora que no se hace. Si no, la vuelta del disparador sale enseguida. */
 function fondoPendiente_(raiz) {
   const f = leerFondo_(raiz);
-  return !!f.sigue || new Date().getTime() - (f.cosas.vuelta || 0) >= FONDO_VUELTA_CADA_MS_ || comprobacionesPorHacerFondo_(raiz) || claveTocaMirar_(raiz, CLAVE_MIRAR_PAGINA_MS_);
+  return !!f.sigue || new Date().getTime() - (f.cosas.vuelta || 0) >= FONDO_VUELTA_CADA_MS_ || correccionesPorMantener_(raiz) || comprobacionesPorHacerFondo_(raiz) || claveTocaMirar_(raiz, CLAVE_MIRAR_PAGINA_MS_);
 }
 
 /* `antigua-sin-pantalla`: solo cifras. `mal` si el disparador no existe o si pasó más de un día entre dos vueltas. */
@@ -9432,6 +9742,7 @@ function recogerEntrada_(ctx) {
   }
   /* Sin ficheros, sin testigo de tandas y sin nada de fondo que hacer, no hay nada más que mirar (el disparador arranca cada 10 minutos). */
   if (deFondo && !hayEntrada_(raiz) && !testigoDe_(raiz) && !fondoPendiente_(raiz)) return 0;
+  try { mantenerCorrecciones_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }   // fila 127: retira lo caducado y lo que un listado ya trae igual
   const vuelta = deFondo ? vueltaDeFondo_(raiz) : null;
   try { limpiarSubidas_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }
   try { repararFaltantes_(raiz, false); } catch (e) { /* se reintenta en la próxima vuelta */ }
@@ -9859,7 +10170,7 @@ function consultaCarga_(raiz, id, curso, periodo) {
   const res = { hoy: hoyMadrid_(), cursoHoy: cursoActual_(), opciones: e.opciones, id: e.op ? e.op.id : '', curso: e.curso, periodo: e.periodo, campos: [], registros: [], aviso: e.aviso, hay: false };
   if (!e.parte) return res;
   const obj = abrirParteVecina_(e.parte, {});
-  res.hay = true; res.campos = (obj.campos || []).concat(consultaCamposEnlaces_(e.op.id)); res.registros = obj.registros || [];
+  res.hay = true; res.campos = (obj.campos || []).concat(consultaCamposEnlaces_(e.op.id)); res.registros = caducarCorregidos_(obj.registros || [], hoyMadrid_());
   return res;
 }
 
@@ -9885,7 +10196,7 @@ function consultaCargaTodas_(raiz, id) {
       (c.columnas || []).forEach(function (s) { if (!porClave[c.clave].columnas.some(function (x) { return x.clave === s.clave; })) porClave[c.clave].columnas.push(JSON.parse(JSON.stringify(s))); });
     });
     if (h.alDia === false && res.aviso.length === 0) res.aviso.push('Estos datos se están poniendo al día: puede que falte algo.');
-    return { id: def.id, curso: h.cursoEscolar || '', periodo: def.modo === 'periodo' ? h.periodo || '' : '', registros: obj.registros || [] };
+    return { id: def.id, curso: h.cursoEscolar || '', periodo: def.modo === 'periodo' ? h.periodo || '' : '', registros: caducarCorregidos_(obj.registros || [], hoyMadrid_()) };
   });
   consultaCamposEnlaces_(def.id).forEach(function (c) { res.campos.push(c); });
   leidas.forEach(function (c) { c.campos = res.campos; res.cargas.push(c); });
