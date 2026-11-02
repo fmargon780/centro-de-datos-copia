@@ -81,7 +81,9 @@
     await C.escribirSuelto(diario, u8);
     var r = await colocar(nombre, u8, quien, curso);
     await C.borrarSuelto(diario);   // si algo se corta antes de llegar aquí, el diario sigue y se coloca al abrir
-    if (!r.ocupado && window.EnsayoPagina) window.EnsayoPagina.cambio();   // fila 46: el ensayo de la ficha del alumno se pone al día con lo nuevo
+    if (!r.ocupado && window.EnsayoPagina) {   // fila 46: el ensayo de la ficha del alumno se pone al día con lo nuevo; fila 126: y los datos ya hechos que salen del fichero se preparan al momento, con aviso
+      if (r.estado === 'guardado') window.EnsayoPagina.alGuardar(); else window.EnsayoPagina.cambio();
+    }
     return r;
   }
 

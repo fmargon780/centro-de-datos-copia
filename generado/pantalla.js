@@ -449,11 +449,13 @@ function dibujarHechos(h) {
   p.textContent = '';
   if (!con.length) p.appendChild(cajitaDeHechos('Datos ya hechos', 'ambar', 'todavía ninguno', 0, 'Datos ya hechos: todavía ninguno. Suelta el listado de alumnado.'));
   con.forEach(function (c) {
-    var clase = c.atascado ? 'rojo' : (c.trabajando || !c.alDia ? 'ambar' : 'verde');
-    var estado = c.atascado ? 'sin avanzar' : (c.trabajando || !c.alDia ? 'poniéndose al día' : 'al día');
+    /* Fila 126: lo que la página nueva está preparando ahora mismo tras guardar un fichero (window.PREPARANDO, pagina/ensayo.js); en la aplicación antigua no existe. */
+    var prep = (window.PREPARANDO || {})[c.conjunto], listo = (window.LISTO_HOY || {})[c.conjunto];
+    var clase = c.atascado ? 'rojo' : (prep || c.trabajando || !c.alDia ? 'ambar' : 'verde');
+    var estado = c.atascado ? 'sin avanzar' : (prep ? (prep === 'ahora' ? 'preparándose…' : 'en espera') : (c.trabajando || !c.alDia ? 'poniéndose al día' : 'al día'));
     if (AVISOS_PENDIENTES) c = Object.assign({}, c, { avisos: AVISOS_PENDIENTES[c.conjunto] || 0 });
     total += c.avisos || 0;
-    p.appendChild(cajitaDeHechos(c.etiqueta, clase, estado, c.avisos || 0, textoDeUnConjunto(c), c.conjunto, c.monta === 'pagina' ? 'lo monta la página nueva' : (c.monta ? 'lo monta la aplicación' : '')));
+    p.appendChild(cajitaDeHechos(c.etiqueta, clase, estado, c.avisos || 0, textoDeUnConjunto(c), c.conjunto, [!prep && listo ? 'listo ' + listo : '', c.monta === 'pagina' ? 'lo monta la página nueva' : (c.monta ? 'lo monta la aplicación' : '')].filter(Boolean).join(' · ')));
   });
   (h.ensayos || []).forEach(function (en) {
     var claseE = en.estado === 'distinta' ? 'rojo' : (en.estado === 'igual' ? 'verde' : 'ambar');

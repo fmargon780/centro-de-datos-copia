@@ -43,6 +43,10 @@
   .cajita .estado { margin-left: 6px; font-size: 11px; color: #555; }
   .cajita .nota { float: right; margin: 0 0 0 6px; padding: 0 6px; border-radius: 8px; font-size: 11px; background: #f3d98a; color: #5a4300; }
   .cajita .detalle { display: block; font-size: 12px; color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .aviso-preparando { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 12px; margin: 0 0 8px; background: #fff3cd; color: #664d03; border: 1px solid #e6d27a; border-radius: 4px; }
+  .aviso-preparando[hidden] { display: none; }
+  .aviso-preparando b { flex: 1 1 320px; min-width: 0; }
+  .aviso-preparando .paso { font-size: 13px; }
   .cajita.abierta .detalle { white-space: normal; overflow-wrap: anywhere; }
   .panel-movimientos { margin-top: 8px; padding: 6px 12px; border: 1px solid #dde3e8; border-radius: 6px; background: #fbfcfd; max-height: 60vh; overflow-y: auto; }
   .panel-movimientos[hidden] { display: none; }

@@ -60,24 +60,27 @@
     reintento = setTimeout(function () { reintento = null; if (window.EnsayoPagina) window.EnsayoPagina.cambio(); }, ESPERA_REINTENTO);
   }
 
-  /* `ctx`: { paso(fn), ceder(), empieza(), refrescar() } de ensayo.js. */
+  /* `ctx`: { paso(fn), ceder(), empieza(), refrescar() } de ensayo.js y, desde la fila 126, `plan(lista)` y `avanza(restan)` (el aviso de «preparando» tras guardar un fichero). */
   async function publicar(ctx) {
     if (window.SIN_PUBLICAR_PAGINA) return;
     var t = await leer();
     if (t.soloAplicacion) return;
     var ya = t.publicados || [];
-    var nuevos = (await ctx.paso(function () { return ensayoPublicables_(carpetaDatos_()); })).filter(function (c) { return ya.indexOf(c) === -1; });
+    /* Fila 126: además de los que salen «igual» en el ensayo, la página monta de verdad los que no tienen ensayo (contactos, ausencias…): así los que salen de otros (los contactos, del personal) quedan hechos en cadena. */
+    var nuevos = (await ctx.paso(function () { return ensayoPublicables_(carpetaDatos_()); })).concat(conjuntosSueltos_()).filter(function (c) { return ya.indexOf(c) === -1; });
     var lista = ya.concat(nuevos);
     if (!lista.length) return;
     var faltan = await ctx.paso(function () { return publicarQuedan_(carpetaDatos_(), lista); });
     if (!nuevos.length && !faltan) return;
     if (!(await tomar(nuevos))) { volverAIntentar(); return; }
     ctx.empieza();
+    if (ctx.plan) ctx.plan(await ctx.paso(function () { return momentoPlan_(carpetaDatos_(), lista); }));   // fila 126: qué se va a preparar y en qué orden, para el aviso y las cajitas
     if (nuevos.length) await ctx.paso(function () { publicarAdoptar_(carpetaDatos_(), nuevos); return null; });
     var renovado = Date.now(), antes = '', repetida = 0;
     for (var n = 0; n < MAX_PASOS; n++) {
       var r = await ctx.paso(function () { return publicarPaso_(carpetaDatos_(), lista); });
       if (r.ocupada) { volverAIntentar(); break; }
+      if (ctx.avanza) ctx.avanza(r.restan);
       if (!r.quedan) break;
       repetida = r.siguiente === antes ? repetida + 1 : 0; antes = r.siguiente;
       if (repetida >= 3) break;   // lo mismo una y otra vez sin avanzar: se deja para la próxima vez

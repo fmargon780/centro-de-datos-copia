@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v68';
+const VERSION_CD = 'CD v69';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -5461,6 +5461,30 @@ function publicarQuedan_(raiz, conjuntos) {
   return tareasDeHechos_(leerIndice_(raiz), leerAvance_(raiz), conjuntos).length;
 }
 
+/* Fila 126: los conjuntos que no tienen ensayo (contactos, ausencias…) y que la página también monta de verdad, con su turno, tras guardar un fichero. */
+function conjuntosSueltos_() {
+  return CONJUNTOS_.map(function (c) { return c.conjunto; }).filter(function (c) { return !ENSAYO_CONJUNTOS_.some(function (e) { return e.conjunto === c; }); });
+}
+
+/* Fila 126: lo que la página prepara al momento tras guardar un fichero, en el orden de la cadena (el de CONJUNTOS_): los conjuntos de `lista` que tienen algo por hacer y los que salen de ellos
+   (los que los miran, como las tutorías; y los contactos, que salen del personal). Sin escribir nada, con el día de verdad. */
+function momentoPlan_(raiz, lista) {
+  prestarDias_({});
+  const indice = leerIndice_(raiz), avance = leerAvance_(raiz), tareas = tareasDeHechos_(indice, avance, lista), dentro = {};
+  tareas.forEach(function (t) { dentro[t.conj.conjunto] = true; });
+  /* Los que salen de otros solo cuentan si tienen algo de lo que salir (listados propios o partes ya hechas): unas tutorías sin PDF no se preparan. */
+  const conDatos = function (c) { return c.deContactos || (indice.hechos || []).some(function (h) { return h.conjunto === c.conjunto; }) || (fuentesNecesarias_(indice, avance, c) || []).length > 0; };
+  let crece = true;
+  while (crece) {
+    crece = false;
+    CONJUNTOS_.forEach(function (c) {
+      if (dentro[c.conjunto] || lista.indexOf(c.conjunto) === -1 || !conDatos(c)) return;
+      if ((c.mira || []).some(function (m) { return dentro[m]; }) || (c.deContactos && dentro.personal)) { dentro[c.conjunto] = true; crece = true; }
+    });
+  }
+  return CONJUNTOS_.map(function (c) { return c.conjunto; }).filter(function (c) { return dentro[c] && lista.indexOf(c) !== -1; });
+}
+
 /* Desde que un conjunto pasa a publicarlo la página, es suyo aunque no haya nada que rehacer: así queda dicho en el avance. */
 function publicarAdoptar_(raiz, conjuntos) {
   const avance = leerAvance_(raiz);
@@ -5488,6 +5512,16 @@ function publicarPaso_(raiz, conjuntos) {
     if (!quedan.length) escribirEstadoHechos_(raiz);
     return { quedan: quedan.length > 0, ocupada: false, restan: restan, siguiente: quedan.length ? quedan[0].que + ':' + (quedan[0].ruta || quedan[0].k || quedan[0].conj.conjunto) : '' };
   } finally { quienMonta_('aplicacion'); }
+}
+
+/* La comprobación `hechos-al-subir` (fila 126): lo que la página publica queda al día sin esperar a la vuelta de fondo. Cuenta las tareas que le faltan a los conjuntos que publica. `mal` solo si faltan y el turno de la
+   página caducó hace más de media hora (la vuelta de fondo ya tuvo tiempo de acabarlo); si no, `dato`; `bien` si no falta nada. */
+function cmpHechosAlSubir_(ctx) {
+  const publicados = turnoPublicados_(ctx.raiz), t = turnoLeer_(ctx.raiz);
+  if (!publicados.length) return { estado: 'sin datos', cifras: { 'conjuntos-de-la-pagina': 0 } };
+  const faltan = publicarQuedan_(ctx.raiz, publicados), vigente = turnoVigente_(t, ctx.ahoraMs);
+  const parada = !vigente && typeof t.hasta === 'number' && ctx.ahoraMs - t.hasta > 30 * 60 * 1000;
+  return { estado: !faltan ? 'bien' : (parada ? 'mal' : 'dato'), cifras: { 'conjuntos-de-la-pagina': publicados.length, 'tareas-que-faltan': faltan, 'turno-vigente': vigente ? 1 : 0, 'minutos-desde-el-turno': typeof t.hasta === 'number' && !vigente ? Math.max(0, Math.round((ctx.ahoraMs - t.hasta) / 60000)) : 0 } };
 }
 
 /* La comprobación `quien-monta` (fila 59): quién montó la última parte de cada conjunto, los turnos vigentes y caducados y los choques (la página vio que otro se llevó su turno). Solo cuentas.
@@ -6664,6 +6698,7 @@ const COMPROBACIONES_ = [
   { id: 'ensayo-administraciones-igual', fila: 51, que: 'Las Administraciones que monta la página nueva en el navegador salen iguales que las de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoAdministracionesIgual_' },
   { id: 'ensayo-cargos-igual', fila: 51, que: 'Los cargos que monta la página nueva en el navegador salen iguales que los de hoy: cuántas partes se han comparado, cuántas son iguales o distintas, cuántas esperan a la aplicación de hoy y en cuántos campos hay diferencias (solo cuentas)', funcion: 'cmpEnsayoCargosIgual_' },
   { id: 'quien-monta', fila: 59, que: 'Quién montó la última parte de cada conjunto (la página nueva o la aplicación de hoy), qué conjuntos publica la página, turnos de montaje vigentes y caducados y choques (mal si la página vio que otro se llevaba su turno; solo cuentas)', funcion: 'cmpQuienMonta_' },
+  { id: 'hechos-al-subir', fila: 126, que: 'Lo que publica la página nueva queda al día sin esperar a la vuelta de fondo: cuántas tareas faltan a esos conjuntos y si su turno sigue vigente (mal solo si faltan y el turno caducó hace más de media hora; solo cuentas)', funcion: 'cmpHechosAlSubir_' },
   { id: 'pagina-responde', fila: 58, que: 'La página nueva responde al momento mientras el ensayo trabaja: lo más lento que tardó en responder, en milisegundos (bien si no pasa de 500); sin medida si el ensayo no trabajó', funcion: 'cmpPaginaResponde_' },
   { id: 'ids-rellenos', fila: 44, que: 'Cuántas entradas del índice llegaron sin número de Drive, cuántas se han rellenado y cuántas siguen sin su fichero', funcion: 'cmpIdsRellenos_' },
   { id: 'ausencias-lectura', fila: 114, que: 'Cuántas columnas y líneas hay en las ausencias de cada curso, y que cada línea leída del fichero está en un registro', funcion: 'cmpAusenciasLectura_' },
@@ -6676,7 +6711,7 @@ const COMPROBACIONES_ = [
 function cmpFuncion_(nombre) {
   return { cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
-    cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
+    cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
 function cmpIdsDeFicheros_(carpeta, ids) {
@@ -6726,7 +6761,6 @@ function cmpAbrirParte_(ctx, h) {
   ctx.cache[h.ruta] = r;
   return r;
 }
-
 function cmpHechosPartes_(ctx) {
   const hechos = ctx.indice.hechos || [];
   if (!hechos.length) return { estado: 'sin datos', cifras: { partes: 0 } };
