@@ -1,6 +1,6 @@
 {
   "version": "página nueva v32",
-  "commit": "e610b11",
+  "commit": "fe69214",
   "ficheros": {
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
     "acciones.js": "2087b86e7b65d85451f3061babec6b4e316152322e21557e00c7025b06f2b818",
@@ -8,7 +8,7 @@
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "1f8cc7f0222a7eac3e6e3388b8b63c4811b1443c172a08e680fc16d31f42d679",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "27549635cad42a98ab94268285293cd3d97dc34f4c714af4818a9444b2799887",
+    "commit.js": "abc15494fecea09a433b86046170e61426e18078cda889acd694104079a61035",
     "ensayo.js": "eeb42eee06ada1d053d0088dcb9fd9e01692905e11764850bd6fa92ede83a498",
     "escritura.js": "4a0722a375ce9aa6c180004f531efc8d16b060d737e301b6a47599e3d50cbd89",
     "generado/estilos.css": "81fe50e2a1f57bd694167560882d089ebb9227937770f9ec571ba913f2eb001e",
