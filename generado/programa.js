@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v71';
+const VERSION_CD = 'CD v72';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -471,6 +471,9 @@ const CATALOGO_ = [
      `cuenta.persona`: títulos que pueden ser la persona, para decir «8 personas» (si ninguno está, solo cuenta ausencias). */
   { clave: 'ausencias', titulo: 'Ausencias (Séneca)', tipo: 'csv', soloNombre: true, nombreContiene: ['ausencia'], usan: 'Ausencias y Guardias', dias: 7, queEs: 'las ausencias del personal',
     ficha: { curso: 'nombre' }, cuenta: { modo: 'ausencias', uno: 'ausencia', varios: 'ausencias', persona: ['Empleado/a', 'Empleado', 'Profesor/a', 'Profesorado', 'Docente', 'Persona'] } },
+  /* Materias, profesorado y unidades (fila 136, Profesorado.gs): se reconoce solo por sus cuatro columnas; el nombre (RelMatProUni) no trae curso, así que el curso es el que se elige al soltarlo. */
+  { clave: 'materias-profesorado', titulo: 'Materias, profesorado y unidades (Séneca)', tipo: 'csv', usan: 'Gestor de asuntos', dias: 30, queEs: 'el listado de materias, profesorado y unidades',
+    columnas: ['Curso', 'Materia', 'Unidad', 'Profesor/a'], ficha: { curso: 'nombre' }, cuenta: { modo: 'profesorado', uno: 'línea', varios: 'líneas' } },
   { clave: 'registro-entrada', titulo: 'Registro de entrada', tipo: 'csv', usan: 'Gestor de asuntos', dias: 7, siempre: true, queEs: 'un registro de entrada',
     columnas: ['Fecha de registro', 'Extracto', 'Remitente'], sinColumnas: ['Destinatario'], ficha: { curso: { fechas: 'Fecha de registro' } },
     cuenta: { modo: 'filas', uno: 'apunte', varios: 'apuntes' } },
@@ -1360,6 +1363,7 @@ function esJsonDe_(json, regla) {
 function contarListado_(c, bytes, tipo) {
   if (c.cuenta && c.cuenta.modo === 'ninguno') return { filas: null, resumen: 'Fichero PDF' };
   if (c.cuenta && c.cuenta.modo === 'ausencias') return contarAusencias_(c, bytes, tipo);
+  if (c.cuenta && c.cuenta.modo === 'profesorado') return contarProfesorado_(c, bytes, tipo);
   if (c.soloNombre) {
     if (tipo !== 'csv') return { filas: null, resumen: tipo === 'pdf' ? 'Fichero PDF' : 'Fichero' };
     const texto = bytesATexto_(bytes);
@@ -2673,6 +2677,23 @@ const CAMPOS_CORRECCIONES_ = [
   { clave: 'aplicada', etiqueta: 'Se ve en el conjunto', apartado: 'Corrección', tipo: 'si-no', dueno: DUENO_CD_, fuente: 'correcciones' }
 ];
 
+/* Los campos de los profesores por grupo (fila 136): una línea por unidad, materia y profesor/a. `fichaConjunto` y `fichaId` solo salen si el profesor se encuentra una sola vez en el personal del curso. */
+const CAMPOS_PROFESORADO_GRUPOS_ = [
+  { clave: 'nivel', etiqueta: 'Curso', apartado: 'Clase', tipo: 'texto' },
+  { clave: 'unidad', etiqueta: 'Unidad', apartado: 'Clase', tipo: 'texto' },
+  { clave: 'materia', etiqueta: 'Materia', apartado: 'Clase', tipo: 'texto' },
+  { clave: 'profesor', etiqueta: 'Profesor/a', apartado: 'Profesorado', tipo: 'texto' },
+  { clave: 'fichaConjunto', etiqueta: 'Ficha: de qué tipo', apartado: 'Ficha', tipo: 'texto' },
+  { clave: 'fichaId', etiqueta: 'Ficha: su identificador', apartado: 'Ficha', tipo: 'texto' }
+];
+
+/* Los campos de los profesores de cada alumno (fila 136): por alumno, la lista de sus materias con quien las da. */
+const CAMPOS_PROFESORADO_ALUMNOS_ = [
+  { clave: 'alumno', etiqueta: 'Alumno/a', apartado: 'Alumno', tipo: 'texto' },
+  { clave: 'unidad', etiqueta: 'Unidad', apartado: 'Alumno', tipo: 'texto' },
+  { clave: 'profesores', etiqueta: 'Profesores de sus materias', apartado: 'Profesorado', tipo: 'tabla', columnas: [{ clave: 'materia', etiqueta: 'Materia' }, { clave: 'profesor', etiqueta: 'Profesor/a' }] }
+];
+
 /* Los conjuntos. fuentes: qué claves del catálogo lo alimentan, con qué lector (HechosLeer.gs) y su versión.
    Los nombres de lector y de montador son palabras: lectorDe_ y montadorDe_ (más abajo, en otros ficheros) los convierten en función. */
 const CONJUNTOS_ = [
@@ -2707,6 +2728,12 @@ const CONJUNTOS_ = [
   { conjunto: 'consejo-escolar', titulo: 'Consejo Escolar', cuenta: 'nombramientos', acuerdoHecho: ACUERDO_HECHO_, montador: 'consejo', versionMontador: 1, porCursos: true, porPeriodos: true,
     mira: ['personal', 'alumnado'], conDias: true, entregas: [], aplicaciones: {}, cambios: [APP_GESTOR_], sufijoAvisos: 'del Consejo Escolar',
     fuentes: [{ clave: 'consejo-escolar', lector: 'consejo', versionLector: 1 }], campos: CAMPOS_CONSEJO_ },
+  /* Los profesores por grupo y de cada alumno (fila 136, Profesorado.gs): una parte por curso con listado `materias-profesorado`. Los dos tienen ese mismo listado como fuente. `deProfesorado` dice cuál es.
+     Van después del personal y del alumnado (que miran, `mira`) y los profesores de cada alumno, después de los de cada grupo. Sin diagnóstico: llevan nombres. */
+  { conjunto: 'profesorado-grupos', titulo: 'Profesores por grupo', cuenta: 'líneas', acuerdoHecho: ACUERDO_HECHO_, montador: 'profesorado', versionMontador: 1, porCursos: true, deProfesorado: 'grupos', mira: ['personal'], sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_GRUPOS_ },
+  { conjunto: 'profesorado-alumnos', titulo: 'Profesores de cada alumno', cuenta: 'alumnos', acuerdoHecho: ACUERDO_HECHO_, montador: 'profesorado', versionMontador: 1, porCursos: true, deProfesorado: 'alumnos', mira: ['alumnado', 'profesorado-grupos'], sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_ALUMNOS_ },
   /* Las empresas (fila 23): el primer conjunto que se entrega entero. No tiene listados ni campos propios: su única fuente es la entrega vigente de `entregadoPor` (la lista entera) y sus campos y registros los dice
      ella (HechosEnteros.gs). Una sola parte, `todas`. Otro conjunto así es otra línea como esta. `entregadas` y `quienEntrega` son palabras de la línea de la página. */
   { conjunto: 'empresas', titulo: 'Empresas', cuenta: 'empresas', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
@@ -2853,7 +2880,7 @@ function siglaPrimaria_(nombre, sinSigla) {
 /* ==== HechosLeer.gs ==== */
 /* Los lectores: abren un listado y devuelven SOLO lo que la tabla de campos nombra, ya interpretado. Se guarda en _interno/leido/<clave>.json
    con la huella del fichero y la versión del lector: mientras no cambie ninguna de las dos, no se vuelve a abrir. Lleva datos de menores: solo en Drive. */
-function lectorDe_(nombre) { return { regalum: leerRegAlum_, matricula: leerMatricula_, censo: leerCensoNeae_, personal: leerPersonal_, libros: leerLibros_, ausencias: leerAusencias_, tutorias: leerTutorias_, consejo: leerConsejo_, entrega: leerEntrega_ }[nombre]; }
+function lectorDe_(nombre) { return { regalum: leerRegAlum_, matricula: leerMatricula_, censo: leerCensoNeae_, personal: leerPersonal_, libros: leerLibros_, ausencias: leerAusencias_, profesorado: leerProfesorado_, tutorias: leerTutorias_, consejo: leerConsejo_, entrega: leerEntrega_ }[nombre]; }
 
 /* «2026» → «26-27». Como anoAcademico_ de BD Alumnado. */
 function anoAcademicoHecho_(ano) {
@@ -4494,7 +4521,7 @@ function montarTutorias_(conj, parte, leido, ctx) {
 /* ¿Alguna parte tiene un día de cambio por venir? Mientras sea así queda el testigo en entrada/, para que la vuelta de los 10 minutos siga viniendo aunque nadie suelte nada. */
 function hayCambiosPorVenir_(indice, avance) {
   const hoy = hoyMadrid_();
-  if (hayCambiosPorVenirConsejo_(avance)) return true;
+  if (hayCambiosPorVenirConsejo_(avance) || hayCesesPorVenir_(indice, avance)) return true;
   return (indice.hechos || []).some(function (h) {
     const conj = CONJUNTOS_.filter(function (c) { return c.conjunto === h.conjunto; })[0];
     const l = conj && conj.conDias && conj.fuentes.length ? avance.leidos[conj.fuentes[0].clave + '/' + h.cursoEscolar] : null;
@@ -6217,6 +6244,7 @@ function claveDeMontajeBase_(conj, parte, partes, indice, avance, necesarias) {
   if (conj.deCorrecciones) return claveDeMontajeCorrecciones_(conj, indice, CORRECCIONES_DE_TAREAS_ || correccionesVacias_());
   if (conj.deContactos) return claveDeMontajeContactos_(conj, parte, indice);
   if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) + cola;
+  if (conj.deProfesorado) return claveDeMontajeProfesorado_(conj, parte, indice, avance, hoy) + cola;
   if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.porCursos) return conj.versionMontador + '|' + conj.fuentes[0].versionLector;
   return conj.versionMontador + '|' + (parte.anio ? '' : partes.map(function (p) { return p.cursoEscolar; }).join(','));
@@ -6375,7 +6403,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   if (conj.entregadoPor) { montarParteDeEntero_(raiz, t, avance, cache, indice); return; }
   if (conj.deCorrecciones) { montarParteDeCorrecciones_(raiz, t, avance, cache, indice); return; }
   if (conj.deContactos) { montarParteDeContactos_(raiz, t, avance, cache, indice); return; }
-  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
+  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
   const t0 = new Date().getTime();
   const cargar = function (k) {
     if (cache[k]) return cache[k];
@@ -6440,7 +6468,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fichero': 'consejoFichero', 'consejo-sin-ficha': 'consejoSinFicha', 'consejo-ficha-dudosa': 'consejoFichaDudosa',
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
-  'ausencias-fichero': 'ausenciasFichero',
+  'ausencias-fichero': 'ausenciasFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal',
   'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
@@ -6571,6 +6599,7 @@ function resumenHechosPagina_(raiz) {
     if (conj.porPeriodos) salida.consejo = resumenConsejoParaPagina_(partes, avance);
     if (conj.deContactos && partes.length) salida.contactos = { registros: partes[0].registros, aMano: ((avance.cifras || {})[partes[0].ruta] || {}).contactosAMano || 0 };
     if (conj.conjunto === 'libros') salida.libros = resumenLibrosParaPagina_(partes, avance);
+    if (conj.deProfesorado) salida.profesorado = resumenProfesoradoParaPagina_(partes, avance);
     if (conj.conjunto === 'ausencias') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
     if (conj.entregadoPor) salida.entero = { registros: (avance.cuentas || {})[conj.conjunto] !== undefined && partes.length ? avance.cuentas[conj.conjunto] : (partes.length ? partes[0].registros : null), quien: conj.quienEntrega || conj.aplicaciones[conj.entregadoPor] || conj.entregadoPor, fecha: (avance.entregados || {})[conj.conjunto] || '', entregadas: conj.entregadas || 'entregadas' };
     if (conj.entregadoPor && conj.desglose) salida.entero.desglose = desglosePaginaEntero_(conj, avance);
@@ -6616,7 +6645,7 @@ const ARCHIVO_VISTOS_ = 'avisos-vistos.json';
 const CONJUNTO_LISTADOS_ = { conjunto: 'listados', titulo: 'Listados' };
 
 /* A quién se refiere un aviso: el primer dato de esta lista que traiga. */
-const CLAVES_DE_QUIEN_ = ['alumno', 'empleado', 'miembro', 'persona', 'unidad', 'cargoNombre', 'iniciales', 'razonSocial', 'nombre', 'listado', 'fichero'];
+const CLAVES_DE_QUIEN_ = ['alumno', 'empleado', 'miembro', 'persona', 'profesor', 'unidad', 'cargoNombre', 'iniciales', 'razonSocial', 'nombre', 'listado', 'fichero'];
 
 /* Una frase por tipo de aviso (o por final de tipo, para los conjuntos que se entregan enteros). `{x}` se cambia por el dato `x` del aviso. */
 const FRASES_AVISO_ = {
@@ -6646,6 +6675,8 @@ const FRASES_AVISO_ = {
   'listado-sin-fichero': 'Falta el fichero de {listado} de {fecha}: vuelve a soltarlo.',
   'ausencias-fichero': '{detalle}',
   'libros-fichero': '{detalle}',
+  'profesorado-fichero': '{detalle}',
+  'profesorado-sin-personal': 'Da {materia} en {unidad} y no está en el listado del personal. Sale igual en los profesores por grupo y de cada alumno.',
   'contactos-cambio-ignorado': 'Un cambio de contactos no se ha aplicado. {detalle}',
   'correcciones-ignorada': 'Una corrección de otra aplicación no se ha aplicado. {detalle}',
   'libros-repetido': 'La asignatura {materia} de {nivel} sale dos veces con el mismo libro; se ha usado la última fila.',
@@ -6899,6 +6930,66 @@ function cmpPuerta_(r) {
   return { id: palabras[r.id] ? r.id : 'desconocida', estado: COMPROB_ESTADOS_.indexOf(r.estado) !== -1 ? r.estado : 'error', cifras: cifras, otros: otros };
 }
 
+/* ==== ComprobProfesorado.gs ==== */
+/* Las comprobaciones del profesorado de cada grupo y de cada alumno (fila 136). Solo leen y solo cuentan: ni un profesor, ni un alumno, ni una materia sale de aquí. */
+
+const COMPROBACIONES_PROFESORADO_ = [
+  { id: 'profesorado-lectura', fila: 136, que: 'Cuántas líneas trae el listado de materias, profesorado y unidades de cada curso, cuántas salen en los profesores por grupo y cuántas son de profesores cesados que no salen; mal si no cuadran o sale alguno con el puesto ya cesado (solo cuentas)', funcion: 'cmpProfesoradoLectura_' },
+  { id: 'profesorado-alumnos-grupo', fila: 136, que: 'Cada profesor de un alumno da esa materia en el grupo del alumno, y cada alumno de la parte está en el alumnado del curso (solo cuentas)', funcion: 'cmpProfesoradoAlumnos_' }
+];
+
+/* Las partes de un conjunto de profesorado, abiertas. null si no hay ninguna. */
+function cmpDatosProfesorado_(ctx, conjunto) {
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === conjunto; });
+  return partes.length ? partes.map(function (h) { return { h: h, p: cmpAbrirParte_(ctx, h) }; }) : null;
+}
+
+/* La parte de otro conjunto del mismo curso, abierta, o null. */
+function cmpVecinaProfesorado_(ctx, conjunto, curso, parte) {
+  const h = parteVecinaTutorias_(ctx.indice, conjunto, curso, parte);
+  return h ? cmpAbrirParte_(ctx, h) : null;
+}
+
+/* `profesorado-lectura`: por curso, las líneas leídas del listado son las del registro más las de los profesores cesados (que no salen), sin ningún identificador vacío ni repetido,
+   y ningún profesor de la parte tiene cesado todo su puesto en el personal del curso. */
+function cmpProfesoradoLectura_(ctx) {
+  const d = cmpDatosProfesorado_(ctx, 'profesorado-grupos');
+  if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let malos = 0, leidas = 0, registros = 0, cesadas = 0, cesadosQueSalen = 0;
+  d.forEach(function (c) {
+    const l = cargarLeido_(ctx.raiz, claveLeido_('materias-profesorado', c.h.cursoEscolar));
+    if (!c.p || !l || l.problema) { malos++; return; }
+    const hoy = c.p.obj.hoy || hoyMadrid_(), vp = cmpVecinaProfesorado_(ctx, 'personal', c.h.cursoEscolar, 'curso'), por = personalPorNombre_(vp ? vp.obj : null);
+    const cesado = function (nombre) { const f = por[normalizarAlumno_(nombre)]; return !!f && estadoDeCese_(f, hoy).cesado; };
+    const vistos = {};
+    c.p.obj.registros.forEach(function (r) { if (!r.id || vistos[r.id]) malos++; vistos[r.id] = true; if (cesado(r.datos.profesor)) cesadosQueSalen++; });
+    const fuera = l.filas.filter(function (f) { return cesado(f[3]); }).length;
+    leidas += l.filas.length; registros += c.p.obj.registros.length; cesadas += fuera;
+    if (l.filas.length !== c.p.obj.registros.length + fuera) malos++;
+  });
+  return { estado: malos || cesadosQueSalen ? 'mal' : 'dato', cifras: { cursos: d.length, lineas: leidas, registros: registros, 'lineas-de-cesados': cesadas, 'cesados-que-salen': cesadosQueSalen, 'cursos-que-no-cuadran': malos } };
+}
+
+/* `profesorado-alumnos-grupo`: cada pareja materia y profesor de un alumno está en los profesores de su grupo, y cada alumno de la parte está en la ficha del alumnado de ese curso. */
+function cmpProfesoradoAlumnos_(ctx) {
+  const d = cmpDatosProfesorado_(ctx, 'profesorado-alumnos');
+  if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let malos = 0, alumnos = 0, parejas = 0;
+  d.forEach(function (c) {
+    const g = cmpVecinaProfesorado_(ctx, 'profesorado-grupos', c.h.cursoEscolar, 'curso'), a = cmpVecinaProfesorado_(ctx, 'alumnado', c.h.cursoEscolar, 'actuales');
+    if (!c.p || !g || !a) { malos++; return; }
+    const hay = {}, fichas = {};
+    g.obj.registros.forEach(function (r) { hay[[r.datos.unidad, r.datos.materia, r.datos.profesor].map(normalizarAlumno_).join('|')] = true; });
+    a.obj.registros.forEach(function (r) { fichas[r.id] = true; });
+    c.p.obj.registros.forEach(function (r) {
+      alumnos++;
+      if (!fichas[r.id]) malos++;
+      (r.datos.profesores || []).forEach(function (x) { parejas++; if (!hay[[r.datos.unidad, x.materia, x.profesor].map(normalizarAlumno_).join('|')]) malos++; });
+    });
+  });
+  return { estado: malos ? 'mal' : 'bien', cifras: { cursos: d.length, alumnos: alumnos, parejas: parejas, 'que-no-cuadran': malos } };
+}
+
 /* ==== ComprobCorrecciones.gs ==== */
 /* Las comprobaciones de las correcciones (fila 127). Solo leen y solo cuentan: ningún valor, nombre ni id sale de aquí. */
 const COMPROBACIONES_CORRECCIONES_ = [
@@ -7081,9 +7172,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_);
 function cmpFuncion_(nombre) {
-  return { cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
     cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
@@ -9666,6 +9757,195 @@ function cmpAusenciasUnaFicha_(ctx) {
   return { estado: malos ? 'mal' : 'bien', cifras: { cursos: d.length, registros: registros, 'repetidos-o-vacios': malos } };
 }
 
+/* ==== Profesorado.gs ==== */
+/* Los conjuntos `profesorado-grupos` y `profesorado-alumnos` (fila 136): salen del listado de Séneca «Materias, profesorado y unidades» (RelMatProUni), una parte por curso.
+   - `profesorado-grupos`: una línea por (unidad, materia, profesor/a). Se quitan los profesores cuyo cese ya ha pasado en el personal del mismo curso (el día del cese aún vale) y se avisa de los que no están en él.
+   - `profesorado-alumnos`: por cada alumno matriculado, los profesores de las materias de su matrícula en su grupo (cruce de `alumnado` con `profesorado-grupos`).
+   Llevan nombres de trabajadores y de menores: lo leído vive en _interno/leido/ y las partes, en hecho/, en Drive. Nunca sale de aquí un nombre hacia diagnostico/, comprobaciones, estado.json ni documentos: solo cifras. */
+const COLUMNAS_PROFESORADO_ = ['Curso', 'Materia', 'Unidad', 'Profesor/a'];
+
+/* ---- El listado ---- */
+
+/* Lo que trae un fichero al soltarlo: { filas, resumen } con «518 líneas · 30 grupos · 69 profesores». */
+function contarProfesorado_(c, bytes, tipo) {
+  if (tipo !== 'csv') return { filas: null, resumen: 'Fichero' };
+  const texto = bytesATexto_(bytes), tabla = leerCsv_(texto, detectarSeparador_(texto)), tn = (tabla[0] || []).map(normalizarTitulo_);
+  const iU = tn.indexOf(normalizarTitulo_('Unidad')), iP = tn.indexOf(normalizarTitulo_('Profesor/a'));
+  const datos = tabla.slice(1).filter(function (f) { return f.some(function (x) { return String(x === undefined ? '' : x).trim(); }); });
+  const distintos = function (i) { const v = {}; datos.forEach(function (f) { const t = normalizarAlumno_(f[i]); if (t) v[t] = true; }); return Object.keys(v).length; };
+  const g = distintos(iU), p = distintos(iP), n = datos.length;
+  return { filas: n, resumen: numeroLegible_(n) + (n === 1 ? ' línea' : ' líneas') + ' · ' + numeroLegible_(g) + (g === 1 ? ' grupo' : ' grupos') + ' · ' + numeroLegible_(p) + (p === 1 ? ' profesor' : ' profesores') };
+}
+
+/* El lector: guarda cada línea como [curso, materia, unidad, profesor] (recortadas). Las que no traen materia, unidad o profesor no se usan y se cuentan.
+   { lector, clave, variante, huella, filas: [[…]], incompletas, problema: '' | 'vacio' | 'ilegible' | 'faltan-columnas' } */
+function leerProfesorado_(bytes, fuente, huella, conj, entrada) {
+  const salida = { lector: fuente.versionLector, clave: fuente.clave, variante: entrada.variante || '', huella: huella, filas: [], incompletas: 0, problema: '' };
+  let tabla = [];
+  try { const texto = bytesATexto_(bytes); tabla = leerCsv_(texto, detectarSeparador_(texto)); } catch (e) { salida.problema = 'ilegible'; return salida; }
+  if (tabla.length < 2) { salida.problema = 'vacio'; return salida; }
+  const tn = tabla[0].map(normalizarTitulo_), idx = COLUMNAS_PROFESORADO_.map(function (c) { return tn.indexOf(normalizarTitulo_(c)); });
+  if (idx.some(function (i) { return i === -1; })) { salida.problema = 'faltan-columnas'; return salida; }
+  for (let f = 1; f < tabla.length; f++) {
+    const celdas = idx.map(function (i) { return String(tabla[f][i] === undefined ? '' : tabla[f][i]).replace(/\s+/g, ' ').trim(); });
+    if (!celdas.some(function (c) { return c; })) continue;
+    if (!celdas[1] || !celdas[2] || !celdas[3]) { salida.incompletas++; continue; }
+    salida.filas.push(celdas);
+  }
+  if (!salida.filas.length) salida.problema = 'vacio';
+  return salida;
+}
+
+function frasesDeFicheroProfesorado_(l) {
+  if (l.problema === 'vacio') return ['El listado de materias, profesorado y unidades está vacío.'];
+  if (l.problema === 'ilegible') return ['No se ha podido leer el listado de materias, profesorado y unidades.'];
+  if (l.problema === 'faltan-columnas') return ['Al listado de materias, profesorado y unidades le falta una columna necesaria y no se ha usado.'];
+  return l.incompletas ? [numeroLegible_(l.incompletas) + (l.incompletas === 1 ? ' línea del listado no trae materia, unidad o profesor y no se ha usado.' : ' líneas del listado no traen materia, unidad o profesor y no se han usado.')] : [];
+}
+
+/* ---- Cese en el personal ---- */
+
+/* El día siguiente a uno `AAAA-MM-DD`. */
+function diaSiguiente_(dia) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia);
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + 1));
+  return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2);
+}
+
+/* Las fichas del personal por nombre normalizado («Apellidos, Nombre» sin tildes ni mayúsculas): { nombre: [registro…] }. */
+function personalPorNombre_(personal) {
+  const por = {};
+  (personal ? personal.registros : []).forEach(function (r) { const k = normalizarAlumno_(r.datos.empleado); if (k) (por[k] = por[k] || []).push(r); });
+  return por;
+}
+
+/* ¿Ha cesado del todo? Todas sus filas de puesto con cese anterior a hoy (el día del cese aún vale). Y, si aún no, el día en que lo estará (el siguiente al último cese), o ''. */
+function estadoDeCese_(fichas, hoy) {
+  const filas = [];
+  fichas.forEach(function (r) {
+    const puestos = Array.isArray(r.datos.puestos) && r.datos.puestos.length ? r.datos.puestos : [{ fechaCese: r.datos.fechaCese }];
+    puestos.forEach(function (p) { filas.push(p.fechaCese || ''); });
+  });
+  if (!filas.length || filas.some(function (c) { return !c; })) return { cesado: false, cambia: '' };
+  const ultimo = filas.slice().sort().pop();
+  return ultimo < hoy ? { cesado: true, cambia: '' } : { cesado: false, cambia: diaSiguiente_(ultimo) };
+}
+
+/* ---- Profesores por grupo ---- */
+
+function idDeLineaProfesorado_(celdas, veces) {
+  const h = huella_(Utilities.newBlob(celdas.map(normalizarAlumno_).join('\u001f'), 'text/plain').getBytes()).slice(0, 12);
+  return 'g-' + h + (veces > 1 ? '~' + veces : '');
+}
+
+/* La parte de un curso. ctx = { hoy, personal: la parte del personal del mismo curso o null }. Devuelve { objeto, cifras, dias }: `dias` son los días futuros en que un profesor pasa a estar cesado. */
+function montarProfesoradoGrupos_(conj, parte, leido, ctx) {
+  const avisos = [], registros = [], veces = {}, vistos = {}, sin = {}, cesados = {}, dias = {}, grupos = {}, personas = {};
+  const por = personalPorNombre_(ctx.personal), estado = {};
+  frasesDeFicheroProfesorado_(leido).forEach(function (d) { avisos.push({ tipo: 'profesorado-fichero', id: null, datos: { detalle: d } }); });
+  (leido.problema ? [] : leido.filas).forEach(function (c) {
+    const k = normalizarAlumno_(c[3]), fichas = por[k] || [];
+    if (!estado[k]) estado[k] = fichas.length ? estadoDeCese_(fichas, ctx.hoy) : { cesado: false, cambia: '' };
+    if (estado[k].cesado) { cesados[k] = true; return; }
+    if (estado[k].cambia) dias[estado[k].cambia] = true;
+    const llave = c.map(normalizarAlumno_).join('\u001f');
+    veces[llave] = (veces[llave] || 0) + 1;
+    const datos = { nivel: c[0], unidad: c[2], materia: c[1], profesor: c[3] };
+    if (fichas.length === 1 && fichas[0].id) { datos.fichaConjunto = 'personal'; datos.fichaId = fichas[0].id; }
+    registros.push({ id: idDeLineaProfesorado_(c, veces[llave]), datos: datos });
+    grupos[normalizarAlumno_(c[2])] = true; personas[k] = true;
+    if (ctx.personal && !fichas.length && !vistos[k]) { vistos[k] = true; sin[k] = { profesor: c[3], unidad: c[2], materia: c[1] }; }
+  });
+  Object.keys(sin).forEach(function (k) { avisos.push({ tipo: 'profesorado-sin-personal', id: null, datos: sin[k] }); });
+  const objeto = { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_, hoy: ctx.hoy,
+    personalMirado: !!ctx.personal, campos: camposPublicos_(conj, false), registros: registros, avisos: avisos };
+  return { objeto: objeto, cifras: { grupos: Object.keys(grupos).length, profesores: Object.keys(personas).length, cesados: Object.keys(cesados).length }, dias: Object.keys(dias).sort() };
+}
+
+/* El listado de un curso, leído, o null (y se olvida lo apuntado si ya no es el mismo fichero). */
+function leidoDeProfesorado_(raiz, t, avance) {
+  const x = t.necesarias.filter(function (n) { return n.entrada.cursoEscolar === t.parte.cursoEscolar; })[0];
+  if (!x) return null;
+  const leido = cargarLeido_(raiz, x.k);
+  if (!leido || !avance.leidos[x.k] || leido.huella !== avance.leidos[x.k].huella) { delete avance.leidos[x.k]; return null; }
+  return leido;
+}
+
+function montarParteDeProfesoradoGrupos_(raiz, t, avance, cache, indice) {
+  const t0 = new Date().getTime(), leido = leidoDeProfesorado_(raiz, t, avance);
+  if (!leido) return;
+  const hp = parteVecinaTutorias_(indice, 'personal', t.parte.cursoEscolar, 'curso');
+  const r = montarProfesoradoGrupos_(t.conj, t.parte, leido, { hoy: hoyDeParte_(t.ruta), personal: hp ? abrirParteVecina_(hp, cache) : null });
+  avance.cifras = avance.cifras || {}; avance.cifras[t.ruta] = r.cifras;
+  avance.dias = avance.dias || {}; avance.dias[t.ruta] = r.dias;
+  cerrarMontaje_(raiz, t, avance, r.objeto, t0);
+}
+
+/* ---- Profesores de cada alumno ---- */
+
+/* ctx = { alumnado: la parte `actuales` del curso o null, grupos: la parte de profesores por grupo o null }. Un registro por alumno matriculado con grupo; `profesores` lleva solo las materias de su
+   matrícula que tienen profesor en su grupo (comparadas sin tildes, mayúsculas ni espacios sobrantes). Devuelve { objeto, cifras }. */
+function montarProfesoradoAlumnos_(conj, parte, ctx) {
+  const porUnidad = {}, registros = [];
+  (ctx.grupos ? ctx.grupos.registros : []).forEach(function (r) {
+    const u = normalizarAlumno_(r.datos.unidad), m = normalizarAlumno_(r.datos.materia);
+    porUnidad[u] = porUnidad[u] || {}; porUnidad[u][m] = porUnidad[u][m] || [];
+    if (porUnidad[u][m].indexOf(r.datos.profesor) === -1) porUnidad[u][m].push(r.datos.profesor);
+  });
+  (ctx.alumnado ? ctx.alumnado.registros : []).forEach(function (a) {
+    if (!a.matriculado || !a.datos.unidad) return;
+    const grupo = porUnidad[normalizarAlumno_(a.datos.unidad)] || {}, hechas = {}, pares = [];
+    (a.datos.materias || []).forEach(function (m) {
+      const k = normalizarAlumno_(m.materia);
+      if (hechas[k]) return;
+      hechas[k] = true;
+      (grupo[k] || []).forEach(function (p) { pares.push({ materia: m.materia, profesor: p }); });
+    });
+    const datos = { alumno: a.datos.alumno || '', unidad: a.datos.unidad };
+    if (!datos.alumno) delete datos.alumno;
+    if (pares.length) datos.profesores = pares;
+    registros.push({ id: a.id, datos: datos });
+  });
+  const objeto = { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_,
+    alumnadoMirado: !!ctx.alumnado, gruposMirados: !!ctx.grupos, campos: camposPublicos_(conj, false), registros: registros, avisos: [] };
+  return { objeto: objeto, cifras: { alumnos: registros.length, conProfesores: registros.filter(function (r) { return r.datos.profesores; }).length } };
+}
+
+function montarParteDeProfesoradoAlumnos_(raiz, t, avance, cache, indice) {
+  const t0 = new Date().getTime(), curso = t.parte.cursoEscolar;
+  const ha = parteVecinaTutorias_(indice, 'alumnado', curso, 'actuales'), hg = parteVecinaTutorias_(indice, 'profesorado-grupos', curso, 'curso');
+  const r = montarProfesoradoAlumnos_(t.conj, t.parte, { alumnado: ha ? abrirParteVecina_(ha, cache) : null, grupos: hg ? abrirParteVecina_(hg, cache) : null });
+  avance.cifras = avance.cifras || {}; avance.cifras[t.ruta] = r.cifras;
+  cerrarMontaje_(raiz, t, avance, r.objeto, t0);
+}
+
+/* ---- Cuándo se rehacen ---- */
+
+/* Lo que cambia el montaje además del listado: el número del montador, la huella de lo que mira y, en los profesores por grupo, cuántos de sus días de cese han pasado ya. */
+function claveDeMontajeProfesorado_(conj, parte, indice, avance, hoy) {
+  const curso = parte.cursoEscolar, h = function (c, p) { const x = parteVecinaTutorias_(indice, c, curso, p); return x ? x.huella : ''; };
+  const base = conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|';
+  if (conj.deProfesorado === 'alumnos') return base + h('alumnado', 'actuales') + '|' + h('profesorado-grupos', 'curso');
+  const ruta = rutaDeParte_(conj.conjunto, parte);
+  return base + h('personal', 'curso') + '|' + ((avance.dias || {})[ruta] || []).filter(function (d) { return d <= hoy; }).length;
+}
+
+/* ¿Algún profesor pasará a estar cesado otro día? Mientras sea así queda el testigo en entrada/, para que la vuelta de fondo siga viniendo. */
+function hayCesesPorVenir_(indice, avance) {
+  const hoy = hoyMadrid_();
+  return (indice.hechos || []).some(function (h) { return h.conjunto === 'profesorado-grupos' && ((avance.dias || {})[h.ruta] || []).some(function (d) { return d > hoy; }); });
+}
+
+/* ---- Lo que dice la página ---- */
+
+/* Del curso de hoy (o el más reciente que tenga parte): { cursoEscolar, grupos, profesores, cesados | alumnos, conProfesores, masCursos }. Solo cifras y cursos. */
+function resumenProfesoradoParaPagina_(partes, avance) {
+  const cursos = partes.slice().sort(function (a, b) { return ordenDeCurso_(b.cursoEscolar) - ordenDeCurso_(a.cursoEscolar); });
+  const p = cursos.filter(function (x) { return x.cursoEscolar === cursoActual_(); })[0] || cursos[0];
+  const k = p && (avance.cifras || {})[p.ruta];
+  return p && k ? Object.assign({ cursoEscolar: p.cursoEscolar, masCursos: cursos.length - 1 }, k) : null;
+}
+
 /* ==== Fondo.gs ==== */
 /* La vuelta de fondo (fila 66): lo que antes se hacía al abrir la pantalla antigua y ahora se hace solo, cada vez que el disparador de 10 minutos arranca recogerEntrada_.
    Lo que se hizo y cuándo queda en _interno/fondo.json, solo con marcas de tiempo: lo lee la comprobación `antigua-sin-pantalla`. */
@@ -10133,6 +10413,9 @@ const CONSULTA_CONJUNTOS_ = [
   { id: 'libros', nombre: 'Libros de texto', conjunto: 'libros', parte: 'curso', modo: 'curso', unidad: ['asignatura', 'asignaturas'], ver: ['nivelTexto', 'materia', 'titulo', 'editorial'], eje: { filas: ['nivelTexto'], cols: [] } },
   /* Fila 114: las columnas son las del fichero (no se conocen de antemano). `ver: 'todas'`: abre con todas. `eje`: abre con la persona en filas y el estado en columnas, si el fichero las trae (las claves salen de los títulos). */
   { id: 'ausencias', nombre: 'Ausencias', conjunto: 'ausencias', parte: 'curso', modo: 'curso', unidad: ['ausencia', 'ausencias'], ver: 'todas', eje: { filas: ['empleado-a', 'empleado', 'profesor-a'], cols: ['estado'] } },
+  /* Fila 136: los profesores por grupo (una línea por clase) y de cada alumno (una tabla de materia y profesor). */
+  { id: 'profesorado-grupos', nombre: 'Profesores por grupo', conjunto: 'profesorado-grupos', parte: 'curso', modo: 'curso', unidad: ['clase', 'clases'], ver: ['nivel', 'unidad', 'materia', 'profesor'], eje: { filas: ['profesor'], cols: [] } },
+  { id: 'profesorado-alumnos', nombre: 'Profesores de cada alumno', conjunto: 'profesorado-alumnos', parte: 'curso', modo: 'curso', ejeNombres: { 'profesores.materia': 'Materia', 'profesores.profesor': 'Profesor/a' }, unidad: ['alumno', 'alumnos'], ver: ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'], eje: { filas: ['alumno'], cols: [] } },
   { id: 'empresas', nombre: 'Empresas', conjunto: 'empresas', parte: 'todas', modo: 'unica', unidad: ['empresa', 'empresas'], ver: ['razonSocial', 'nombreComercial', 'contacto'] },
   { id: 'administraciones', nombre: 'Administraciones', conjunto: 'administraciones', parte: 'todas', modo: 'unica', unidad: ['administración', 'administraciones'], ver: ['nombreCorto', 'clase', 'dependeDe'], eje: { filas: ['clase'], cols: [] } },
   { id: 'cargos', nombre: 'Cargos', conjunto: 'cargos', parte: 'todos', modo: 'unica', unidad: ['registro', 'registros'], vigencia: { tipo: 'cargo' }, ver: ['cargoNombre', 'persona', 'desde', 'hasta'], eje: { filas: ['cargoNombre'], cols: [] } },
@@ -10148,6 +10431,8 @@ const CONSULTA_SALEN_ = {
   tutorias: ['unidad', 'tutorHoy', 'tutores.empleado', 'tutores.apellidos', 'tutores.nombre', 'tutores.periodo', 'tutores.desde', 'tutores.hasta', 'tutores.sustituto', 'tutores.hoy', 'tutores.enPersonal'],
   'consejo-escolar': ['miembro', 'apellidos', 'nombre', 'sector', 'cargo', 'nombramiento', 'cese', 'nato', 'periodos', 'miembroHoy'],
   libros: ['nivel', 'nivelTexto', 'materia', 'conLibro', 'isbn', 'editorial', 'titulo', 'anioImplantacion', 'importe', 'digital', 'chequeLibro', 'otroMaterial'],
+  'profesorado-grupos': ['nivel', 'unidad', 'materia', 'profesor'],
+  'profesorado-alumnos': ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'],
   empresas: ['razonSocial', 'nombreComercial', 'contacto'],
   administraciones: ['clase', 'tercero', 'nombreCorto', 'nombreOficial', 'dir3', 'codigoCentro', 'dependeDe', 'nombresAnteriores.nombre', 'nombresAnteriores.hasta', 'dependeDeAnteriores.nombre', 'dependeDeAnteriores.hasta',
     'departamentos.nombre', 'departamentos.nivel', 'departamentos.dir3', 'departamentos.contacto'],
@@ -10170,7 +10455,7 @@ function consultaCursos_(indice, def) {
   const hechos = indice.hechos || [];
   let cursos;
   if (def.soloPropio) cursos = hechos.filter(function (h) { return h.conjunto === def.conjunto && h.parte === def.parte; }).map(function (h) { return h.cursoEscolar; });
-  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
+  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'profesorado-grupos', 'profesorado-alumnos'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
   return ordenarCursos_(cursos);
 }
 

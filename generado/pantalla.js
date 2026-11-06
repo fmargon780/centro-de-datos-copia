@@ -381,6 +381,7 @@ function textoDeUnConjunto(c) {
   if (c.consejo) return textoDelConsejo(c);
   if (c.libros !== undefined && c.conjunto === 'libros') return textoDeLibros(c);
   if (c.ausencias !== undefined && c.conjunto === 'ausencias') return textoDeAusencias(c);
+  if (c.profesorado !== undefined && c.conjunto.indexOf('profesorado-') === 0) return textoDeProfesorado(c);
   if (c.entero) return textoDelEntero(c);
   if (c.contactos) return textoDeContactos(c);
   var t = c.actuales.map(function (a, i) {
@@ -412,6 +413,22 @@ function textoDeAusencias(c) {
   var k = c.ausencias;
   if (!k) return c.etiqueta + ': poniéndose al día';
   var t = [c.etiqueta + ': ' + numeroConPuntos(k.ausencias) + (k.ausencias === 1 ? ' ausencia' : ' ausencias') + (k.personas === null ? '' : ' de ' + numeroConPuntos(k.personas) + (k.personas === 1 ? ' persona' : ' personas')) + ', curso ' + k.cursoEscolar];
+  if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
+  t.push(c.alDia ? 'al día' : 'poniéndose al día');
+  if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
+  return t.join(' · ');
+}
+
+/* Los profesores por grupo (grupos, profesores y cesados que no salen) y de cada alumno (alumnos), del curso de hoy (o el más reciente). */
+function textoDeProfesorado(c) {
+  var k = c.profesorado;
+  if (!k) return c.etiqueta + ': poniéndose al día';
+  var t = [];
+  if (k.alumnos !== undefined) t.push(c.etiqueta + ': ' + numeroConPuntos(k.alumnos) + (k.alumnos === 1 ? ' alumno' : ' alumnos') + ', curso ' + k.cursoEscolar);
+  else {
+    t.push(c.etiqueta + ': ' + numeroConPuntos(k.grupos) + (k.grupos === 1 ? ' grupo' : ' grupos') + ' y ' + numeroConPuntos(k.profesores) + (k.profesores === 1 ? ' profesor' : ' profesores') + ', curso ' + k.cursoEscolar);
+    if (k.cesados) t.push(numeroConPuntos(k.cesados) + (k.cesados === 1 ? ' profesor cesado no sale' : ' profesores cesados no salen'));
+  }
   if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
   t.push(c.alDia ? 'al día' : 'poniéndose al día');
   if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
