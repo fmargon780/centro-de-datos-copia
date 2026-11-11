@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v72';
+const VERSION_CD = 'CD v73';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -951,6 +951,259 @@ function cmpMatriculaAulaEspecifica_(ctx) {
   const suyas = ctx.indice.listados.filter(function (e) { return e.clave === 'matricula' && esAmbitoFbo_(e.ambito) && e.cursoEscolar === cursoActual_(); });
   const esperan = leerPendientes_(ctx.raiz).pendientes.filter(function (p) { return p.clave === 'matricula' && diceAulaEspecifica_(p.fichero); }).length;
   return { estado: 'dato', cifras: { edades: suyas.length, alumnos: suyas.reduce(function (n, e) { return n + (e.filas || 0); }, 0), 'esperan-sin-edad': esperan } };
+}
+
+/* ==== Centro2.gs ==== */
+/* Fila 141: la lista de tablas de Centro_2 (el programa antiguo de MS-DOS, tablas de dBase).
+   Es un estudio: recorre la carpeta «Centro_2» (dentro de «CENTRO DE DATOS»), lee de cada .DBF solo la cabecera (columnas y número de filas) y apunta
+   el resultado en `_interno/centro2-tablas.json`. Cuando termina, `Centro2Doc.gs` escribe `docs/CENTRO2-TABLAS.md` y lo sube al repositorio.
+   Nunca se lee ni se guarda el contenido de una fila: de cada fichero solo sale su nombre, su carpeta, su tamaño y, de los .DBF, sus columnas y sus filas.
+   Los ficheros de Centro_2 no salen de Google. Estos ficheros no pasan por el reconocimiento de listados ni por el índice. */
+const CENTRO2_TABLAS_ = 'centro2-tablas.json';
+const CENTRO2_MARCA_ = 'centro2-marca.json';
+const CENTRO2_INTENTOS_ = 5;
+const CENTRO2_TOPE_MAX_BYTES_ = 25 * 1024 * 1024;
+const CENTRO2_TIPOS_ = { C: 'texto', N: 'número', F: 'decimal', D: 'fecha', L: 'sí/no', M: 'memo', G: 'general', B: 'binario', I: 'entero', T: 'fecha y hora', Y: 'moneda', O: 'doble', '+': 'autonumérico', '@': 'sello de tiempo', '0': 'marcas' };
+const CENTRO2_VERSIONES_ = { 2: 'FoxBase', 3: 'dBase III', 4: 'dBase IV', 5: 'dBase V', 48: 'Visual FoxPro', 49: 'Visual FoxPro', 50: 'Visual FoxPro', 67: 'dBase IV (SQL)', 99: 'dBase IV (SQL)', 131: 'dBase III con memo', 139: 'dBase IV con memo', 142: 'dBase IV (SQL)', 179: 'dBase IV (SQL)', 245: 'FoxPro con memo', 251: 'FoxBase' };
+
+/* Sin mayúsculas, tildes ni signos: «Centro_2», «CENTRO2», «centro-2» son lo mismo. */
+function esCentro2_(nombre) { return String(nombre || '').toLowerCase().replace(/[^a-z0-9]/g, '') === 'centro2'; }
+
+/* Un nombre de columna o de fichero para escribirlo en el documento: nada de barras verticales ni saltos de línea. */
+function limpioCentro2_(t) { return String(t || '').replace(/[|\r\n\t]/g, '¦').replace(/\s+/g, ' ').trim(); }
+
+/* Lee la cabecera de un fichero de dBase. `bytes` puede traer signo (Apps Script). Devuelve { valida: true, version, fecha, filas, longitudRegistro, campos: [{ nombre, tipo, ancho, dec }] } o { valida: false, motivo }.
+   Solo mira los primeros bytes hasta el 0x0D que cierra la lista de campos: nunca el contenido de las filas. */
+function leerCabeceraDbf_(bytes) {
+  const b = function (i) { return bytes[i] === undefined ? 0 : bytes[i] & 255; };
+  if (!bytes || bytes.length < 33) return { valida: false, motivo: 'es más corto que una cabecera de dBase' };
+  const v = b(0), mes = b(2), dia = b(3);
+  if (!CENTRO2_VERSIONES_[v]) return { valida: false, motivo: 'no empieza como una tabla de dBase' };
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return { valida: false, motivo: 'la fecha de su cabecera no vale' };
+  const filas = b(4) + b(5) * 256 + b(6) * 65536 + b(7) * 16777216;
+  const lonCab = b(8) + b(9) * 256, lonReg = b(10) + b(11) * 256;
+  if (lonCab < 33 || lonReg < 2) return { valida: false, motivo: 'las medidas de su cabecera no valen' };
+  const campos = [];
+  let pos = 32, suma = 1;
+  while (pos + 32 <= bytes.length && pos < lonCab && b(pos) !== 13) {
+    let nombre = '';
+    for (let i = 0; i < 11 && b(pos + i) !== 0; i++) { const c = b(pos + i); nombre += c >= 32 && c < 127 ? String.fromCharCode(c) : '?'; }
+    const tipo = String.fromCharCode(b(pos + 11));
+    campos.push({ nombre: limpioCentro2_(nombre), tipo: tipo, ancho: b(pos + 16), dec: b(pos + 17) });
+    suma += b(pos + 16);
+    pos += 32;
+  }
+  if (!campos.length) return { valida: false, motivo: 'no trae ninguna columna' };
+  if (b(pos) !== 13) return { valida: false, motivo: 'no se encuentra el final de su lista de columnas' };
+  if (suma !== lonReg) return { valida: false, motivo: 'la suma de los anchos de sus columnas no es la de una fila' };
+  return { valida: true, version: CENTRO2_VERSIONES_[v], fecha: (1900 + b(1)) + '-' + (mes < 10 ? '0' : '') + mes + '-' + (dia < 10 ? '0' : '') + dia, filas: filas, longitudRegistro: lonReg, campos: campos };
+}
+
+/* Un .DCL: si resulta ser una tabla de dBase con otra extensión, se dice; si no, solo qué clase de fichero parece (texto o binario) y, si es binario, sus 8 primeros bytes en hexadecimal.
+   Si parece texto no se copia nada de él: podría ser de personas. */
+function describirOtroCentro2_(bytes) {
+  const cab = leerCabeceraDbf_(bytes);
+  if (cab.valida) return { dbf: cab };
+  const n = Math.min(bytes.length, 4096);
+  let legibles = 0;
+  for (let i = 0; i < n; i++) { const c = bytes[i] & 255; if ((c >= 32 && c < 127) || c === 10 || c === 13 || c === 9 || c >= 160) legibles++; }
+  const texto = n > 0 && legibles / n >= 0.9;
+  if (texto) return { clase: 'parece texto (no se copia nada de él)' };
+  let hex = '';
+  for (let i = 0; i < Math.min(8, bytes.length); i++) hex += ('0' + (bytes[i] & 255).toString(16)).slice(-2) + (i < 7 ? ' ' : '');
+  return { clase: 'parece binario, no es una tabla de dBase', hex: hex };
+}
+
+function extensionCentro2_(nombre) { const m = /\.([^.]+)$/.exec(String(nombre)); return m ? m[1].toUpperCase() : ''; }
+
+function tamanoFicheroCentro2_(f, bytes) {
+  try { if (typeof f.getSize === 'function') return f.getSize(); } catch (e) { /* se usa lo leído */ }
+  return bytes ? bytes.length : 0;
+}
+
+/* Un fichero de Centro_2 → su línea. Devuelve el objeto que se apunta (nunca contenido de filas). */
+function leerFicheroCentro2_(f, ruta) {
+  const nombre = f.getName(), ext = extensionCentro2_(nombre);
+  const linea = { n: limpioCentro2_(nombre), c: ruta, x: ext, t: 0 };
+  if (ext !== 'DBF' && ext !== 'DCL') {
+    linea.t = tamanoFicheroCentro2_(f, null);
+    return linea;
+  }
+  linea.t = tamanoFicheroCentro2_(f, null);
+  if (linea.t > CENTRO2_TOPE_MAX_BYTES_) { linea.e = 'no se ha leído: pesa demasiado'; return linea; }
+  let bytes;
+  try { bytes = f.getBlob().getBytes(); } catch (e) { linea.e = 'no se ha podido leer'; return linea; }
+  if (!linea.t) linea.t = bytes.length;
+  if (ext === 'DBF') {
+    const cab = leerCabeceraDbf_(bytes);
+    if (!cab.valida) { linea.e = cab.motivo; return linea; }
+    linea.v = cab.version; linea.f = cab.fecha; linea.r = cab.filas;
+    linea.k = cab.campos.map(function (c) { return [c.nombre, c.tipo, c.ancho, c.dec]; });
+    return linea;
+  }
+  const d = describirOtroCentro2_(bytes);
+  if (d.dbf) {
+    linea.v = d.dbf.version; linea.f = d.dbf.fecha; linea.r = d.dbf.filas;
+    linea.k = d.dbf.campos.map(function (c) { return [c.nombre, c.tipo, c.ancho, c.dec]; });
+    linea.d = 'es una tabla de dBase con la extensión .DCL';
+  } else {
+    linea.d = d.clase + (d.hex ? ' · primeros bytes: ' + d.hex : '');
+  }
+  return linea;
+}
+
+function leerTablasCentro2_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  return leerJson_(interno, CENTRO2_TABLAS_);
+}
+function leerMarcaCentro2_(raiz) { return leerJson_(subcarpetaPorRuta_(raiz, '_interno'), CENTRO2_MARCA_); }
+function escribirMarcaCentro2_(raiz, estado) {
+  const fin = { fase: estado.fase, hecho: estado.fase === 'hecho', ficheros: estado.lineas.length, subido: estado.subido || '', intentos: estado.intentos || 0, cuando: ahoraMadrid_(), version: VERSION_CD };
+  escribirJson_(subcarpetaPorRuta_(raiz, '_interno'), CENTRO2_MARCA_, fin);
+}
+
+/* Un paso del estudio, con como mucho `topeMs`. Devuelve true si quedan cosas por hacer (la vuelta de fondo sigue en la próxima).
+   Una vez terminado y subido no se repite, salvo que se borre `_interno/centro2-tablas.json`. */
+function repasarCentro2_(raiz, topeMs) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  const marca = leerMarcaCentro2_(raiz);
+  if (marca && marca.hecho && (marca.subido === 'bien' || marca.intentos >= CENTRO2_INTENTOS_) && interno.getFilesByName(CENTRO2_TABLAS_).hasNext()) return false;
+  const inicio = new Date().getTime();
+  let leidos = 0;
+  let estado = leerTablasCentro2_(raiz);
+  if (!estado) {
+    estado = { fase: 'recorriendo', empezado: ahoraMadrid_(), carpetas: [], encontradas: [], lineas: [], subido: '' };
+    const it = raiz.getFolders(), vistas = [];
+    while (it.hasNext()) { const c = it.next(); if (esCentro2_(c.getName()) && !c.isTrashed()) vistas.push(c); }
+    vistas.forEach(function (c, i) {
+      const ruta = limpioCentro2_(c.getName()) + (vistas.length > 1 ? ' (' + (i + 1) + ')' : '');
+      estado.encontradas.push(ruta);
+      estado.carpetas.push({ id: c.getId(), ruta: ruta });
+    });
+    if (!vistas.length) estado.fase = 'escribir';
+  }
+  while (estado.fase === 'recorriendo' && estado.carpetas.length) {
+    const q = estado.carpetas[0];
+    let carpeta = null;
+    try { carpeta = DriveApp.getFolderById(q.id); } catch (e) { estado.lineas.push({ n: '(carpeta)', c: q.ruta, x: '', t: 0, e: 'no se ha podido abrir' }); estado.carpetas.shift(); continue; }
+    const hechos = {};
+    estado.lineas.forEach(function (l) { if (l.c === q.ruta) hechos[l.n] = true; });
+    const it = carpeta.getFiles();
+    let parado = false;
+    while (it.hasNext()) {
+      const f = it.next();
+      if (hechos[limpioCentro2_(f.getName())]) continue;
+      if (leidos && new Date().getTime() - inicio >= topeMs) { parado = true; break; }
+      leidos++;
+      estado.lineas.push(leerFicheroCentro2_(f, q.ruta));
+    }
+    if (parado) { escribirJson_(interno, CENTRO2_TABLAS_, estado); escribirMarcaCentro2_(raiz, estado); return true; }
+    const sub = carpeta.getFolders();
+    while (sub.hasNext()) { const s = sub.next(); estado.carpetas.push({ id: s.getId(), ruta: q.ruta + '/' + limpioCentro2_(s.getName()) }); }
+    estado.carpetas.shift();
+  }
+  if (estado.fase === 'recorriendo') estado.fase = 'escribir';
+  if (estado.subido !== 'bien' && (estado.intentos || 0) < CENTRO2_INTENTOS_) {
+    estado.intentos = (estado.intentos || 0) + 1;
+    estado.subido = subirDocCentro2_(estado);
+  }
+  estado.fase = 'hecho';
+  escribirJson_(interno, CENTRO2_TABLAS_, estado);
+  escribirMarcaCentro2_(raiz, estado);
+  return estado.subido !== 'bien' && estado.intentos < CENTRO2_INTENTOS_;
+}
+
+/* ==== Centro2Doc.gs ==== */
+/* Fila 141: el documento `docs/CENTRO2-TABLAS.md` (a partir de lo apuntado por `Centro2.gs`), su subida al repositorio y la comprobación `centro2-tablas`.
+   Solo nombres de tablas y de columnas y números. Ningún dato de ninguna fila. */
+const CENTRO2_RUTA_DOC_ = 'docs/CENTRO2-TABLAS.md';
+const CENTRO2_MAX_NOTAS_ = 80;
+
+function tamanoLlanoCentro2_(t) { return t >= 1048576 ? (t / 1048576).toFixed(1) + ' MB' : t >= 1024 ? Math.round(t / 1024) + ' KB' : t + ' B'; }
+
+function columnaLlanaCentro2_(k) { return k[0] + ' ' + k[1] + '(' + k[2] + (k[3] ? ',' + k[3] : '') + ')'; }
+
+/* ¿Parece una tabla de notas por alumno y asignatura? Solo por los nombres de sus columnas: una que identifique al alumno, una de asignatura y una de nota.
+   Devuelve las columnas que lo sugieren, o null. */
+function pareceNotasCentro2_(linea) {
+  if (!linea.k) return null;
+  const nombres = linea.k.map(function (k) { return String(k[0]).toUpperCase(); });
+  const alumno = nombres.filter(function (n) { return /^(ALUM|ALU|EXP|MATR|NUM_?ALU|NIA|NRE|NUMEXP|CODALU|COD_?ALU)/.test(n); });
+  const asig = nombres.filter(function (n) { return /^(ASIG|MATER|MAT_|SIGNA|CODMAT|COD_?ASI|CODASIG)/.test(n); });
+  const nota = nombres.filter(function (n) { return /^(NOTA|NOT[0-9_]|CALIF|CAL[0-9_]|EVAL|EV[0-9]|FINAL|JUN|SEP)/.test(n); });
+  if (!alumno.length || !nota.length) return null;
+  if (!asig.length && nota.length < 3) return null;
+  return alumno.concat(asig, nota).slice(0, 8);
+}
+
+function filaTablaCentro2_(l) {
+  const col = l.k ? l.k.map(columnaLlanaCentro2_).join(', ') : (l.e || l.d || '');
+  return '| ' + [l.n, l.c, tamanoLlanoCentro2_(l.t), l.r === undefined ? '' : l.r, l.f || '', col].join(' | ') + ' |';
+}
+
+/* El documento entero, como texto. */
+function documentoCentro2_(estado) {
+  const dbf = estado.lineas.filter(function (l) { return l.x === 'DBF'; });
+  const dcl = estado.lineas.filter(function (l) { return l.x === 'DCL'; });
+  const otros = estado.lineas.filter(function (l) { return l.x !== 'DBF' && l.x !== 'DCL'; });
+  const buenas = dbf.filter(function (l) { return l.k; });
+  const filas = buenas.reduce(function (n, l) { return n + (l.r || 0); }, 0);
+  const ordenar = function (a, b) { return (a.c + '/' + a.n).toUpperCase() < (b.c + '/' + b.n).toUpperCase() ? -1 : 1; };
+  const t = ['# Centro_2: lista de tablas', '',
+    'Lo ha escrito solo el Centro de datos (' + VERSION_CD + ', ' + ahoraMadrid_() + ') leyendo, de cada tabla de dBase, **solo la cabecera**: columnas y número de filas. No lleva ningún dato de ninguna fila.', ''];
+  t.push('## Resumen', '');
+  if (!estado.encontradas.length) {
+    t.push('No se ha encontrado ninguna carpeta «Centro_2» dentro de «CENTRO DE DATOS». No se ha hecho nada más.', '');
+    return t.join('\n');
+  }
+  t.push('- Carpetas Centro_2 encontradas dentro de «CENTRO DE DATOS»: ' + estado.encontradas.length + (estado.encontradas.length > 1 ? ' (' + estado.encontradas.join(', ') + ')' : '') + '.');
+  t.push('- Ficheros en total: ' + estado.lineas.length + ' (' + dbf.length + ' .DBF, ' + dcl.length + ' .DCL, ' + otros.length + ' de otro tipo).');
+  t.push('- Tablas .DBF con cabecera leída: ' + buenas.length + ' de ' + dbf.length + ', con ' + filas + ' filas entre todas.', '');
+  t.push('## Tablas .DBF', '', '| Tabla | Carpeta | Tamaño | Filas | Última actualización | Columnas (nombre, tipo, ancho, decimales) |', '|---|---|---|---|---|---|');
+  dbf.slice().sort(ordenar).forEach(function (l) { t.push(filaTablaCentro2_(l)); });
+  t.push('', '## Ficheros .DCL', '');
+  if (!dcl.length) t.push('No hay.');
+  else {
+    const comoDbf = dcl.filter(function (l) { return l.k; }).length;
+    t.push(comoDbf ? comoDbf + ' de los ' + dcl.length + ' resultan ser tablas de dBase con otra extensión (columnas en la tabla de abajo). Del resto no se ha podido saber qué guardan: solo se dice de qué clase parecen.' : 'No se ha podido saber qué guardan: solo se dice de qué clase parecen.', '');
+    t.push('| Fichero | Carpeta | Tamaño | Filas | Última actualización | Qué parece |', '|---|---|---|---|---|---|');
+    dcl.slice().sort(ordenar).forEach(function (l) { t.push('| ' + [l.n, l.c, tamanoLlanoCentro2_(l.t), l.r === undefined ? '' : l.r, l.f || '', (l.d || l.e || '') + (l.k ? ': ' + l.k.map(columnaLlanaCentro2_).join(', ') : '')].join(' | ') + ' |'); });
+  }
+  t.push('', '## Ficheros de otro tipo', '');
+  if (!otros.length) t.push('No hay.');
+  else {
+    const porExt = {};
+    otros.forEach(function (l) { porExt[l.x || '(sin extensión)'] = (porExt[l.x || '(sin extensión)'] || 0) + 1; });
+    t.push('Solo se cuentan, no se leen: ' + Object.keys(porExt).sort().map(function (e) { return e + ' ' + porExt[e]; }).join(', ') + '.', '');
+    t.push('| Fichero | Carpeta | Tamaño |', '|---|---|---|');
+    otros.slice().sort(ordenar).forEach(function (l) { t.push('| ' + [l.n, l.c, tamanoLlanoCentro2_(l.t)].join(' | ') + ' |'); });
+  }
+  const notas = [];
+  dbf.concat(dcl).forEach(function (l) { const c = pareceNotasCentro2_(l); if (c) notas.push({ l: l, c: c }); });
+  t.push('', '## Dónde pueden estar las notas', '');
+  t.push('Tablas cuyos nombres de columna parecen de notas por alumno y asignatura (una columna que identifica al alumno, una de asignatura o varias de nota). Es solo una pista por los nombres: no se ha abierto ninguna fila.', '');
+  if (!notas.length) t.push('Ninguna tabla tiene esa pinta por los nombres de sus columnas.');
+  else {
+    t.push('| Tabla | Carpeta | Filas | Columnas que lo sugieren |', '|---|---|---|---|');
+    notas.sort(function (a, b) { return (b.l.r || 0) - (a.l.r || 0); }).slice(0, CENTRO2_MAX_NOTAS_).forEach(function (x) { t.push('| ' + [x.l.n, x.l.c, x.l.r, x.c.join(', ')].join(' | ') + ' |'); });
+    if (notas.length > CENTRO2_MAX_NOTAS_) t.push('', 'Hay ' + (notas.length - CENTRO2_MAX_NOTAS_) + ' más con la misma pinta; se muestran las de más filas.');
+  }
+  t.push('');
+  return t.join('\n');
+}
+
+/* Sube el documento al repositorio con el mismo camino que las comprobaciones. Devuelve 'bien', 'sin-clave' o lo que diga escribirEnGitHub_. */
+function subirDocCentro2_(estado) {
+  const clave = PropertiesService.getScriptProperties().getProperty('GH_CLAVE');
+  if (!clave) return 'sin-clave';
+  return escribirEnGitHub_(clave, documentoCentro2_(estado), 'Centro_2: lista de tablas, ' + VERSION_CD, false, {}, CENTRO2_RUTA_DOC_);
+}
+
+/* `centro2-tablas`: solo cifras. */
+function cmpCentro2Tablas_(ctx) {
+  const m = leerMarcaCentro2_(ctx.raiz);
+  if (!m) return { estado: 'sin datos', cifras: { hecho: false } };
+  return { estado: 'dato', cifras: { hecho: !!m.hecho, ficheros: m.ficheros || 0, subido: m.subido === 'bien', intentos: m.intentos || 0 } };
 }
 
 /* ==== Aprendido.gs ==== */
@@ -7113,6 +7366,7 @@ const COMPROBACIONES_ = [
   { id: 'matricula-cruce', fila: 15, que: 'Cuántas filas trae la matrícula de cada nivel y cuántas se han emparejado con un alumno', funcion: 'cmpMatriculaCruce_' },
   { id: 'matricula-una-ficha', fila: 15, que: 'Ninguna fila de matrícula está en dos fichas y ninguna ficha tiene dos filas', funcion: 'cmpMatriculaUnaFicha_' },
   { id: 'matricula-aula-especifica', fila: 104, que: 'Cuántas edades del aula específica hay guardadas en el curso de hoy, cuántos alumnos suman y cuántos ficheros suyos esperan en «Sin clasificar» sin saberse su edad (solo cifras)', funcion: 'cmpMatriculaAulaEspecifica_' },
+  { id: 'centro2-tablas', fila: 141, que: 'Si ya se ha hecho la lista de tablas de Centro_2 y cuántos ficheros se leyeron (solo cifras)', funcion: 'cmpCentro2Tablas_' },
   { id: 'expedientes-cruce', fila: 16, que: 'Cuántos expedientes hay de cada tipo y a cuántos alumnos se han asignado', funcion: 'cmpExpedientesCruce_' },
   { id: 'historia-sin-negativos', fila: 16, que: 'Ninguna cuenta de repeticiones es negativa y ninguna repetición estimada de Primaria pasa de una', funcion: 'cmpHistoriaSinNegativos_' },
   { id: 'censo-cruce', fila: 17, que: 'Cuántas fichas trae el censo NEAE, cuántas se han asignado y si trae cada nivel', funcion: 'cmpCensoCruce_' },
@@ -7175,8 +7429,7 @@ const COMPROBACIONES_ = [
 ].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_);
 function cmpFuncion_(nombre) {
   return { cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_,
-    cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
+    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
 function cmpIdsDeFicheros_(carpeta, ids) {
@@ -9999,6 +10252,7 @@ function vueltaDeFondo_(raiz) {
   try { sigue = repasarCursos_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('cursos'); } catch (e) { /* idem */ }
   try { sigue = repasarConsejo_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('consejo'); } catch (e) { /* idem */ }
   try { sigue = repasarAulaEspecifica_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('aula'); } catch (e) { /* idem */ }
+  try { sigue = repasarCentro2_(raiz, FONDO_TOPE_MS_ * 2) || sigue; } catch (e) { /* idem: la lista de Centro_2 sigue en la próxima vuelta */ }
   return { hecho: hecho, sigue: !!sigue };
 }
 
