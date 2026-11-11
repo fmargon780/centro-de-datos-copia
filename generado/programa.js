@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v73';
+const VERSION_CD = 'CD v74';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -1204,6 +1204,322 @@ function cmpCentro2Tablas_(ctx) {
   const m = leerMarcaCentro2_(ctx.raiz);
   if (!m) return { estado: 'sin datos', cifras: { hecho: false } };
   return { estado: 'dato', cifras: { hecho: !!m.hecho, ficheros: m.ficheros || 0, subido: m.subido === 'bien', intentos: m.intentos || 0 } };
+}
+
+/* ==== Centro2Filas.gs ==== */
+/* Fila 144: leer filas de una tabla de Centro_2 SOLO EN MEMORIA, para contar. Nunca se escribe ni se guarda una fila, un DNI, una clave ni una fecha: de aquí solo salen números.
+   De cada tabla se leen únicamente las columnas pedidas (CLAVEAL, DNI, FECHA; y C_CIDENTI, C_CTIPIDE en COPIA y DATALU). Nunca nombres, apellidos, domicilio ni teléfono. */
+const CENTRO2_LETRAS_DNI_ = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+/* Las filas de un .DBF/.DCL como objetos { COLUMNA: texto sin espacios de los lados }, solo con las columnas de `nombres`. `bytes` puede traer signo.
+   Devuelve { ok: true, filas } o { ok: false, motivo }. Una fila con la marca `*` (borrada) se salta. Los bytes se leen como latin-1. */
+function filasDbfCentro2_(bytes, nombres) {
+  const cab = leerCabeceraDbf_(bytes);
+  if (!cab.valida) return { ok: false, motivo: cab.motivo };
+  const b = function (i) { return bytes[i] & 255; };
+  const lonCab = b(8) + b(9) * 256, lonReg = cab.longitudRegistro;
+  const pos = {};
+  let desde = 1;
+  cab.campos.forEach(function (c) { pos[c.nombre.toUpperCase()] = { desde: desde, ancho: c.ancho }; desde += c.ancho; });
+  const faltan = nombres.filter(function (n) { return !pos[n]; });
+  if (faltan.length) return { ok: false, motivo: 'le faltan las columnas ' + faltan.join(', ') };
+  const filas = [];
+  for (let i = 0; i < cab.filas; i++) {
+    const ini = lonCab + i * lonReg;
+    if (ini + lonReg > bytes.length) break;
+    if (b(ini) === 42) continue;
+    const f = {};
+    nombres.forEach(function (n) {
+      let t = '';
+      for (let k = 0; k < pos[n].ancho; k++) t += String.fromCharCode(b(ini + pos[n].desde + k));
+      f[n] = t.trim();
+    });
+    filas.push(f);
+  }
+  return { ok: true, filas: filas };
+}
+
+/* Un documento de identidad como texto → { tipo: 'vacio' | 'dni' | 'nie' | 'mal', clave } (`clave` = el documento normalizado si vale, para comparar; nunca se guarda).
+   DNI: ocho cifras y la letra que toca. NIE: X, Y o Z, siete cifras y la letra que toca. */
+function clasificarDocCentro2_(texto) {
+  const t = String(texto || '').toUpperCase().replace(/[\s.\-]/g, '');
+  if (!t) return { tipo: 'vacio', clave: '' };
+  let m = /^(\d{8})([A-Z])$/.exec(t);
+  if (m && CENTRO2_LETRAS_DNI_[parseInt(m[1], 10) % 23] === m[2]) return { tipo: 'dni', clave: t };
+  m = /^([XYZ])(\d{7})([A-Z])$/.exec(t);
+  if (m && CENTRO2_LETRAS_DNI_[parseInt('XYZ'.indexOf(m[1]) + m[2], 10) % 23] === m[3]) return { tipo: 'nie', clave: t };
+  return { tipo: 'mal', clave: '' };
+}
+
+/* Edad cumplida el 1 de septiembre de `anio` con una fecha aaaammdd. null si la fecha no vale o la edad no es creíble (menos de 3 o más de 60). */
+function edadCentro2_(fecha, anio) {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(String(fecha || ''));
+  if (!m) return null;
+  const y = +m[1], mes = +m[2], dia = +m[3];
+  if (y < 1900 || mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const edad = anio - y - (mes > 9 || (mes === 9 && dia > 1) ? 1 : 0);
+  return edad < 3 || edad > 60 ? null : edad;
+}
+
+/* Los cursos de ALMAxxxx que se estudian: de 94-95 a 07-08. */
+function cursosCentro2Id_() {
+  const dos = function (n) { return ('0' + (n % 100)).slice(-2); };
+  const l = [];
+  for (let a = 1994; a <= 2007; a++) l.push({ tabla: 'ALMA' + dos(a) + dos(a + 1) + '.DCL', curso: dos(a) + '-' + dos(a + 1), anio: a });
+  return l;
+}
+
+/* Por clave de alumno y por documento, de las filas de una tabla, para comparar con otro curso. Solo vive en memoria durante la vuelta. */
+function indiceFilasCentro2_(filas) {
+  const x = { porClave: Object.create(null), porDni: Object.create(null), filas: filas.length };
+  filas.forEach(function (f) {
+    const d = clasificarDocCentro2_(f.DNI);
+    if (f.CLAVEAL && x.porClave[f.CLAVEAL] === undefined) x.porClave[f.CLAVEAL] = d.clave;
+    if (d.clave && f.CLAVEAL && x.porDni[d.clave] === undefined) x.porDni[d.clave] = f.CLAVEAL;
+  });
+  return x;
+}
+
+/* Los contadores de un curso. `ant` y `ald` son índices (de indiceFilasCentro2_) del curso anterior y de la ficha general, o null. Todo son números. */
+function contarCursoCentro2_(filas, anio, ant, ald) {
+  const c = { filas: filas.length, sinClave: 0, claves: 0, repetidas: 0, dni: 0, nie: 0, vacio: 0, mal: 0, sinFecha: 0, fechaMala: 0, m14: 0, de14: 0, m16: 0, dniM14: 0, dniDe14: 0, dniM16: 0, dniSinFecha: 0,
+    siguen: 0, nuevos: 0, siguenDniDist: 0, dniOtraAnt: 0, enAld: 0, aldMismo: 0, aldDist: 0, dniOtraAld: 0 };
+  const vistas = Object.create(null);
+  filas.forEach(function (f) {
+    const d = clasificarDocCentro2_(f.DNI), valido = d.tipo === 'dni' || d.tipo === 'nie';
+    c[d.tipo]++;
+    if (!String(f.FECHA || '').replace(/0/g, '').trim()) c.sinFecha++;
+    const edad = edadCentro2_(f.FECHA, anio);
+    if (edad === null) { if (String(f.FECHA || '').replace(/0/g, '').trim()) c.fechaMala++; if (valido) c.dniSinFecha++; }
+    else if (edad < 14) { c.m14++; if (valido) c.dniM14++; }
+    else if (edad < 16) { c.de14++; if (valido) c.dniDe14++; }
+    else { c.m16++; if (valido) c.dniM16++; }
+    if (!f.CLAVEAL) { c.sinClave++; return; }
+    if (vistas[f.CLAVEAL]) { c.repetidas++; return; }
+    vistas[f.CLAVEAL] = true; c.claves++;
+    if (ant) {
+      if (ant.porClave[f.CLAVEAL] !== undefined) {
+        c.siguen++;
+        if (d.clave && ant.porClave[f.CLAVEAL] && ant.porClave[f.CLAVEAL] !== d.clave) c.siguenDniDist++;
+      } else c.nuevos++;
+      if (d.clave && ant.porDni[d.clave] !== undefined && ant.porDni[d.clave] !== f.CLAVEAL) c.dniOtraAnt++;
+    }
+    if (ald) {
+      if (ald.porClave[f.CLAVEAL] !== undefined) {
+        c.enAld++;
+        if (d.clave && ald.porClave[f.CLAVEAL]) { if (ald.porClave[f.CLAVEAL] === d.clave) c.aldMismo++; else c.aldDist++; }
+      }
+      if (d.clave && ald.porDni[d.clave] !== undefined && ald.porDni[d.clave] !== f.CLAVEAL) c.dniOtraAld++;
+    }
+  });
+  return c;
+}
+
+/* Cómo son los identificadores de COPIA.DBF / DATALU.DBF (C_CIDENTI y C_CTIPIDE), sin copiar ninguno. `otro` y `ald` son índices de DNI (porDni) del otro fichero y de ALDATOS, o null. */
+function perfilIdentCentro2_(filas, otro, ald) {
+  const p = { filas: filas.length, con: 0, sin: 0, long: {}, cifras: 0, letras: 0, otros: 0, formaDni: 0, repetidos: 0, enOtro: 0, enAld: 0, tipos: {} };
+  const vistos = Object.create(null);
+  filas.forEach(function (f) {
+    const t = String(f.C_CTIPIDE || '');
+    const tipo = /^[A-Za-z0-9]$/.test(t) ? t : (t ? '(otro símbolo)' : '(vacío)');
+    p.tipos[tipo] = (p.tipos[tipo] || 0) + 1;
+    const id = String(f.C_CIDENTI || '').toUpperCase().replace(/[\s.\-]/g, '');
+    if (!id) { p.sin++; return; }
+    p.con++;
+    p.long[id.length] = (p.long[id.length] || 0) + 1;
+    if (/^\d+$/.test(id)) p.cifras++; else if (/[A-Z]/.test(id) && /^[A-Z0-9]+$/.test(id)) p.letras++; else p.otros++;
+    const d = clasificarDocCentro2_(id);
+    if (d.clave) p.formaDni++;
+    if (vistos[id]) p.repetidos++; vistos[id] = true;
+    if (otro && otro[id] !== undefined) p.enOtro++;
+    if (ald && ald[id] !== undefined) p.enAld++;
+  });
+  return p;
+}
+
+/* ==== Centro2Ident.gs ==== */
+/* Fila 144: informe de identificación de alumnos en Centro_2. Recorre las tablas ALMAxxxx (cursos 94-95 a 07-08), la ficha general ALDATOS.DCL y COPIA.DBF / DATALU.DBF,
+   cuenta cosas (DNI con forma válida, edades, continuidad de CLAVEAL, qué trae C_CIDENTI) y, al acabar, escribe y sube `docs/CENTRO2-IDENTIFICACION.md`.
+   Solo se guardan contadores en `_interno/centro2-identificacion.json`. Ningún DNI, CLAVEAL, fecha ni texto de una fila sale de Google ni se apunta en ningún sitio.
+   Las tablas se leen por tandas (un curso por paso, junto con el anterior y la ficha general) y, una vez hecho y subido, no se repite salvo que se borre ese fichero de estado. */
+const CENTRO2ID_ESTADO_ = 'centro2-identificacion.json';
+const CENTRO2ID_RUTA_DOC_ = 'docs/CENTRO2-IDENTIFICACION.md';
+const CENTRO2ID_INTENTOS_ = 5;
+const CENTRO2ID_IDENT_ = ['COPIA', 'DATALU'];
+
+const COMPROBACIONES_CENTRO2ID_ = [
+  { id: 'centro2-identificacion', fila: 144, que: 'Si ya se ha hecho el informe de identificación de alumnos de Centro_2 y cuántos cursos se contaron (solo cifras)', funcion: 'cmpCentro2Identificacion_' }
+];
+
+/* Las carpetas «Centro_2» de la carpeta del centro (no borradas). */
+function carpetasCentro2Id_(raiz) {
+  const it = raiz.getFolders(), v = [];
+  while (it.hasNext()) { const c = it.next(); if (esCentro2_(c.getName()) && !c.isTrashed()) v.push(c); }
+  return v;
+}
+
+/* Las filas de una tabla de Centro_2 con solo esas columnas: { ok, filas } | { ok: false, falta: true } | { ok: false, motivo }. */
+function tablaCentro2Id_(carpetas, nombre, columnas) {
+  for (let i = 0; i < carpetas.length; i++) {
+    const it = carpetas[i].getFilesByName(nombre);
+    while (it.hasNext()) {
+      const f = it.next();
+      if (f.isTrashed && f.isTrashed()) continue;
+      let t = 0;
+      try { t = f.getSize(); } catch (e) { /* se usa lo leído */ }
+      if (t > CENTRO2_TOPE_MAX_BYTES_) return { ok: false, motivo: 'pesa demasiado' };
+      let bytes;
+      try { bytes = f.getBlob().getBytes(); } catch (e) { return { ok: false, motivo: 'no se ha podido leer' }; }
+      return filasDbfCentro2_(bytes, columnas);
+    }
+  }
+  return { ok: false, falta: true };
+}
+
+/* Un paso: el siguiente curso (o ALDATOS / COPIA / DATALU). `memo` guarda en memoria, solo durante la vuelta, los índices ya leídos. */
+function pasoCentro2Id_(estado, carpetas, memo) {
+  const cursos = cursosCentro2Id_();
+  if (!memo.ald) {
+    const a = tablaCentro2Id_(carpetas, 'ALDATOS.DCL', ['CLAVEAL', 'DNI', 'FECHA']);
+    estado.ald = a.ok ? { filas: a.filas.length } : { motivo: a.falta ? 'no está' : a.motivo };
+    memo.ald = a.ok ? indiceFilasCentro2_(a.filas) : { porClave: {}, porDni: {}, vacio: true };
+  }
+  const ald = memo.ald.vacio ? null : memo.ald;
+  const n = estado.cursos.length;
+  if (n < cursos.length) {
+    const q = cursos[n], t = tablaCentro2Id_(carpetas, q.tabla, ['CLAVEAL', 'DNI', 'FECHA']);
+    if (!t.ok) { estado.cursos.push({ curso: q.curso, tabla: q.tabla, motivo: t.falta ? 'no está la tabla' : t.motivo }); memo.anterior = null; return; }
+    estado.cursos.push({ curso: q.curso, tabla: q.tabla, c: contarCursoCentro2_(t.filas, q.anio, memo.anterior || null, ald) });
+    memo.anterior = indiceFilasCentro2_(t.filas);
+    return;
+  }
+  const ya = estado.ident = estado.ident || {};
+  const nombre = CENTRO2ID_IDENT_[Object.keys(ya).length];
+  const ident = function (n) {
+    const t = tablaCentro2Id_(carpetas, n + '.DBF', ['C_CIDENTI', 'C_CTIPIDE']);
+    return t.ok ? t.filas : null;
+  };
+  const filas = ident(nombre), otras = ident(nombre === 'COPIA' ? 'DATALU' : 'COPIA');
+  if (!filas) { ya[nombre] = { motivo: 'no se ha podido leer' }; return; }
+  const conj = Object.create(null);
+  (otras || []).forEach(function (f) { const k = String(f.C_CIDENTI || '').toUpperCase().replace(/[\s.\-]/g, ''); if (k) conj[k] = true; });
+  ya[nombre] = perfilIdentCentro2_(filas, otras ? conj : null, ald ? ald.porDni : null);
+}
+
+/* Un paso del estudio, con como mucho `topeMs`. Devuelve true si quedan cosas por hacer (la vuelta de fondo sigue en la próxima). */
+function repasarCentro2Id_(raiz, topeMs) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  let estado = leerJson_(interno, CENTRO2ID_ESTADO_);
+  if (estado && estado.fase === 'hecho' && (estado.subido === 'bien' || (estado.intentos || 0) >= CENTRO2ID_INTENTOS_)) return false;
+  const inicio = new Date().getTime();
+  if (!estado) estado = { fase: 'contando', empezado: ahoraMadrid_(), cursos: [], ident: {}, subido: '', intentos: 0 };
+  const carpetas = carpetasCentro2Id_(raiz), memo = {};
+  if (!carpetas.length) { estado.sinCarpeta = true; estado.cursos = []; estado.fase = 'escribir'; }
+  while (estado.fase === 'contando') {
+    pasoCentro2Id_(estado, carpetas, memo);
+    if (estado.cursos.length >= cursosCentro2Id_().length && Object.keys(estado.ident).length >= CENTRO2ID_IDENT_.length) { estado.fase = 'escribir'; break; }
+    if (new Date().getTime() - inicio >= topeMs) { escribirJson_(interno, CENTRO2ID_ESTADO_, estado); return true; }
+  }
+  if (estado.subido !== 'bien' && (estado.intentos || 0) < CENTRO2ID_INTENTOS_) {
+    estado.intentos = (estado.intentos || 0) + 1;
+    estado.subido = subirDocCentro2Id_(estado);
+  }
+  estado.fase = 'hecho';
+  estado.cuando = ahoraMadrid_(); estado.version = VERSION_CD;
+  escribirJson_(interno, CENTRO2ID_ESTADO_, estado);
+  return estado.subido !== 'bien' && estado.intentos < CENTRO2ID_INTENTOS_;
+}
+
+function subirDocCentro2Id_(estado) {
+  const clave = PropertiesService.getScriptProperties().getProperty('GH_CLAVE');
+  if (!clave) return 'sin-clave';
+  return escribirEnGitHub_(clave, documentoCentro2Id_(estado), 'Centro_2: informe de identificación, ' + VERSION_CD, false, {}, CENTRO2ID_RUTA_DOC_);
+}
+
+/* `centro2-identificacion`: solo cifras. */
+function cmpCentro2Identificacion_(ctx) {
+  const e = leerJson_(subcarpetaPorRuta_(ctx.raiz, '_interno'), CENTRO2ID_ESTADO_);
+  if (!e) return { estado: 'sin datos', cifras: { hecho: false } };
+  const leidos = (e.cursos || []).filter(function (c) { return c.c; }).length;
+  return { estado: 'dato', cifras: { hecho: e.fase === 'hecho', cursos: leidos, subido: e.subido === 'bien', intentos: e.intentos || 0 } };
+}
+
+/* ==== Centro2IdDoc.gs ==== */
+/* Fila 144: el texto de `docs/CENTRO2-IDENTIFICACION.md` a partir de los contadores de `Centro2Ident.gs`. Solo números y nombres de tablas y de columnas: ningún dato de ninguna fila. */
+function pctCentro2Id_(a, b) { return b ? Math.round(a * 1000 / b) / 10 + ' %' : '—'; }
+
+function sumaCentro2Id_(cursos, campo) { return cursos.reduce(function (n, x) { return n + (x.c ? x.c[campo] : 0); }, 0); }
+
+/* Una tabla en Markdown: `cab` = textos de columna, `col` = campos (o funciones) de cada columna, con una fila final de totales. */
+function tablaMdCentro2Id_(cursos, cab, col, total) {
+  const dato = function (c, k) { return typeof k === 'function' ? k(c) : c[k]; };
+  const t = ['| Curso | ' + cab.join(' | ') + ' |', '|---|' + cab.map(function () { return '---|'; }).join('')];
+  cursos.forEach(function (x) {
+    t.push('| ' + x.curso + ' | ' + (x.c ? col.map(function (k) { return dato(x.c, k); }).join(' | ') : '_' + x.motivo + '_' + cab.slice(1).map(function () { return ' | '; }).join('')) + ' |');
+  });
+  if (total) {
+    const ok = cursos.filter(function (x) { return x.c; });
+    const suma = {};
+    Object.keys(ok.length ? ok[0].c : {}).forEach(function (k) { suma[k] = sumaCentro2Id_(ok, k); });
+    t.push('| **Total** | ' + col.map(function (k) { return '**' + dato(suma, k) + '**'; }).join(' | ') + ' |');
+  }
+  return t;
+}
+
+function lineaIdentCentro2Id_(nombre, p) {
+  if (!p || p.motivo) return ['### ' + nombre + '.DBF', '', 'No se ha podido leer (' + ((p && p.motivo) || 'sin datos') + ').', ''];
+  const lista = function (o) { return Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }).slice(0, 8).map(function (k) { return k + ': ' + o[k]; }).join(', ') || 'ninguna'; };
+  return ['### ' + nombre + '.DBF', '',
+    '- Filas: ' + p.filas + '. Con `C_CIDENTI` rellena: ' + p.con + ' (' + pctCentro2Id_(p.con, p.filas) + '); vacía: ' + p.sin + '.',
+    '- Longitud del identificador (nº de caracteres: filas): ' + lista(p.long) + '.',
+    '- Solo cifras: ' + p.cifras + ' · cifras y letras: ' + p.letras + ' · otros símbolos: ' + p.otros + '.',
+    '- Con forma de DNI o NIE válido (ocho cifras y letra correcta, o NIE): ' + p.formaDni + ' (' + pctCentro2Id_(p.formaDni, p.con) + ' de las rellenas).',
+    '- Valores repetidos dentro de la tabla: ' + p.repetidos + '. Presentes también en la otra tabla (`' + (nombre === 'COPIA' ? 'DATALU' : 'COPIA') + '`): ' + p.enOtro + '.',
+    '- Coinciden con el DNI de alguna fila de la ficha general `ALDATOS.DCL`: ' + p.enAld + '.',
+    '- Valores de `C_CTIPIDE` (cuántas filas de cada uno): ' + lista(p.tipos) + '.', ''];
+}
+
+/* Lo que se puede decir de `C_CIDENTI` solo por su forma. Nunca afirma más de lo que se ve. */
+function veredictoCentro2Id_(ps) {
+  const ok = ps.filter(function (p) { return p && !p.motivo && p.con; });
+  if (!ok.length) return 'No se ha podido estudiar `C_CIDENTI` (no se han leído datos).';
+  const con = ok.reduce(function (n, p) { return n + p.con; }, 0), dni = ok.reduce(function (n, p) { return n + p.formaDni; }, 0), cif = ok.reduce(function (n, p) { return n + p.cifras; }, 0);
+  if (dni / con >= 0.9) return 'Casi todos los identificadores tienen forma de DNI o NIE válido (' + pctCentro2Id_(dni, con) + '): `C_CIDENTI` es el documento de identidad, **no** el número de identificación escolar.';
+  if (dni / con <= 0.1 && cif / con >= 0.9) return 'Casi todos los identificadores son solo cifras y casi ninguno tiene forma de DNI (' + pctCentro2Id_(dni, con) + ' con forma de DNI): `C_CIDENTI` **podría** ser el número de identificación escolar. Por su forma no se puede asegurar: hay que contrastarlo con números escolares reales de Séneca.';
+  return 'Los identificadores son una mezcla (' + pctCentro2Id_(dni, con) + ' con forma de DNI o NIE, ' + pctCentro2Id_(cif, con) + ' solo cifras): `C_CIDENTI` no se puede dar por el número de identificación escolar ni por el DNI sin contrastarlo con Séneca.';
+}
+
+function documentoCentro2Id_(estado) {
+  const cursos = estado.cursos || [];
+  const t = ['# Centro_2: informe de identificación de alumnos', '',
+    'Hecho por el Centro de datos dentro de Google (fila 144), con la versión ' + (estado.version || VERSION_CD) + ', el ' + (estado.cuando || ahoraMadrid_()) + '. **Solo cifras**: ningún nombre, DNI, clave de alumno ni fecha de ninguna fila sale de Google ni está en este documento.', '',
+    'Pregunta: de los alumnos de Centro_2, ¿con qué se les podrá reconocer después en Séneca? Lo que identifica a un alumno en Séneca es el número de identificación escolar; el DNI no es obligatorio hasta los 14 años.', ''];
+  if (estado.sinCarpeta) return t.concat(['No se ha encontrado ninguna carpeta «Centro_2» dentro de «CENTRO DE DATOS»: no hay nada que contar.', '']).join('\n');
+  t.push('## Cómo se ha contado', '',
+    '- Tablas `ALMAaabb.DCL` (matrícula de cada curso, 94-95 a 07-08). Cada fila es un alumno en un curso: un mismo alumno cuenta una vez por curso en el que está.',
+    '- **DNI válido**: ocho cifras y la letra que toca, o NIE (X, Y o Z, siete cifras y letra). «Mal» es un DNI escrito que no cumple eso; «vacío», sin nada escrito.',
+    '- **Edad**: la que tenía el alumno el 1 de septiembre del primer año del curso. «Sin fecha» incluye la fecha vacía, la que no vale y la que da una edad imposible.',
+    '- **Continuidad de `CLAVEAL`**: se compara con el curso anterior y con la ficha general `ALDATOS.DCL`' + (estado.ald && estado.ald.filas ? ' (' + estado.ald.filas + ' filas)' : ' (no se ha podido leer: ' + ((estado.ald && estado.ald.motivo) || 'sin datos') + ')') + '. No se compara cada curso con todos los demás.',
+    '- No se compara con Séneca: el Centro de datos hoy solo guarda el alumnado de 26-27. Cuando haya listados de Séneca de cursos antiguos se hará otra fila.', '');
+  t.push('## 1. DNI por curso', '');
+  tablaMdCentro2Id_(cursos, ['Alumnos (filas)', 'Alumnos distintos (`CLAVEAL`)', 'Sin `CLAVEAL`', 'DNI válido', 'NIE válido', 'DNI vacío', 'DNI mal', '% con DNI o NIE válido'],
+    ['filas', 'claves', 'sinClave', 'dni', 'nie', 'vacio', 'mal', function (c) { return pctCentro2Id_(c.dni + c.nie, c.filas); }], true).forEach(function (l) { t.push(l); });
+  t.push('', '## 2. Edad al empezar el curso y DNI', '');
+  tablaMdCentro2Id_(cursos, ['Sin fecha válida', 'Menos de 14', '…con DNI válido', '14 y 15', '…con DNI válido', '16 o más', '…con DNI válido'],
+    [function (c) { return c.sinFecha + c.fechaMala; }, 'm14', 'dniM14', 'de14', 'dniDe14', 'm16', 'dniM16'], true).forEach(function (l) { t.push(l); });
+  t.push('', '## 3. ¿Es estable el `CLAVEAL`?', '');
+  tablaMdCentro2Id_(cursos, ['Siguen del curso anterior', 'Nuevos', 'Siguen con DNI distinto', 'DNI con otro `CLAVEAL` que el curso anterior', 'Están en `ALDATOS`', '…con el mismo DNI', '…con DNI distinto', 'DNI con otro `CLAVEAL` en `ALDATOS`'],
+    ['siguen', 'nuevos', 'siguenDniDist', 'dniOtraAnt', 'enAld', 'aldMismo', 'aldDist', 'dniOtraAld'], true).forEach(function (l) { t.push(l); });
+  t.push('', 'En «Siguen con DNI distinto» y «…con DNI distinto» solo se comparan alumnos con DNI válido en los dos sitios. El primer curso no tiene curso anterior: sus columnas de continuidad salen a 0.', '');
+  t.push('## 4. Cómo se les podrá reconocer', '');
+  tablaMdCentro2Id_(cursos, ['Alumnos (filas)', 'Con DNI o NIE válido (se podrían emparejar con DNI)', 'Sin DNI válido', '…menores de 14 (no se espera DNI)', '…de 14 o más (se esperaba)', '…sin fecha válida (solo el nombre)'],
+    ['filas', function (c) { return c.dni + c.nie; }, function (c) { return c.filas - c.dni - c.nie; }, function (c) { return c.m14 - c.dniM14; }, function (c) { return c.de14 - c.dniDe14 + c.m16 - c.dniM16; }, function (c) { return c.sinFecha + c.fechaMala - c.dniSinFecha; }], true).forEach(function (l) { t.push(l); });
+  t.push('', 'Quien no tiene DNI válido solo se podría reconocer por nombre y fecha de nacimiento: esos casos son dudosos y nunca se funden solos. Sin fecha válida, solo queda el nombre.', '');
+  t.push('## 5. `COPIA.DBF` y `DATALU.DBF`: ¿qué es `C_CIDENTI`?', '');
+  const ident = estado.ident || {};
+  lineaIdentCentro2Id_('COPIA', ident.COPIA).concat(lineaIdentCentro2Id_('DATALU', ident.DATALU)).forEach(function (l) { t.push(l); });
+  t.push('**Conclusión por su forma:** ' + veredictoCentro2Id_([ident.COPIA, ident.DATALU]), '');
+  return t.join('\n');
 }
 
 /* ==== Aprendido.gs ==== */
@@ -7426,9 +7742,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_CENTRO2ID_);
 function cmpFuncion_(nombre) {
-  return { cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -10253,6 +10569,7 @@ function vueltaDeFondo_(raiz) {
   try { sigue = repasarConsejo_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('consejo'); } catch (e) { /* idem */ }
   try { sigue = repasarAulaEspecifica_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('aula'); } catch (e) { /* idem */ }
   try { sigue = repasarCentro2_(raiz, FONDO_TOPE_MS_ * 2) || sigue; } catch (e) { /* idem: la lista de Centro_2 sigue en la próxima vuelta */ }
+  try { sigue = repasarCentro2Id_(raiz, FONDO_TOPE_MS_ * 2) || sigue; } catch (e) { /* idem: el informe de identificación de Centro_2 sigue en la próxima vuelta */ }
   return { hecho: hecho, sigue: !!sigue };
 }
 
