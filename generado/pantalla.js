@@ -380,7 +380,7 @@ function textoDeUnConjunto(c) {
   }
   if (c.consejo) return textoDelConsejo(c);
   if (c.libros !== undefined && c.conjunto === 'libros') return textoDeLibros(c);
-  if (c.ausencias !== undefined && c.conjunto === 'ausencias') return textoDeAusencias(c);
+  if (c.ausencias !== undefined && (c.conjunto === 'ausencias' || c.conjunto === 'solicitudes-licencias')) return textoDeAusencias(c);
   if (c.profesorado !== undefined && c.conjunto.indexOf('profesorado-') === 0) return textoDeProfesorado(c);
   if (c.entero) return textoDelEntero(c);
   if (c.contactos) return textoDeContactos(c);
@@ -412,7 +412,7 @@ function textoDeLibros(c) {
 function textoDeAusencias(c) {
   var k = c.ausencias;
   if (!k) return c.etiqueta + ': poniéndose al día';
-  var t = [c.etiqueta + ': ' + numeroConPuntos(k.ausencias) + (k.ausencias === 1 ? ' ausencia' : ' ausencias') + (k.personas === null ? '' : ' de ' + numeroConPuntos(k.personas) + (k.personas === 1 ? ' persona' : ' personas')) + ', curso ' + k.cursoEscolar];
+  var t = [c.etiqueta + ': ' + numeroConPuntos(k.ausencias) + (c.conjunto === 'solicitudes-licencias' ? (k.ausencias === 1 ? ' solicitud' : ' solicitudes') : (k.ausencias === 1 ? ' ausencia' : ' ausencias')) + (k.personas === null ? '' : ' de ' + numeroConPuntos(k.personas) + (k.personas === 1 ? ' persona' : ' personas')) + ', curso ' + k.cursoEscolar];
   if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
   t.push(c.alDia ? 'al día' : 'poniéndose al día');
   if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);

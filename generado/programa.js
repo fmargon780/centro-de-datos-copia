@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v74';
+const VERSION_CD = 'CD v75';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -471,6 +471,10 @@ const CATALOGO_ = [
      `cuenta.persona`: títulos que pueden ser la persona, para decir «8 personas» (si ninguno está, solo cuenta ausencias). */
   { clave: 'ausencias', titulo: 'Ausencias (Séneca)', tipo: 'csv', soloNombre: true, nombreContiene: ['ausencia'], usan: 'Ausencias y Guardias', dias: 7, queEs: 'las ausencias del personal',
     ficha: { curso: 'nombre' }, cuenta: { modo: 'ausencias', uno: 'ausencia', varios: 'ausencias', persona: ['Empleado/a', 'Empleado', 'Profesor/a', 'Profesorado', 'Docente', 'Persona'] } },
+  /* Las solicitudes de licencias y permisos (fila 148, Ausencias.gs): se reconoce solo por sus columnas (el nombre, RegSolLic, no trae curso: el curso es el que se elige al soltarlo). */
+  { clave: 'solicitudes-licencias', titulo: 'Solicitudes de licencias y permisos (Séneca)', tipo: 'csv', usan: 'Ausencias y Guardias', dias: 7, queEs: 'las solicitudes de licencias y permisos',
+    columnas: ['Fecha de solicitud', 'Ausencia Relacionada', 'Fecha inicio', 'Estado', 'Documento entrada', 'Documento salida'], ficha: { curso: 'nombre' },
+    cuenta: { modo: 'ausencias', uno: 'solicitud', varios: 'solicitudes', persona: ['Nombre'] } },
   /* Materias, profesorado y unidades (fila 136, Profesorado.gs): se reconoce solo por sus cuatro columnas; el nombre (RelMatProUni) no trae curso, así que el curso es el que se elige al soltarlo. */
   { clave: 'materias-profesorado', titulo: 'Materias, profesorado y unidades (Séneca)', tipo: 'csv', usan: 'Gestor de asuntos', dias: 30, queEs: 'el listado de materias, profesorado y unidades',
     columnas: ['Curso', 'Materia', 'Unidad', 'Profesor/a'], ficha: { curso: 'nombre' }, cuenta: { modo: 'profesorado', uno: 'línea', varios: 'líneas' } },
@@ -572,6 +576,12 @@ function ordenarCursos_(cursos) {
   return cursos.filter(function (c) { if (!cursoValido_(c) || vistos[c]) return false; vistos[c] = true; return true; })
     .sort(function (a, b) { return anioDeCurso_(b) - anioDeCurso_(a); });
 }
+
+/* Las dos comprobaciones de las solicitudes (fila 148); su código está en ComprobAusencias.gs; la tabla va aquí porque ComprobCatalogo.gs la lee al cargarse y este fichero se carga antes. */
+const COMPROBACIONES_SOLICITUDES_ = [
+  { id: 'solicitudes-lectura', fila: 148, que: 'Cuántas columnas y líneas hay en las solicitudes de licencias y permisos de cada curso, y que cada línea leída del fichero está en un registro', funcion: 'cmpSolicitudesLectura_' },
+  { id: 'solicitudes-una-ficha', fila: 148, que: 'Ninguna solicitud de licencia sin identificador ni repetido dentro de una parte', funcion: 'cmpSolicitudesUnaFicha_' }
+];
 
 /* ==== Ficha.gs ==== */
 /* La ficha de un fichero: qué es, de qué curso, a quién se refiere y de qué periodo. Aquí se interpretan las fuentes que el catálogo nombra.
@@ -3287,6 +3297,10 @@ const CONJUNTOS_ = [
   { conjunto: 'ausencias', titulo: 'Ausencias', cuenta: 'ausencias', acuerdoHecho: ACUERDO_HECHO_, montador: 'ausencias', versionMontador: 1, porCursos: true, sinDiagnostico: true,
     entregas: [], aplicaciones: {}, cambios: [APP_AUSENCIAS_], sufijoAvisos: 'de las ausencias',
     fuentes: [{ clave: 'ausencias', lector: 'ausencias', versionLector: 1 }], campos: [] },
+  /* Las solicitudes de licencias y permisos (fila 148): igual que las ausencias, con su propio listado; una parte por curso, las columnas del fichero son sus campos. */
+  { conjunto: 'solicitudes-licencias', titulo: 'Solicitudes de licencias y permisos', cuenta: 'solicitudes', acuerdoHecho: ACUERDO_HECHO_, montador: 'ausencias', versionMontador: 1, porCursos: true, sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'de las solicitudes',
+    fuentes: [{ clave: 'solicitudes-licencias', lector: 'ausencias', versionLector: 1 }], campos: [] },
   /* Las tutorías (fila 21): una parte por cada curso con un PDF de la función tutorial. Además de su listado mira la parte del personal y la `actuales` del alumnado del mismo curso
      (`mira`) y se rehace cuando cambia el día en que una línea empieza o acaba (`conDias`). Van después de esos dos. */
   { conjunto: 'tutorias', titulo: 'Tutorías', cuenta: 'grupos', acuerdoHecho: ACUERDO_HECHO_, montador: 'tutorias', versionMontador: 1, porCursos: true, mira: ['personal', 'alumnado'], conDias: true,
@@ -6972,7 +6986,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   if (conj.entregadoPor) { montarParteDeEntero_(raiz, t, avance, cache, indice); return; }
   if (conj.deCorrecciones) { montarParteDeCorrecciones_(raiz, t, avance, cache, indice); return; }
   if (conj.deContactos) { montarParteDeContactos_(raiz, t, avance, cache, indice); return; }
-  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
+  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'solicitudes-licencias': montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
   const t0 = new Date().getTime();
   const cargar = function (k) {
     if (cache[k]) return cache[k];
@@ -7037,7 +7051,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fichero': 'consejoFichero', 'consejo-sin-ficha': 'consejoSinFicha', 'consejo-ficha-dudosa': 'consejoFichaDudosa',
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
-  'ausencias-fichero': 'ausenciasFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal',
+  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal',
   'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
@@ -7169,7 +7183,7 @@ function resumenHechosPagina_(raiz) {
     if (conj.deContactos && partes.length) salida.contactos = { registros: partes[0].registros, aMano: ((avance.cifras || {})[partes[0].ruta] || {}).contactosAMano || 0 };
     if (conj.conjunto === 'libros') salida.libros = resumenLibrosParaPagina_(partes, avance);
     if (conj.deProfesorado) salida.profesorado = resumenProfesoradoParaPagina_(partes, avance);
-    if (conj.conjunto === 'ausencias') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
+    if (conj.conjunto === 'ausencias' || conj.conjunto === 'solicitudes-licencias') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
     if (conj.entregadoPor) salida.entero = { registros: (avance.cuentas || {})[conj.conjunto] !== undefined && partes.length ? avance.cuentas[conj.conjunto] : (partes.length ? partes[0].registros : null), quien: conj.quienEntrega || conj.aplicaciones[conj.entregadoPor] || conj.entregadoPor, fecha: (avance.entregados || {})[conj.conjunto] || '', entregadas: conj.entregadas || 'entregadas' };
     if (conj.entregadoPor && conj.desglose) salida.entero.desglose = desglosePaginaEntero_(conj, avance);
     return salida;
@@ -7243,6 +7257,7 @@ const FRASES_AVISO_ = {
   'ids-sin-fichero': 'El listado {listado} figura en el índice sin número de Drive y su fichero no está en su carpeta: vuelve a soltarlo.',
   'listado-sin-fichero': 'Falta el fichero de {listado} de {fecha}: vuelve a soltarlo.',
   'ausencias-fichero': '{detalle}',
+  'solicitudes-fichero': '{detalle}',
   'libros-fichero': '{detalle}',
   'profesorado-fichero': '{detalle}',
   'profesorado-sin-personal': 'Da {materia} en {unidad} y no está en el listado del personal. Sale igual en los profesores por grupo y de cada alumno.',
@@ -7742,9 +7757,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_CENTRO2ID_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
 function cmpFuncion_(nombre) {
-  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -10099,18 +10114,18 @@ function resumenLibrosParaPagina_(partes, avance) {
 }
 
 /* ==== Ausencias.gs ==== */
-/* El conjunto `ausencias` (fila 114): las ausencias del personal que trae el fichero «Ausencias» de Séneca, una parte por curso y un registro por línea del fichero.
+/* El conjunto `ausencias` (fila 114) y, con el mismo código, `solicitudes-licencias` (fila 148, las solicitudes de licencias y permisos de Séneca; la clave del listado es la del conjunto): las ausencias del personal que trae el fichero «Ausencias» de Séneca, una parte por curso y un registro por línea del fichero.
    No hay ningún fichero real de ejemplo: las columnas no se conocen de antemano. Cada título de columna del fichero es un campo de la parte (su clave sale del título) y cada casilla se guarda tal cual, sin interpretarla.
    Lleva datos de trabajadores: lo leído vive en _interno/leido/ y la parte, en hecho/ausencias/<curso>/curso.json, en Drive. Nunca sale de aquí un nombre, un documento ni un título de columna. */
 
 /* Los títulos (sin tildes ni mayúsculas) que pueden ser «la persona» de una ausencia: sirven para decir «8 personas» y para abrir «Consultar» con la persona en filas. */
-function titulosDePersonaAusencias_() {
-  return entradaCatalogo_('ausencias').cuenta.persona.map(normalizarTitulo_);
+function titulosDePersonaAusencias_(clave) {
+  return entradaCatalogo_(clave || 'ausencias').cuenta.persona.map(normalizarTitulo_);
 }
 
 /* El primer título que es la persona, o -1. */
-function indiceDePersonaAusencias_(titulos) {
-  const candidatos = titulosDePersonaAusencias_(), tn = titulos.map(normalizarTitulo_);
+function indiceDePersonaAusencias_(titulos, clave) {
+  const candidatos = titulosDePersonaAusencias_(clave), tn = titulos.map(normalizarTitulo_);
   for (let i = 0; i < candidatos.length; i++) { const j = tn.indexOf(candidatos[i]); if (j !== -1) return j; }
   return -1;
 }
@@ -10120,7 +10135,7 @@ function contarAusencias_(c, bytes, tipo) {
   if (tipo !== 'csv') return { filas: null, resumen: 'Fichero' };
   const texto = bytesATexto_(bytes), tabla = leerCsv_(texto, detectarSeparador_(texto));
   const datos = tabla.slice(1).filter(function (f) { return f.some(function (x) { return String(x === undefined ? '' : x).trim(); }); });
-  const n = datos.length, i = indiceDePersonaAusencias_((tabla[0] || []).map(function (t) { return String(t).trim(); }));
+  const n = datos.length, i = indiceDePersonaAusencias_((tabla[0] || []).map(function (t) { return String(t).trim(); }), c.clave);
   let resumen = numeroLegible_(n) + ' ' + (n === 1 ? c.cuenta.uno : c.cuenta.varios);
   if (i !== -1 && n) {
     const vistas = {};
@@ -10147,9 +10162,13 @@ function leerAusencias_(bytes, fuente, huella, conj, entrada) {
   return salida;
 }
 
+/* Cómo llama a su listado cada conjunto en sus avisos. */
+function esDeSolicitudes_(clave) { return clave === 'solicitudes-licencias'; }
+
 function frasesDeFicheroAusencias_(l) {
-  if (l.problema === 'vacio') return ['El listado de ausencias está vacío.'];
-  if (l.problema === 'ilegible') return ['No se ha podido leer el listado de ausencias.'];
+  const de = esDeSolicitudes_(l.clave) ? 'solicitudes de licencias y permisos' : 'ausencias';
+  if (l.problema === 'vacio') return ['El listado de ' + de + ' está vacío.'];
+  if (l.problema === 'ilegible') return ['No se ha podido leer el listado de ' + de + '.'];
   return [];
 }
 
@@ -10179,7 +10198,7 @@ function idDeAusencia_(celdas, veces) {
 function montarAusencias_(conj, parte, fuentes) {
   const avisos = [], usadas = {}, columnas = [], vistas = {}, registros = [], porLinea = {};
   fuentes.forEach(function (f) {
-    frasesDeFicheroAusencias_(f.leido).forEach(function (d) { avisos.push({ tipo: 'ausencias-fichero', id: null, datos: { detalle: d } }); });
+    frasesDeFicheroAusencias_(f.leido).forEach(function (d) { avisos.push({ tipo: esDeSolicitudes_(conj && conj.conjunto) ? 'solicitudes-fichero' : 'ausencias-fichero', id: null, datos: { detalle: d } }); });
     if (f.leido.problema) return;
     const cols = columnasDeAusencias_(f.leido.titulos, usadas);
     cols.forEach(function (c) { if (!vistas[c.clave]) { vistas[c.clave] = true; columnas.push(c); } });
@@ -10191,7 +10210,7 @@ function montarAusencias_(conj, parte, fuentes) {
       registros.push({ id: idDeAusencia_(celdas, porLinea[llave]), datos: datos });
     });
   });
-  const persona = indiceDePersonaAusencias_(columnas.map(function (c) { return c.titulo; }));
+  const persona = indiceDePersonaAusencias_(columnas.map(function (c) { return c.titulo; }), conj.conjunto);
   return { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_,
     columnasAusencias: columnas, columnaPersona: persona === -1 ? '' : columnas[persona].clave,
     campos: columnas.map(function (c) { return { clave: c.clave, etiqueta: c.titulo, apartado: 'Ausencia', tipo: 'texto', dueno: DUENO_CD_, fuente: conj.fuentes[0].clave }; }),
@@ -10285,22 +10304,23 @@ function cmpLibrosUnaFicha_(ctx) {
 }
 
 /* ==== ComprobAusencias.gs ==== */
-/* Las comprobaciones de las ausencias del personal (fila 114). Solo leen y solo cuentan: ni una persona, ni un título de columna, ni una casilla sale de aquí. */
+/* Las comprobaciones de las ausencias del personal (fila 114) y, con el mismo código, de las solicitudes de licencias y permisos (fila 148). Solo leen y solo cuentan: ni una persona, ni un título de columna, ni una casilla sale de aquí. */
 
 /* Las partes de ausencias, abiertas, y lo leído de sus listados, por curso. null si no hay ninguna parte. */
-function cmpDatosAusencias_(ctx) {
-  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === 'ausencias'; });
+function cmpDatosAusencias_(ctx, conjunto) {
+  conjunto = conjunto || 'ausencias';
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === conjunto; });
   if (!partes.length) return null;
   return partes.map(function (h) {
-    const leidos = Object.keys(ctx.avance.leidos).filter(function (k) { return k === claveLeido_('ausencias', h.cursoEscolar) || k.indexOf('ausencias/' + h.cursoEscolar + '/') === 0; })
+    const leidos = Object.keys(ctx.avance.leidos).filter(function (k) { return k === claveLeido_(conjunto, h.cursoEscolar) || k.indexOf(conjunto + '/' + h.cursoEscolar + '/') === 0; })
       .map(function (k) { return cargarLeido_(ctx.raiz, k); }).filter(function (l) { return !!l; });
     return { h: h, p: cmpAbrirParte_(ctx, h), leidos: leidos };
   });
 }
 
 /* `ausencias-lectura`: por curso, las líneas leídas del fichero son las del registro, y cada campo de la parte es una columna del fichero. */
-function cmpAusenciasLectura_(ctx) {
-  const d = cmpDatosAusencias_(ctx);
+function cmpAusenciasLectura_(ctx, conjunto) {
+  const d = cmpDatosAusencias_(ctx, conjunto);
   if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
   let malos = 0, filas = 0, registros = 0, columnas = 0;
   d.forEach(function (c) {
@@ -10314,8 +10334,8 @@ function cmpAusenciasLectura_(ctx) {
 }
 
 /* `ausencias-una-ficha`: ningún identificador vacío ni repetido dentro de una parte. */
-function cmpAusenciasUnaFicha_(ctx) {
-  const d = cmpDatosAusencias_(ctx);
+function cmpAusenciasUnaFicha_(ctx, conjunto) {
+  const d = cmpDatosAusencias_(ctx, conjunto);
   if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
   let malos = 0, registros = 0;
   d.forEach(function (c) {
@@ -10325,6 +10345,10 @@ function cmpAusenciasUnaFicha_(ctx) {
   });
   return { estado: malos ? 'mal' : 'bien', cifras: { cursos: d.length, registros: registros, 'repetidos-o-vacios': malos } };
 }
+
+/* Fila 148: las mismas dos comprobaciones para las solicitudes de licencias y permisos (`solicitudes-licencias`). */
+function cmpSolicitudesLectura_(ctx) { return cmpAusenciasLectura_(ctx, 'solicitudes-licencias'); }
+function cmpSolicitudesUnaFicha_(ctx) { return cmpAusenciasUnaFicha_(ctx, 'solicitudes-licencias'); }
 
 /* ==== Profesorado.gs ==== */
 /* Los conjuntos `profesorado-grupos` y `profesorado-alumnos` (fila 136): salen del listado de Séneca «Materias, profesorado y unidades» (RelMatProUni), una parte por curso.
@@ -10984,6 +11008,8 @@ const CONSULTA_CONJUNTOS_ = [
   { id: 'libros', nombre: 'Libros de texto', conjunto: 'libros', parte: 'curso', modo: 'curso', unidad: ['asignatura', 'asignaturas'], ver: ['nivelTexto', 'materia', 'titulo', 'editorial'], eje: { filas: ['nivelTexto'], cols: [] } },
   /* Fila 114: las columnas son las del fichero (no se conocen de antemano). `ver: 'todas'`: abre con todas. `eje`: abre con la persona en filas y el estado en columnas, si el fichero las trae (las claves salen de los títulos). */
   { id: 'ausencias', nombre: 'Ausencias', conjunto: 'ausencias', parte: 'curso', modo: 'curso', unidad: ['ausencia', 'ausencias'], ver: 'todas', eje: { filas: ['empleado-a', 'empleado', 'profesor-a'], cols: ['estado'] } },
+  /* Fila 148: las solicitudes de licencias y permisos, como las ausencias; abre con la persona («Nombre») en filas y el estado en columnas. */
+  { id: 'solicitudes-licencias', nombre: 'Solicitudes de licencias y permisos', conjunto: 'solicitudes-licencias', parte: 'curso', modo: 'curso', unidad: ['solicitud', 'solicitudes'], ver: 'todas', eje: { filas: ['nombre'], cols: ['estado'] } },
   /* Fila 136: los profesores por grupo (una línea por clase) y de cada alumno (una tabla de materia y profesor). */
   { id: 'profesorado-grupos', nombre: 'Profesores por grupo', conjunto: 'profesorado-grupos', parte: 'curso', modo: 'curso', unidad: ['clase', 'clases'], ver: ['nivel', 'unidad', 'materia', 'profesor'], eje: { filas: ['profesor'], cols: [] } },
   { id: 'profesorado-alumnos', nombre: 'Profesores de cada alumno', conjunto: 'profesorado-alumnos', parte: 'curso', modo: 'curso', ejeNombres: { 'profesores.materia': 'Materia', 'profesores.profesor': 'Profesor/a' }, unidad: ['alumno', 'alumnos'], ver: ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'], eje: { filas: ['alumno'], cols: [] } },
@@ -11011,7 +11037,7 @@ const CONSULTA_SALEN_ = {
   contactos: ['empleado', 'correoCentro']
 };
 
-function consultaSale_(conjunto, ruta) { return conjunto === 'ausencias' ? ausenciaSale_(ruta) : (CONSULTA_SALEN_[conjunto] || []).indexOf(ruta) !== -1; }
+function consultaSale_(conjunto, ruta) { return (conjunto === 'ausencias' || conjunto === 'solicitudes-licencias') ? ausenciaSale_(ruta) : (CONSULTA_SALEN_[conjunto] || []).indexOf(ruta) !== -1; }
 
 function consultaDefinicion_(id) { return CONSULTA_CONJUNTOS_.filter(function (d) { return d.id === id; })[0] || null; }
 
@@ -11026,7 +11052,7 @@ function consultaCursos_(indice, def) {
   const hechos = indice.hechos || [];
   let cursos;
   if (def.soloPropio) cursos = hechos.filter(function (h) { return h.conjunto === def.conjunto && h.parte === def.parte; }).map(function (h) { return h.cursoEscolar; });
-  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'profesorado-grupos', 'profesorado-alumnos'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
+  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'solicitudes-licencias', 'profesorado-grupos', 'profesorado-alumnos'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
   return ordenarCursos_(cursos);
 }
 
