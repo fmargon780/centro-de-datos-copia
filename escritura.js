@@ -130,21 +130,28 @@
   }
   compactar.n = 0;
 
-  /* ¿Ha cambiado alguno de los ficheros que se van a reescribir desde que se leyó? */
+  /* ¿Ha cambiado alguno de los ficheros que se van a reescribir desde que se leyó? Devuelve null si no, o en llano qué ha cambiado (fila 176: antes solo decía sí o no y el aviso culpaba siempre a otra persona). */
   async function huboCambios(ops, propios) {
     var libera = {};   // los sitios que el propio guardado deja libres (un fichero que se mueve o se borra): crear otro con ese nombre es lo normal
     ops.forEach(function (op) { if ((op.t === 'colocar' || op.t === 'borrar') && op.f.disco) libera[op.f.disco.c.ruta + '\u0000' + op.f.disco.n] = true; });
     for (var i = 0; i < ops.length; i++) {
       var f = ops[i].f;
       if (ops[i].t === 'crear' && ops[i].c.handle && !libera[ops[i].c.ruta + '\u0000' + ops[i].n] && !propios[ops[i].c.ruta + '\u0000' + ops[i].n]) {   // un fichero que se crea y ya está en el disco, y no lo escribió una vuelta anterior de este mismo guardado: otra persona lo creó a la vez (fila 102)
-        try { await ops[i].c.handle.getFileHandle(ops[i].n); return true; } catch (e) { if (!e || e.name !== 'NotFoundError') throw e; }
+        var yaEsta = null;
+        try { yaEsta = await ops[i].c.handle.getFileHandle(ops[i].n); } catch (e) { if (!e || e.name !== 'NotFoundError') throw e; }
+        if (yaEsta) {
+          // Fila 176: con el MISMO contenido es lo que dejó un intento anterior a medias (o el mismo fichero ya guardado): no es otra persona, se sigue y se reescribe igual.
+          var igual = false;
+          try { igual = iguales(await bytesDe(yaEsta), aBytes(f.bytes)); } catch (e) { igual = false; }
+          if (!igual) return { motivo: 'crear', donde: ops[i].c.ruta + '/' + ops[i].n };
+        }
       }
       if (ops[i].t !== 'contenido' || !f.leido || !f.handle) continue;
       var ahora;
-      try { ahora = await bytesDe(f.handle); } catch (e) { return true; }
-      if (!iguales(ahora, f.leido)) return true;
+      try { ahora = await bytesDe(f.handle); } catch (e) { return { motivo: 'contenido-ilegible', donde: (f.padre && f.padre.ruta || '') + '/' + f.nombre }; }
+      if (!iguales(ahora, f.leido)) return { motivo: 'contenido', donde: (f.padre && f.padre.ruta || '') + '/' + f.nombre };
     }
-    return false;
+    return null;
   }
 
   async function reproducir(ops, propios) {
@@ -184,11 +191,11 @@
   async function sigueIgual(ops) {
     for (var i = 0; i < ops.length; i++) {
       if (ops[i].t !== 'contenido') continue;
-      var ahora;
-      try { ahora = await bytesDe(ops[i].f.handle); } catch (e) { return false; }
-      if (!iguales(ahora, ops[i].f.bytes)) return false;
+      var ahora, donde = (ops[i].f.padre && ops[i].f.padre.ruta || '') + '/' + ops[i].f.nombre;
+      try { ahora = await bytesDe(ops[i].f.handle); } catch (e) { return { motivo: 'relectura-falla', donde: donde }; }
+      if (!iguales(ahora, ops[i].f.bytes)) return { motivo: 'relectura', donde: donde };
     }
-    return true;
+    return null;
   }
 
   function deshacer() { var d = tx.deshacer; tx = null; for (var i = d.length - 1; i >= 0; i--) d[i](); }
@@ -234,7 +241,7 @@
 
   /* `alterna`: una raíz distinta (el ensayo de la fila 46, pagina/ensayo.js) para que los .gs lean y escriban en ella; al terminar la carpeta de verdad vuelve a ser la de siempre. */
   async function unaVez(fn, alterna) {
-    var propios = {}, suelta = null;   // lo que las vueltas de este guardado ya han escrito (una vuelta repetida no choca con lo suyo)
+    var propios = {}, suelta = null, ultimo = null;   // lo que las vueltas de este guardado ya han escrito (una vuelta repetida no choca con lo suyo)
     try {
       for (var vuelta = 0; vuelta < VUELTAS; vuelta++) {
         if (vuelta) await new Promise(function (ok) { setTimeout(ok, 150 + Math.random() * 450); });
@@ -243,13 +250,28 @@
         if (!ops.length) return p.resultado;
         if (!alterna && !suelta && ops.some(fueraDelEnsayo)) suelta = await turno().tomar();   // las escrituras de verdad, de una persona cada vez (fila 115)
         if (suelta && !(await turno().renovar())) { suelta = null; continue; }   // si el turno se perdió por tardar, se vuelve a pedir
-        if (await huboCambios(ops, propios)) continue;
+        ultimo = await huboCambios(ops, propios);
+        if (ultimo) continue;
         await reproducir(ops, propios);
-        var bien = await sigueIgual(ops);
-        if (bien) return p.resultado;
+        ultimo = await sigueIgual(ops);
+        if (!ultimo) return p.resultado;
       }
     } finally { C.reiniciar(); if (suelta) await suelta(); }
-    throw new Error('Otra persona está guardando a la vez y no he podido terminar. Vuelve a probar dentro de un momento.');
+    throw new Error(avisoDe(ultimo));
+  }
+
+  /* El aviso cuando se agotan las vueltas (fila 176): «otra persona» solo lo dice el turno (turno-escritura.js), que es quien lo sabe; aquí se cuenta lo que pasó, sin culpar a nadie. */
+  var CAUSAS = {
+    'crear': 'en la carpeta ya había otro fichero con el mismo nombre y distinto contenido',
+    'contenido': 'un fichero de la carpeta cambió mientras se guardaba',
+    'contenido-ilegible': 'no pude leer un fichero de la carpeta antes de guardarlo',
+    'relectura': 'al volver a leer lo guardado no era igual a lo que se escribió (la carpeta puede tardar en asentarse)',
+    'relectura-falla': 'al volver a leer lo guardado el fichero no se pudo abrir'
+  };
+  function avisoDe(u) {
+    if (!u) return 'No he podido guardar y no sé por qué. Vuelve a probar; si se repite, avisa.';
+    try { if (window.console && console.warn) console.warn('guardado: ' + u.motivo + ' · ' + u.donde); } catch (e) { /* solo rastro */ }
+    return 'No he podido guardar: ' + (CAUSAS[u.motivo] || 'la carpeta no respondió como se esperaba') + ' (' + u.donde + '). Vuelve a probar; si se repite, avisa.';
   }
 
   /* Una cosa cada vez en este navegador: guardados y lecturas hacen cola; entre pestañas, los candados del navegador si los hay.
@@ -296,6 +318,7 @@
     try { for (var k = 0; k < t.length; k++) h = await h.getDirectoryHandle(t[k]); await h.removeEntry(n); } catch (e) { if (!e || e.name !== 'NotFoundError') throw e; }
   }
 
+  C.huboCambios = huboCambios;   // para las pruebas (fila 176)
   C.transaccion = transaccion;
   C.enCola = enCola;
   C.escribirSuelto = escribirSuelto;

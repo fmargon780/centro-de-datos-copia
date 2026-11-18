@@ -20,15 +20,17 @@
 
     /* Devuelve la función que lo suelta. Si en `espera` milisegundos no se consigue, lanza el aviso de siempre. */
     async function tomar() {
-      var limite = ahora() + espera;
+      var limite = ahora() + espera, otra = '';
       for (;;) {
         var t = await mirar();
-        if (!(t.dueno && t.dueno !== yo && typeof t.hasta === 'number' && t.hasta > ahora())) {
+        var ocupado = t.dueno && t.dueno !== yo && typeof t.hasta === 'number' && t.hasta > ahora();
+        if (ocupado) otra = typeof t.persona === 'string' ? t.persona.trim() : '';
+        if (!ocupado) {
           await io.escribir({ dueno: yo, persona: persona, hasta: ahora() + validez });
           await dormir(asentar);
           if ((await mirar()).dueno === yo) return soltar;
         }
-        if (ahora() > limite) throw new Error('Otra persona está guardando a la vez y no he podido terminar. Vuelve a probar dentro de un momento.');
+        if (ahora() > limite) throw new Error('Otra persona está guardando a la vez' + (otra ? ' (' + otra + ')' : '') + ' y no he podido terminar. Vuelve a probar dentro de un momento.');
         await dormir(hueco + aleatorio() * hueco);
       }
     }
