@@ -2117,6 +2117,10 @@ function cambiarCarpeta() {
   }, function (x) { m.className = 'aviso-campo mal'; m.textContent = x.message; });
 }
 
+/* Sin onclick en línea: la regla de seguridad de la página no los deja (fila 170). */
+document.getElementById('botonAnadirPersona').addEventListener('click', anadirPersona);
+document.getElementById('botonCambiarCarpeta').addEventListener('click', cambiarCarpeta);
+
 function cargarAcceso() {
   return servidor('webAccesoLeer').then(pintarAcceso, function (x) { avisar(x.message, true); });
 }
