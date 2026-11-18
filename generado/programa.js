@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v77';
+const VERSION_CD = 'CD v78';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -2606,19 +2606,29 @@ function guardarListado_(nombre, bytes, rec, quien, via, existente) {
     /* 1. Primero el fichero nuevo: si esto falla, no se ha tocado nada. */
     const destino = subcarpetaPorRuta_(raiz, rutaDeListado_('listados', rec.clave, rec.variante));
     let nuevo;
+    /* Fila 176: un fichero con ese mismo nombre que el índice no apunta (lo dejó un guardado a medias, o el vigente no se encuentra por su ruta) no se pisa: pasa a anteriores/ después. */
+    const choques = [];
+    if (!existente) { const it = destino.getFilesByName(limpio); while (it.hasNext()) choques.push(it.next()); }
     if (existente) { existente.fichero.moveTo(destino); existente.fichero.setName(limpio); nuevo = existente.fichero; }
     else nuevo = destino.createFile(Utilities.newBlob(bytes, MIME_POR_TIPO_[tipo] || MIME_POR_TIPO_.otro, limpio));
     /* 2. El vigente de antes pasa a anteriores/, con su fecha delante. */
-    let movido = false;
+    let movido = false, viejo = null;
     if (previo) {
       try {
-        const viejo = ficheroDeEntrada_(previo);
+        viejo = ficheroDeEntrada_(previo);
         viejo.moveTo(subcarpetaPorRuta_(raiz, rutaAnt));
         viejo.setName(prefijoFecha_(previo.subido) + ' ' + viejo.getName());
         movido = true;
       } catch (e) { /* el anterior ya no estaba en Drive: no hay nada que archivar */ }
     }
-    if (previo && c.soloUltimaAnterior) podarAnteriores_(raiz, rutaAnt, 1);
+    let sueltos = 0;
+    choques.forEach(function (f) {
+      if (viejo && f === viejo) return;
+      f.moveTo(subcarpetaPorRuta_(raiz, rutaAnt));
+      f.setName(prefijoFecha_(ahoraMadrid_()) + ' ' + limpio);
+      sueltos++;
+    });
+    if ((previo || sueltos) && c.soloUltimaAnterior) podarAnteriores_(raiz, rutaAnt, 1);
     /* 3. El índice, lo último. */
     const f = rec.ficha;
     const entrada = {
@@ -2626,7 +2636,7 @@ function guardarListado_(nombre, bytes, rec, quien, via, existente) {
       ruta: rutaDeListado_('listados', rec.clave, rec.variante) + '/' + limpio, idDrive: nuevo.getId(), tipo: tipo,
       cursoEscolar: f.cursoEscolar, ambito: f.ambito, periodo: f.periodo, alumno: f.alumno,
       subido: llegado, subidoPor: quien, via: via, bytes: bytes.length, filas: cuenta.filas,
-      resumen: cuenta.resumen, huella: h, caducaDias: c.dias, anteriores: (previo ? previo.anteriores || 0 : 0) + (movido ? 1 : 0)
+      resumen: cuenta.resumen, huella: h, caducaDias: c.dias, anteriores: (previo ? previo.anteriores || 0 : 0) + (movido ? 1 : 0) + sueltos
     };
     if (previo) indice.listados[indice.listados.indexOf(previo)] = entrada; else indice.listados.push(entrada);
     escribirIndice_(raiz, indice);
