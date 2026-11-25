@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v78';
+const VERSION_CD = 'CD v79';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -36,7 +36,8 @@ function haceTiempo_(iso, ahora) {
 /* ==== PdfTexto.gs ==== */
 /* Un lector de PDF de Séneca (los que genera Oracle Reports): da los textos de cada hoja con su posición, su tipo de letra y si van girados. No sabe nada de tutorías.
    Admite ASCII85 y Flate, juntos o sueltos. Lo que no conoce no se adivina: devuelve { ok: false, motivo } y ninguna hoja.
-   pdfTextos_(bytes) → { ok, motivo, hojas: [ [ { t, x, y, f, neg, g } ] ] }   (t: texto; x, y: posición; f: «F0»; neg: negrita; g: girado) */
+   pdfTextos_(bytes) → { ok, motivo, hojas: [ [ { t, x, y, f, neg, g } ] ] }   (t: texto; x, y: posición; f: «F0»; neg: negrita; g: girado)
+   pdfTextos_(bytes, true) (fila 178, PdfTextoExtra.gs): además entiende los textos en arrays (TJ), en hexadecimal y los tipos de letra con ToUnicode, y da las rayas de cada hoja: { …, rayas: [ { h: [{ y, x1, x2 }], v: [{ x, y1, y2 }] } ] }. */
 
 const PDF_OPERADORES_NO_ = ['TJ', "'", '"', 'T*', 'BI'];
 const PDF_CP1252_ = { 128: '€', 130: '‚', 131: 'ƒ', 132: '„', 133: '…', 134: '†', 135: '‡', 136: 'ˆ', 137: '‰', 138: 'Š', 139: '‹', 140: 'Œ', 142: 'Ž', 145: '‘', 146: '’',
@@ -252,7 +253,7 @@ function pdfHojas_(obj) {
 }
 
 /* Los tipos de letra de una hoja: { F0: { neg: false }, F1: { neg: true } }. */
-function pdfLetras_(obj, hoja) {
+function pdfLetras_(obj, hoja, ext) {
   const salida = {};
   const f = /\/Font\s*<<([^>]*)>>/.exec(hoja.dic);
   if (!f) return salida;
@@ -260,6 +261,7 @@ function pdfLetras_(obj, hoja) {
     const o = obj.objetos[n];
     const base = o ? /\/BaseFont\s*\/(\S+)/.exec(o.dic) : null;
     salida[nombre] = { neg: !!base && /bold/i.test(pdfNombreDeTipoDeLetra_(base[1])) };
+    if (ext && o) pdfLetraExtra_(obj, o, salida[nombre]);
     return '';
   });
   return salida;
@@ -292,8 +294,8 @@ function pdfDeCp1252_(s) {
 }
 
 /* Los textos de un contenido, con su posición. Lanza si aparece algo que no se sabe leer. */
-function pdfTextosDeContenido_(c, letras) {
-  const textos = [];
+function pdfTextosDeContenido_(c, letras, ext) {
+  const textos = [], E = ext ? pdfEstadoExtra_(ext) : null;
   let operandos = [], x = 0, y = 0, giro = false, letra = '';
   let i = 0;
   const ESPACIO = /[\s\0]/, FIN = /[\s\0()<>\[\]\/%]/;
@@ -302,7 +304,12 @@ function pdfTextosDeContenido_(c, letras) {
     if (ESPACIO.test(ch)) { i++; continue; }
     if (ch === '%') { while (i < c.length && c[i] !== '\n' && c[i] !== '\r') i++; continue; }
     if (ch === '(') { const r = pdfCadenaTexto_(c, i); operandos.push({ s: r.texto }); i = r.fin; continue; }
-    if (ch === '<') { if (c[i + 1] === '<') { const f = c.indexOf('>>', i); if (f === -1) throw new Error('contenido'); i = f + 2; operandos.push({}); continue; } throw new Error('hexadecimal'); }
+    if (ch === '<') {
+      if (c[i + 1] === '<') { const f = c.indexOf('>>', i); if (f === -1) throw new Error('contenido'); i = f + 2; operandos.push({}); continue; }
+      if (E) { const f = c.indexOf('>', i); if (f === -1) throw new Error('contenido'); operandos.push({ s: pdfHexadecimal_(c.substring(i + 1, f)) }); i = f + 1; continue; }
+      throw new Error('hexadecimal');
+    }
+    if (ch === '[' && E) { const r = pdfArrayExtra_(c, i); operandos.push({ a: r.partes }); i = r.fin; continue; }
     if (ch === '[') {
       let j = i + 1;
       while (j < c.length && c[j] !== ']') { if (c[j] === '(') j = pdfCadenaTexto_(c, j).fin; else if (c[j] === '<') throw new Error('hexadecimal'); else j++; }
@@ -315,21 +322,24 @@ function pdfTextosDeContenido_(c, letras) {
     const w = c.substring(i, j);
     i = j;
     if (/^[+-]?(\d+\.?\d*|\.\d+)$/.test(w)) { operandos.push({ v: parseFloat(w) }); continue; }
-    if (PDF_OPERADORES_NO_.indexOf(w) !== -1) throw new Error('operador');
+    if (PDF_OPERADORES_NO_.indexOf(w) !== -1 && !(E && w === 'TJ')) throw new Error('operador');
     const num = operandos.map(function (o) { return o.v; });
+    if (E) pdfOperadorExtra_(E, w, num);
     if (w === 'BT') { x = 0; y = 0; giro = false; }
     else if (w === 'Tf' && operandos.length >= 2) letra = operandos[operandos.length - 2].n || '';
     else if (w === 'Tm' && num.length >= 6) { x = num[4]; y = num[5]; giro = Math.abs(num[1]) > 0.01 || Math.abs(num[2]) > 0.01; }
     else if ((w === 'Td' || w === 'TD') && num.length >= 2) { x += num[num.length - 2]; y += num[num.length - 1]; }
-    else if (w === 'Tj' && operandos.length) {
-      textos.push({ t: pdfDeCp1252_(operandos[operandos.length - 1].s || ''), x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100, f: letra, neg: !!(letras[letra] && letras[letra].neg), g: giro });
+    else if ((w === 'Tj' || (E && w === 'TJ')) && operandos.length) {
+      const u = operandos[operandos.length - 1], p = E ? pdfPunto_(E, x, y) : { x: x, y: y };
+      const t = E ? pdfTextoExtra_(u, letras[letra]) : pdfDeCp1252_(u.s || '');
+      textos.push({ t: t, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, f: letra, neg: !!(letras[letra] && letras[letra].neg), g: giro });
     }
     operandos = [];
   }
   return textos;
 }
 
-function pdfTextos_(bytes) {
+function pdfTextos_(bytes, ext) {
   const mal = function (motivo) { return { ok: false, motivo: motivo, hojas: [] }; };
   try {
     const t = pdfCadena_(bytes);
@@ -338,19 +348,176 @@ function pdfTextos_(bytes) {
     const obj = pdfObjetos_(t);
     const hojas = pdfHojas_(obj);
     if (!hojas.length) return mal('El PDF no trae ninguna hoja.');
+    const rayas = [];
     const salida = hojas.map(function (h) {
-      const letras = pdfLetras_(obj, h);
+      const letras = pdfLetras_(obj, h, ext), r = ext ? { h: [], v: [] } : null;
+      if (r) rayas.push(r);
       let todo = '';
       h.contenidos.forEach(function (n) { if (!obj.objetos[n]) throw new Error('estructura'); todo += pdfContenido_(obj.objetos[n]) + '\n'; });
-      return pdfTextosDeContenido_(todo, letras);
+      return pdfTextosDeContenido_(todo, letras, r);
     });
-    return { ok: true, motivo: '', hojas: salida };
+    return ext ? { ok: true, motivo: '', hojas: salida, rayas: rayas } : { ok: true, motivo: '', hojas: salida };
   } catch (e) {
     const m = String(e && e.message || e);
     if (m === 'filtro') return mal('El PDF usa una forma de comprimirse que no sé leer.');
     if (m === 'hexadecimal' || m === 'operador') return mal('El PDF escribe los textos de una forma que no sé leer.');
     return mal('No se ha podido abrir el PDF por dentro.');
   }
+}
+
+/* ==== PdfTextoExtra.gs ==== */
+/* Lo que el lector de PDF (PdfTexto.gs) añade cuando se le pide `pdfTextos_(bytes, true)` (fila 178, el «Horario del profesorado» de Séneca, que no es de Oracle Reports):
+   - textos en arrays (`[(Hola) -250 (mundo)] TJ`) y en hexadecimal (`<48656C6C6F> Tj`);
+   - tipos de letra con `ToUnicode` (cada código de la letra dice qué carácter es), de uno o de dos bytes;
+   - la matriz de transformación (`q`, `Q`, `cm`) para dar la posición de cada texto en la hoja;
+   - las rayas horizontales y verticales que dibuja la hoja (`m`, `l`, `re` y pintar), sin las que solo recortan.
+   Lo que no conoce no se adivina: lanza igual que el lector de siempre. Sin esta opción, nada de esto se usa. */
+
+function pdfEstadoExtra_(rayas) {
+  return { rayas: rayas, ctm: [1, 0, 0, 1, 0, 0], pila: [], ruta: [], actual: null, inicio: null, recorta: false };
+}
+
+/* La posición de un texto en la hoja, aplicada la matriz. */
+function pdfPunto_(E, x, y) {
+  const m = E.ctm;
+  return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
+}
+
+/* Los bytes de una cadena hexadecimal, como una cadena de un carácter por byte. */
+function pdfHexadecimal_(h) {
+  let t = String(h).replace(/\s+/g, '');
+  if (!/^[0-9A-Fa-f]*$/.test(t)) throw new Error('hexadecimal');
+  if (t.length % 2) t += '0';
+  let s = '';
+  for (let i = 0; i < t.length; i += 2) s += String.fromCharCode(parseInt(t.substr(i, 2), 16));
+  return s;
+}
+
+/* Un array de un contenido (`[(a) -120 <62>]`): { partes: [{ s } | { v }], fin }. */
+function pdfArrayExtra_(c, i) {
+  const partes = [];
+  let j = i + 1;
+  while (j < c.length && c[j] !== ']') {
+    const ch = c[j];
+    if (ch === '(') { const r = pdfCadenaTexto_(c, j); partes.push({ s: r.texto }); j = r.fin; continue; }
+    if (ch === '<') { const f = c.indexOf('>', j); if (f === -1) throw new Error('contenido'); partes.push({ s: pdfHexadecimal_(c.substring(j + 1, f)) }); j = f + 1; continue; }
+    if (/[\s\0]/.test(ch)) { j++; continue; }
+    let k = j;
+    while (k < c.length && !/[\s\0()<>\[\]\/%]/.test(c[k])) k++;
+    const w = c.substring(j, k);
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(w)) throw new Error('contenido');
+    partes.push({ v: parseFloat(w) });
+    j = k;
+  }
+  if (j >= c.length) throw new Error('contenido');
+  return { partes: partes, fin: j + 1 };
+}
+
+/* Un texto del contenido (una cadena o un array) con los caracteres de su tipo de letra. Un hueco grande entre dos trozos de un array es un espacio. */
+function pdfTextoExtra_(u, letra) {
+  if (!u.a) return pdfDecodificar_(u.s || '', letra);
+  let t = '';
+  u.a.forEach(function (p) { if (p.s !== undefined) t += pdfDecodificar_(p.s, letra); else if (p.v < -180) t += ' '; });
+  return t;
+}
+
+function pdfDecodificar_(s, letra) {
+  if (letra && letra.sinMapa) throw new Error('hexadecimal');
+  if (!letra || !letra.mapa) return pdfDeCp1252_(s);
+  let r = '';
+  if (letra.dos) {
+    for (let i = 0; i + 1 < s.length; i += 2) { const ch = letra.mapa[(s.charCodeAt(i) & 255) * 256 + (s.charCodeAt(i + 1) & 255)]; if (ch !== undefined) r += ch; }
+  } else {
+    for (let i = 0; i < s.length; i++) { const ch = letra.mapa[s.charCodeAt(i) & 255]; r += ch !== undefined ? ch : ''; }
+  }
+  return r;
+}
+
+/* Un tipo de letra con `ToUnicode` o de dos bytes (`Type0`): apunta en `letra` su mapa de códigos a caracteres, y si la letra es de dos bytes. */
+function pdfLetraExtra_(obj, o, letra) {
+  const dos = /\/Subtype\s*\/Type0/.test(o.dic) || /\/Encoding\s*\/Identity-[HV]/.test(o.dic);
+  const t = /\/ToUnicode\s+(\d+)\s+\d+\s+R/.exec(o.dic);
+  letra.dos = dos;
+  if (t && obj.objetos[t[1]]) {
+    const m = pdfMapaUnicode_(pdfContenido_(obj.objetos[t[1]]));
+    letra.mapa = m.mapa;
+    if (m.bytes) letra.dos = m.bytes === 2;
+  } else if (dos) letra.sinMapa = true;
+}
+
+function pdfCaracteresDeHex_(h) {
+  const t = pdfHexadecimal_(h);
+  let s = '';
+  for (let i = 0; i + 1 < t.length; i += 2) s += String.fromCharCode((t.charCodeAt(i) & 255) * 256 + (t.charCodeAt(i + 1) & 255));
+  return s;
+}
+
+/* El contenido de un `ToUnicode`: { mapa: { código: carácter }, bytes: 1 | 2 | 0 }. */
+function pdfMapaUnicode_(c) {
+  const mapa = {};
+  let bytes = 0;
+  const cs = /begincodespacerange\s*<([0-9A-Fa-f]+)>/.exec(c);
+  if (cs) bytes = cs[1].length >= 4 ? 2 : 1;
+  const hex = '<([0-9A-Fa-f\\s]+)>';
+  (c.match(/beginbfchar[\s\S]*?endbfchar/g) || []).forEach(function (b) {
+    const re = new RegExp(hex + '\\s*' + hex, 'g');
+    let m;
+    while ((m = re.exec(b))) mapa[parseInt(m[1].replace(/\s+/g, ''), 16)] = pdfCaracteresDeHex_(m[2]);
+  });
+  (c.match(/beginbfrange[\s\S]*?endbfrange/g) || []).forEach(function (b) {
+    const re = new RegExp(hex + '\\s*' + hex + '\\s*(?:' + hex + '|\\[([^\\]]*)\\])', 'g');
+    let m;
+    while ((m = re.exec(b))) {
+      const lo = parseInt(m[1].replace(/\s+/g, ''), 16), hi = parseInt(m[2].replace(/\s+/g, ''), 16);
+      if (hi < lo || hi - lo > 65535) continue;
+      if (m[3] !== undefined) {
+        const ini = pdfCaracteresDeHex_(m[3]);
+        for (let k = lo; k <= hi; k++) mapa[k] = ini.substring(0, ini.length - 1) + String.fromCharCode(ini.charCodeAt(ini.length - 1) + (k - lo));
+      } else {
+        const l = (m[4] || '').match(/<[0-9A-Fa-f\s]+>/g) || [];
+        for (let k = lo; k <= hi && k - lo < l.length; k++) mapa[k] = pdfCaracteresDeHex_(l[k - lo].slice(1, -1));
+      }
+    }
+  });
+  return { mapa: mapa, bytes: bytes };
+}
+
+function pdfMultiplicar_(m, c) {
+  return [m[0] * c[0] + m[1] * c[2], m[0] * c[1] + m[1] * c[3], m[2] * c[0] + m[3] * c[2], m[2] * c[1] + m[3] * c[3], m[4] * c[0] + m[5] * c[2] + c[4], m[4] * c[1] + m[5] * c[3] + c[5]];
+}
+
+/* Las rayas de un trozo de ruta ya pintada: las que van de lado a lado (horizontales) y las de arriba abajo (verticales). */
+function pdfGuardarRayas_(E) {
+  const r2 = function (n) { return Math.round(n * 100) / 100; };
+  E.ruta.forEach(function (s) {
+    if (Math.abs(s.y1 - s.y2) <= 0.3 && Math.abs(s.x1 - s.x2) > 0.3) E.rayas.h.push({ y: r2((s.y1 + s.y2) / 2), x1: r2(Math.min(s.x1, s.x2)), x2: r2(Math.max(s.x1, s.x2)) });
+    else if (Math.abs(s.x1 - s.x2) <= 0.3 && Math.abs(s.y1 - s.y2) > 0.3) E.rayas.v.push({ x: r2((s.x1 + s.x2) / 2), y1: r2(Math.min(s.y1, s.y2)), y2: r2(Math.max(s.y1, s.y2)) });
+  });
+}
+
+/* Un operador que no es de texto. `num` son sus operandos numéricos. */
+function pdfOperadorExtra_(E, w, num) {
+  const n = num.length, punto = function (x, y) { return pdfPunto_(E, x, y); };
+  if (w === 'q') { E.pila.push(E.ctm.slice()); return; }
+  if (w === 'Q') { if (E.pila.length) E.ctm = E.pila.pop(); return; }
+  if (w === 'cm' && n >= 6) { E.ctm = pdfMultiplicar_(num.slice(n - 6), E.ctm); return; }
+  if (w === 'm' && n >= 2) { E.actual = punto(num[n - 2], num[n - 1]); E.inicio = E.actual; return; }
+  if (w === 'l' && n >= 2 && E.actual) { const p = punto(num[n - 2], num[n - 1]); E.ruta.push({ x1: E.actual.x, y1: E.actual.y, x2: p.x, y2: p.y }); E.actual = p; return; }
+  if (w === 're' && n >= 4) {
+    const x = num[n - 4], y = num[n - 3], a = num[n - 2], h = num[n - 1];
+    const p = [punto(x, y), punto(x + a, y), punto(x + a, y + h), punto(x, y + h)];
+    for (let i = 0; i < 4; i++) E.ruta.push({ x1: p[i].x, y1: p[i].y, x2: p[(i + 1) % 4].x, y2: p[(i + 1) % 4].y });
+    return;
+  }
+  if (w === 'h') { if (E.actual && E.inicio) { E.ruta.push({ x1: E.actual.x, y1: E.actual.y, x2: E.inicio.x, y2: E.inicio.y }); E.actual = E.inicio; } return; }
+  if (w === 'W' || w === 'W*') { E.recorta = true; return; }
+  if (['S', 's', 'f', 'F', 'f*', 'B', 'B*', 'b', 'b*'].indexOf(w) !== -1) {
+    if (w === 's' || w === 'b' || w === 'b*') pdfOperadorExtra_(E, 'h', []);
+    if (!E.recorta) pdfGuardarRayas_(E);
+    E.ruta = []; E.recorta = false; E.actual = null;
+    return;
+  }
+  if (w === 'n') { E.ruta = []; E.recorta = false; E.actual = null; }
 }
 
 /* ==== Texto.gs ==== */
@@ -478,6 +645,10 @@ const CATALOGO_ = [
   /* Materias, profesorado y unidades (fila 136, Profesorado.gs): se reconoce solo por sus cuatro columnas; el nombre (RelMatProUni) no trae curso, así que el curso es el que se elige al soltarlo. */
   { clave: 'materias-profesorado', titulo: 'Materias, profesorado y unidades (Séneca)', tipo: 'csv', usan: 'Gestor de asuntos', dias: 30, queEs: 'el listado de materias, profesorado y unidades',
     columnas: ['Curso', 'Materia', 'Unidad', 'Profesor/a'], ficha: { curso: 'nombre' }, cuenta: { modo: 'profesorado', uno: 'línea', varios: 'líneas' } },
+  /* El horario del profesorado (fila 178, Horario.gs): un PDF de Séneca (informe «HorarioProfesor»). Se reconoce por lo que dice dentro (`porContenido`) o por el nombre; el curso lo dice el PDF y el «a quién se
+     refiere» es la lista de sus profesores (`ambitoDeHorario_`): un PDF con otros profesores no sustituye al de todos. */
+  { clave: 'horario-profesorado', titulo: 'Horario del profesorado (Séneca)', tipo: 'pdf', porContenido: true, usan: 'Más adelante', dias: 180, queEs: 'el horario del profesorado',
+    nombre: ['horario del profesorado', 'horario_del_profesorado', 'horario-del-profesorado'], ficha: {}, cuenta: { modo: 'horario', uno: 'profesor', varios: 'profesores' } },
   { clave: 'registro-entrada', titulo: 'Registro de entrada', tipo: 'csv', usan: 'Gestor de asuntos', dias: 7, siempre: true, queEs: 'un registro de entrada',
     columnas: ['Fecha de registro', 'Extracto', 'Remitente'], sinColumnas: ['Destinatario'], ficha: { curso: { fechas: 'Fecha de registro' } },
     cuenta: { modo: 'filas', uno: 'apunte', varios: 'apuntes' } },
@@ -529,6 +700,7 @@ function textoNivel_(valor) {
 
 /* «Docentes», «1º ESO»… a partir del valor de «a quién se refiere» de un listado. */
 function textoAmbito_(clave, valor) {
+  if (clave === 'horario-profesorado') return textoAmbitoHorario_(valor);
   const c = entradaCatalogo_(clave);
   const a = c && c.ambitos ? c.ambitos.filter(function (x) { return x.valor === (valor || ''); })[0] : null;
   return a ? a.texto : (valor || '');
@@ -1890,7 +2062,7 @@ function reconocerFichero_(nombre, bytes, opciones) {
   const encajan = [];
   CATALOGO_.forEach(function (c) {
     if (c.alFinal || (c.soloNombre && !c.ademasPorColumnas)) return;
-    if (c.tipo === 'pdf') { if (esPdf && empiezaPor_(n, c.nombre)) encajan.push(c); return; }
+    if (c.tipo === 'pdf') { if (esPdf && (empiezaPor_(n, c.nombre) || (c.porContenido && esHorarioPdf_(bytes)))) encajan.push(c); return; }
     if (c.tipo === 'json') { if (json && (c.nombreRe ? c.nombreRe.test(n) : n === c.nombre[0]) && esJsonDe_(json, c.json)) encajan.push(c); return; }
     if (esPdf || json) return;
     if (c.nombre && !c.ademasPorColumnas && !empiezaPor_(n, c.nombre)) return;
@@ -1922,6 +2094,7 @@ function reconocerFichero_(nombre, bytes, opciones) {
   if (c.clave === 'entrega') return reconocerEntrega_(base, n, json);
   if (c.clave === 'alumnado-bd' && relevoHecho_(carpetaDatos_())) { base.motivo = MOTIVO_YA_LO_GENERA_; return base; }
   const f = c.aprendido ? sacarFichaAprendida_(c, nombre, opciones) : sacarFicha_(c, nombre, filas, opciones);
+  if (c.porContenido && esPdf) fichaDeHorario_(f, bytes, opciones);   // fila 178: el curso y los profesores salen del PDF
   base.clave = c.clave; base.ficha = f.ficha; base.falta = f.falta; base.cursoSupuesto = f.cursoSupuesto; base.propuesta = f.propuesta; base.alumnoNombre = f.alumnoNombre || '';
   if (f.falta.length) base.motivo = motivoDeFalta_(c, f.falta, f.aulaEspecifica);
   return base;
@@ -1943,6 +2116,7 @@ function contarListado_(c, bytes, tipo) {
   if (c.cuenta && c.cuenta.modo === 'ninguno') return { filas: null, resumen: 'Fichero PDF' };
   if (c.cuenta && c.cuenta.modo === 'ausencias') return contarAusencias_(c, bytes, tipo);
   if (c.cuenta && c.cuenta.modo === 'profesorado') return contarProfesorado_(c, bytes, tipo);
+  if (c.cuenta && c.cuenta.modo === 'horario') return contarHorario_(c, bytes, tipo);
   if (c.soloNombre) {
     if (tipo !== 'csv') return { filas: null, resumen: tipo === 'pdf' ? 'Fichero PDF' : 'Fichero' };
     const texto = bytesATexto_(bytes);
@@ -3276,6 +3450,22 @@ const CAMPOS_PROFESORADO_GRUPOS_ = [
   { clave: 'fichaId', etiqueta: 'Ficha: su identificador', apartado: 'Ficha', tipo: 'texto' }
 ];
 
+/* Los campos del horario del profesorado (fila 178): por profesor, sus horas de lunes a viernes (una línea por hora ocupada; `partes` va dentro de cada hora y no es una columna). `fichaConjunto` y `fichaId`
+   solo salen si el profesor se encuentra una sola vez en el personal del curso. */
+const CAMPOS_HORARIO_ = [
+  { clave: 'profesor', etiqueta: 'Profesor/a', apartado: 'Profesorado', tipo: 'texto' },
+  { clave: 'desde', etiqueta: 'Horario desde', apartado: 'Periodo', tipo: 'fecha' },
+  { clave: 'hasta', etiqueta: 'Horario hasta', apartado: 'Periodo', tipo: 'fecha' },
+  { clave: 'fechaReferencia', etiqueta: 'Fecha de referencia', apartado: 'Periodo', tipo: 'fecha' },
+  { clave: 'fechaGeneracion', etiqueta: 'Fecha de generación del PDF', apartado: 'Periodo', tipo: 'fecha' },
+  { clave: 'plantilla', etiqueta: 'Plantilla horaria', apartado: 'Horario', tipo: 'texto' },
+  { clave: 'sinHorario', etiqueta: 'Sin horario en el PDF', apartado: 'Horario', tipo: 'si-no' },
+  { clave: 'horas', etiqueta: 'Horas', apartado: 'Horario', tipo: 'tabla', columnas: [{ clave: 'dia', etiqueta: 'Día' }, { clave: 'tramo', etiqueta: 'Tramo' }, { clave: 'hora', etiqueta: 'Hora' }, { clave: 'unidad', etiqueta: 'Unidad' },
+    { clave: 'materia', etiqueta: 'Materia' }, { clave: 'materiaNombre', etiqueta: 'Materia (nombre)' }, { clave: 'actividad', etiqueta: 'Actividad' }, { clave: 'texto', etiqueta: 'Casilla' }] },
+  { clave: 'fichaConjunto', etiqueta: 'Ficha: de qué tipo', apartado: 'Ficha', tipo: 'texto' },
+  { clave: 'fichaId', etiqueta: 'Ficha: su identificador', apartado: 'Ficha', tipo: 'texto' }
+];
+
 /* Los campos de los profesores de cada alumno (fila 136): por alumno, la lista de sus materias con quien las da. */
 const CAMPOS_PROFESORADO_ALUMNOS_ = [
   { clave: 'alumno', etiqueta: 'Alumno/a', apartado: 'Alumno', tipo: 'texto' },
@@ -3327,6 +3517,9 @@ const CONJUNTOS_ = [
     entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_GRUPOS_ },
   { conjunto: 'profesorado-alumnos', titulo: 'Profesores de cada alumno', cuenta: 'alumnos', acuerdoHecho: ACUERDO_HECHO_, montador: 'profesorado', versionMontador: 1, porCursos: true, deProfesorado: 'alumnos', mira: ['alumnado', 'profesorado-grupos'], sinDiagnostico: true,
     entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_ALUMNOS_ },
+  /* El horario del profesorado (fila 178, Horario.gs): una parte por curso, de los PDF `horario-profesorado` (puede haber varios por curso: el de todos y los de un solo profesor). Mira el personal (`mira`). Sin diagnóstico: lleva nombres. */
+  { conjunto: 'horario-profesorado', titulo: 'Horario del profesorado', cuenta: 'profesores', acuerdoHecho: ACUERDO_HECHO_, montador: 'horario', versionMontador: 1, porCursos: true, deHorario: true, mira: ['personal'], sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'del horario', fuentes: [{ clave: 'horario-profesorado', lector: 'horario', versionLector: 1 }], campos: CAMPOS_HORARIO_ },
   /* Las empresas (fila 23): el primer conjunto que se entrega entero. No tiene listados ni campos propios: su única fuente es la entrega vigente de `entregadoPor` (la lista entera) y sus campos y registros los dice
      ella (HechosEnteros.gs). Una sola parte, `todas`. Otro conjunto así es otra línea como esta. `entregadas` y `quienEntrega` son palabras de la línea de la página. */
   { conjunto: 'empresas', titulo: 'Empresas', cuenta: 'empresas', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
@@ -3473,7 +3666,7 @@ function siglaPrimaria_(nombre, sinSigla) {
 /* ==== HechosLeer.gs ==== */
 /* Los lectores: abren un listado y devuelven SOLO lo que la tabla de campos nombra, ya interpretado. Se guarda en _interno/leido/<clave>.json
    con la huella del fichero y la versión del lector: mientras no cambie ninguna de las dos, no se vuelve a abrir. Lleva datos de menores: solo en Drive. */
-function lectorDe_(nombre) { return { regalum: leerRegAlum_, matricula: leerMatricula_, censo: leerCensoNeae_, personal: leerPersonal_, libros: leerLibros_, ausencias: leerAusencias_, profesorado: leerProfesorado_, tutorias: leerTutorias_, consejo: leerConsejo_, entrega: leerEntrega_ }[nombre]; }
+function lectorDe_(nombre) { return { regalum: leerRegAlum_, matricula: leerMatricula_, censo: leerCensoNeae_, personal: leerPersonal_, libros: leerLibros_, ausencias: leerAusencias_, profesorado: leerProfesorado_, horario: leerHorario_, tutorias: leerTutorias_, consejo: leerConsejo_, entrega: leerEntrega_ }[nombre]; }
 
 /* «2026» → «26-27». Como anoAcademico_ de BD Alumnado. */
 function anoAcademicoHecho_(ano) {
@@ -6838,6 +7031,7 @@ function claveDeMontajeBase_(conj, parte, partes, indice, avance, necesarias) {
   if (conj.deContactos) return claveDeMontajeContactos_(conj, parte, indice);
   if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.deProfesorado) return claveDeMontajeProfesorado_(conj, parte, indice, avance, hoy) + cola;
+  if (conj.deHorario) return claveDeMontajeHorario_(conj, parte, indice) + cola;
   if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.porCursos) return conj.versionMontador + '|' + conj.fuentes[0].versionLector;
   return conj.versionMontador + '|' + (parte.anio ? '' : partes.map(function (p) { return p.cursoEscolar; }).join(','));
@@ -6996,7 +7190,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   if (conj.entregadoPor) { montarParteDeEntero_(raiz, t, avance, cache, indice); return; }
   if (conj.deCorrecciones) { montarParteDeCorrecciones_(raiz, t, avance, cache, indice); return; }
   if (conj.deContactos) { montarParteDeContactos_(raiz, t, avance, cache, indice); return; }
-  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'solicitudes-licencias': montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
+  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'solicitudes-licencias': montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_, 'horario-profesorado': montarParteDeHorario_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
   const t0 = new Date().getTime();
   const cargar = function (k) {
     if (cache[k]) return cache[k];
@@ -7061,7 +7255,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fichero': 'consejoFichero', 'consejo-sin-ficha': 'consejoSinFicha', 'consejo-ficha-dudosa': 'consejoFichaDudosa',
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
-  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal',
+  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal', 'horario-fichero': 'horarioFichero',
   'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
@@ -7074,7 +7268,7 @@ function contadoresDeAviso_() {
   return c;
 }
 
-/* Los cuarenta contadores (siempre, aunque valgan cero) y `otros`. */
+/* Los contadores (siempre, aunque valgan cero) y `otros`. */
 function contarAvisos_(avisos) {
   const c = {}, tabla = contadoresDeAviso_();
   Object.keys(tabla).forEach(function (t) { c[tabla[t]] = 0; });
@@ -7193,6 +7387,7 @@ function resumenHechosPagina_(raiz) {
     if (conj.deContactos && partes.length) salida.contactos = { registros: partes[0].registros, aMano: ((avance.cifras || {})[partes[0].ruta] || {}).contactosAMano || 0 };
     if (conj.conjunto === 'libros') salida.libros = resumenLibrosParaPagina_(partes, avance);
     if (conj.deProfesorado) salida.profesorado = resumenProfesoradoParaPagina_(partes, avance);
+    if (conj.deHorario) salida.horario = resumenHorarioParaPagina_(partes, avance);
     if (conj.conjunto === 'ausencias' || conj.conjunto === 'solicitudes-licencias') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
     if (conj.entregadoPor) salida.entero = { registros: (avance.cuentas || {})[conj.conjunto] !== undefined && partes.length ? avance.cuentas[conj.conjunto] : (partes.length ? partes[0].registros : null), quien: conj.quienEntrega || conj.aplicaciones[conj.entregadoPor] || conj.entregadoPor, fecha: (avance.entregados || {})[conj.conjunto] || '', entregadas: conj.entregadas || 'entregadas' };
     if (conj.entregadoPor && conj.desglose) salida.entero.desglose = desglosePaginaEntero_(conj, avance);
@@ -7270,6 +7465,7 @@ const FRASES_AVISO_ = {
   'solicitudes-fichero': '{detalle}',
   'libros-fichero': '{detalle}',
   'profesorado-fichero': '{detalle}',
+  'horario-fichero': '{detalle}',
   'profesorado-sin-personal': 'Da {materia} en {unidad} y no está en el listado del personal. Sale igual en los profesores por grupo y de cada alumno.',
   'contactos-cambio-ignorado': 'Un cambio de contactos no se ha aplicado. {detalle}',
   'correcciones-ignorada': 'Una corrección de otra aplicación no se ha aplicado. {detalle}',
@@ -7584,6 +7780,48 @@ function cmpProfesoradoAlumnos_(ctx) {
   return { estado: malos ? 'mal' : 'bien', cifras: { cursos: d.length, alumnos: alumnos, parejas: parejas, 'que-no-cuadran': malos } };
 }
 
+/* ==== ComprobHorario.gs ==== */
+/* Las comprobaciones del horario del profesorado (fila 178). Solo leen y solo cuentan: ni un profesor ni una hora salen de aquí. */
+
+const COMPROBACIONES_HORARIO_ = [
+  { id: 'horario-lectura', fila: 178, que: 'Cuántos PDF del horario del profesorado hay en cada curso, cuántos profesores salen con horario y cuántos sin él, y que ningún profesor con «Horario regular» se quede sin tabla leída (solo cuentas)', funcion: 'cmpHorarioLectura_' },
+  { id: 'horario-dias', fila: 178, que: 'Ninguna hora del horario cae fuera de lunes a viernes ni se queda sin tramo, y ningún profesor sale dos veces en la misma parte (solo cuentas)', funcion: 'cmpHorarioDias_' }
+];
+
+/* `horario-lectura`: por curso, lo leído de cada PDF. Mal si algún profesor trae «Horario regular» y su tabla no se ha leído, o si un PDF no se ha podido leer. */
+function cmpHorarioLectura_(ctx) {
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === 'horario-profesorado'; });
+  if (!partes.length) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let pdf = 0, profesores = 0, con = 0, sin = 0, sinTabla = 0, ilegibles = 0;
+  partes.forEach(function (h) {
+    (ctx.indice.listados || []).filter(function (e) { return e.clave === 'horario-profesorado' && e.cursoEscolar === h.cursoEscolar; }).forEach(function (e) {
+      const l = cargarLeido_(ctx.raiz, claveLeido_(e.clave, e.variante));
+      pdf++;
+      if (!l || l.problema) { ilegibles++; return; }
+      l.profesores.forEach(function (p) { profesores++; if (p.sinHorario) sin++; else con++; });
+      sinTabla += l.sinTabla || 0;
+    });
+  });
+  return { estado: sinTabla || ilegibles ? 'mal' : 'bien', cifras: { cursos: partes.length, pdf: pdf, profesores: profesores, 'con-horario': con, 'sin-horario': sin, 'sin-tabla-leida': sinTabla, 'pdf-ilegibles': ilegibles } };
+}
+
+/* `horario-dias`: en cada parte, todas las horas son de lunes a viernes y traen tramo, y ningún profesor está dos veces. */
+function cmpHorarioDias_(ctx) {
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === 'horario-profesorado'; });
+  if (!partes.length) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let horas = 0, malas = 0, repetidos = 0;
+  partes.forEach(function (h) {
+    const p = cmpAbrirParte_(ctx, h), vistos = {};
+    if (!p) { malas++; return; }
+    p.obj.registros.forEach(function (r) {
+      if (!r.id || vistos[r.id]) repetidos++;
+      vistos[r.id] = true;
+      (r.datos.horas || []).forEach(function (x) { horas++; if (HORARIO_DIAS_.indexOf(x.dia) === -1 || !x.tramo) malas++; });
+    });
+  });
+  return { estado: malas || repetidos ? 'mal' : 'bien', cifras: { cursos: partes.length, horas: horas, 'fuera-de-semana-o-sin-tramo': malas, 'profesores-repetidos': repetidos } };
+}
+
 /* ==== ComprobCorrecciones.gs ==== */
 /* Las comprobaciones de las correcciones (fila 127). Solo leen y solo cuentan: ningún valor, nombre ni id sale de aquí. */
 const COMPROBACIONES_CORRECCIONES_ = [
@@ -7767,9 +8005,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
 function cmpFuncion_(nombre) {
-  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -10549,6 +10787,341 @@ function resumenProfesoradoParaPagina_(partes, avance) {
   return p && k ? Object.assign({ cursoEscolar: p.cursoEscolar, masCursos: cursos.length - 1 }, k) : null;
 }
 
+/* ==== HorarioLeer.gs ==== */
+/* El PDF «Horario del profesorado» de Séneca (fila 178): qué profesor está en qué grupo cada día y hora. Forma del PDF en `docs/135-FICHERO-REAL.md`.
+   Lo hace el programa de informes Jasper (no Oracle Reports): textos con TJ y rayas, que lee `pdfTextos_(bytes, true)` (PdfTextoExtra.gs). La tabla se lee por la posición de sus columnas
+   (`TRAMO | HORA | LUNES … VIERNES`) y por sus rayas; leer el texto por líneas no sirve. Lleva nombres de trabajadores: lo leído vive en _interno/leido/ y nunca sale de aquí un nombre. */
+
+const HORARIO_COLUMNAS_ = ['tramo', 'hora', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+const HORARIO_DIAS_ = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'];
+const HORARIO_FECHA_ = '(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})';
+
+function horarioMayusculas_(t) { return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+
+/* «01/09/26» o «01/09/2026» → «2026-09-01»; '' si no es una fecha. */
+function horarioFecha_(t) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(String(t || '').trim());
+  if (!m) return '';
+  const a = m[3].length === 2 ? 2000 + +m[3] : +m[3], d = new Date(Date.UTC(a, +m[2] - 1, +m[1]));
+  return d.getUTCFullYear() === a && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[1] ? a + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
+}
+
+/* Las líneas de una hoja, de arriba abajo, con sus textos de izquierda a derecha. */
+function horarioLineas_(textos) {
+  return alturasTutorias_(textos).map(function (a) {
+    const items = a.items.slice().sort(function (p, q) { return p.x - q.x; });
+    return { y: a.y, items: items, texto: items.map(function (i) { return i.t.trim(); }).filter(String).join(' ').replace(/\s+/g, ' ') };
+  });
+}
+
+/* Lo que dice la cabecera de una hoja: { nombre, referencia, generacion, regular: {desde, hasta} | null, centro: {desde, hasta} | null, plantilla }. */
+function horarioCabecera_(lineas) {
+  const c = { nombre: '', referencia: '', generacion: '', regular: null, centro: null, plantilla: '' };
+  const todo = lineas.map(function (l) { return l.texto; }).join(' ');
+  lineas.forEach(function (l) {
+    const n = /Profesor\/a\s*:\s*(.+?)(?=\s+D\.?\s*N\.?\s*I\.?(?![a-z])|$)/i.exec(l.texto);
+    if (n && !c.nombre) c.nombre = n[1].trim();
+    const p = /Plantilla\s+horaria\s*:\s*(.+)$/i.exec(l.texto);
+    if (p && !c.plantilla) c.plantilla = p[1].trim();
+  });
+  const f = function (re) { const m = re.exec(todo); return m ? horarioFecha_(m[1]) : ''; };
+  c.referencia = f(new RegExp('Fecha\\s+Referencia\\s*:?\\s*' + HORARIO_FECHA_, 'i'));
+  c.generacion = f(new RegExp('Fecha\\s+Generaci[oó]n\\s*:?\\s*' + HORARIO_FECHA_, 'i'));
+  const par = function (re) { const m = re.exec(todo); return m && horarioFecha_(m[1]) && horarioFecha_(m[2]) ? { desde: horarioFecha_(m[1]), hasta: horarioFecha_(m[2]) } : null; };
+  c.regular = par(new RegExp('Horario\\s+regular\\s*:\\s*' + HORARIO_FECHA_ + '\\s*-\\s*' + HORARIO_FECHA_, 'i'));
+  c.centro = par(new RegExp('Horario\\s+regular\\s+del\\s+centro\\s*:\\s*' + HORARIO_FECHA_ + '\\s*-\\s*' + HORARIO_FECHA_, 'i'));
+  return c;
+}
+
+/* Las rayas se juntan: las posiciones que distan menos de `tope` son la misma. De menor a mayor. */
+function horarioUnicos_(lista, tope) {
+  const o = lista.slice().sort(function (a, b) { return a - b; }), r = [];
+  o.forEach(function (v) { if (!r.length || v - r[r.length - 1] > tope) r.push(v); });
+  return r;
+}
+
+/* Dónde empieza cada una de las siete columnas (la primera no tiene límite por la izquierda) y dónde acaba la tabla. Con las siete rayas verticales de la tabla, por ellas; si no, por la mitad entre títulos. */
+function horarioColumnas_(cab, rayas) {
+  const hx = cab.x, v = horarioUnicos_((rayas.v || []).filter(function (r) { return r.y1 <= cab.y + 4 && r.y2 >= cab.y - 4 && r.y2 - r.y1 >= 8; }).map(function (r) { return r.x; }), 1.2);
+  const sirven = v.length === 8 && hx.every(function (x, k) { return x >= v[k] - 3 && x <= v[k + 1] + 3; });
+  if (sirven) return { desde: v.slice(0, 7).map(function (x, k) { return k === 0 ? -Infinity : x - 2; }), hasta: v[7] + 2 };
+  return { desde: hx.map(function (x, k) { return k === 0 ? -Infinity : (hx[k - 1] + x) / 2 - 1; }), hasta: Infinity };
+}
+
+function horarioColumnaDe_(cols, x) {
+  if (x >= cols.hasta) return -1;
+  for (let k = 6; k >= 0; k--) if (x >= cols.desde[k]) return k;
+  return -1;
+}
+
+/* Las franjas de arriba abajo, cada una { arriba, abajo }: entre las rayas horizontales de la tabla o, si no hay, a partir de los textos de la columna del tramo. */
+function horarioFranjas_(cab, cols, items, rayas) {
+  const x0 = cab.x[0], hoz = (rayas.h || []).filter(function (r) { return r.y < cab.y - 0.5 && r.x2 - r.x1 >= 20 && r.x2 >= x0 - 5 && r.x1 <= cab.x[6] + 200; });
+  const ys = horarioUnicos_(hoz.map(function (r) { return r.y; }), 1.2).reverse();
+  if (ys.length >= 2) return ys.slice(0, -1).map(function (y, i) { return { arriba: y, abajo: ys[i + 1] }; });
+  const ancla = horarioUnicos_(items.filter(function (i) { return horarioColumnaDe_(cols, i.x) === 0 && i.y < cab.y - 0.5 && i.t.trim(); }).map(function (i) { return i.y; }), 1.2).reverse();
+  const paso = ancla.length > 1 ? (ancla[0] - ancla[ancla.length - 1]) / (ancla.length - 1) : 30;
+  return ancla.map(function (y, i) { return { arriba: y + 4, abajo: i + 1 < ancla.length ? ancla[i + 1] + 4 : y - paso + 4 }; });
+}
+
+/* Una casilla («2º ESO F / FYQ», «Docencia bilingüe / 1º BACH A / LCL», «Tutoría con alumnos (ESO) / 3º ESO E», «4º ESO E / ALS 4º ESO D / ALS», «Servicio de guardia»)
+   en sus partes: [{ unidad, materia, actividad }] (lo que falte, vacío) y si es docencia bilingüe. La casilla entera se guarda aparte, tal cual. */
+function horarioPartes_(texto) {
+  let t = String(texto || '').replace(/\s+/g, ' ').trim(), bilingue = false;
+  const b = /^Docencia biling[uü]e\s*\/\s*/i.exec(t);
+  if (b) { bilingue = true; t = t.slice(b[0].length); }
+  const partes = [];
+  while (t) {
+    let m;
+    if (/^\d\s*º/.test(t)) {
+      m = /^(\d\s*º[^\/]*?)\s*\/\s*(.+?)(?=\s+\d\s*º|$)/.exec(t);
+      if (m) { partes.push({ unidad: m[1].trim(), materia: m[2].trim(), actividad: '' }); t = t.slice(m[0].length).trim(); continue; }
+      partes.push({ unidad: t, materia: '', actividad: '' });
+      break;
+    }
+    m = /^(.+?)\s+\/\s+(?=\d\s*º)/.exec(t);
+    if (m) {
+      const act = m[1].trim();
+      t = t.slice(m[0].length).trim();
+      const u = /^(\d\s*º[^\/]*?)\s*\/\s*(.+?)(?=\s+\d\s*º|$)/.exec(t);
+      if (!u) { partes.push({ unidad: t, materia: '', actividad: act }); break; }
+      partes.push({ unidad: u[1].trim(), materia: u[2].trim(), actividad: act });
+      t = t.slice(u[0].length).trim();
+      continue;
+    }
+    partes.push({ unidad: '', materia: '', actividad: t });
+    break;
+  }
+  return { partes: partes, bilingue: bilingue };
+}
+
+function horarioHora_(t) {
+  const m = /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/.exec(String(t || ''));
+  const dos = function (n) { return ('0' + n).slice(-2); };
+  return m ? { inicio: dos(m[1]) + ':' + m[2], fin: dos(m[3]) + ':' + m[4] } : { inicio: '', fin: '' };
+}
+
+/* La tabla de horas de una hoja: { horas: [{ dia, tramo, inicio, fin, texto, partes, bilingue }], usados: [los textos que son de la tabla] } o null si la hoja no trae la cabecera. */
+function horarioTabla_(lineas, items, rayas) {
+  let cab = null;
+  lineas.forEach(function (l) {
+    if (cab) return;
+    const pos = {};
+    l.items.forEach(function (i) { const k = horarioMayusculas_(i.t).toLowerCase(); if (HORARIO_COLUMNAS_.indexOf(k) !== -1 && pos[k] === undefined) pos[k] = i.x; });
+    if (HORARIO_COLUMNAS_.every(function (k) { return pos[k] !== undefined; })) cab = { y: l.y, x: HORARIO_COLUMNAS_.map(function (k) { return pos[k]; }) };
+  });
+  if (!cab) return null;
+  const cols = horarioColumnas_(cab, rayas), cuerpo = items.filter(function (i) { return i.y < cab.y - 0.5 && i.t.trim(); });
+  const salida = { horas: [], usados: [] };
+  const franjas = horarioFranjas_(cab, cols, cuerpo, rayas);
+  franjas.forEach(function (f) {
+    const dentro = cuerpo.filter(function (i) { return i.y > f.abajo && i.y <= f.arriba && horarioColumnaDe_(cols, i.x) !== -1; });
+    const de = function (k) { return alturasTutorias_(dentro.filter(function (i) { return horarioColumnaDe_(cols, i.x) === k; })).map(function (a) { return juntarTextos_(a.items.slice().sort(function (p, q) { return p.x - q.x; })); }).join(' ').replace(/\s+/g, ' ').trim(); };
+    const tramo = de(0), hora = horarioHora_(de(1));
+    if (!tramo || !hora.inicio) return;   // una fila de la tabla trae su tramo y su hora; lo demás (los apartados de debajo) no es de la tabla
+    dentro.forEach(function (i) { salida.usados.push(i); });
+    HORARIO_DIAS_.forEach(function (dia, d) {
+      const texto = de(d + 2);
+      if (!texto) return;
+      const p = horarioPartes_(texto);
+      salida.horas.push({ dia: dia, tramo: tramo, inicio: hora.inicio, fin: hora.fin, texto: texto, partes: p.partes, bilingue: p.bilingue });
+    });
+  });
+  return salida;
+}
+
+/* La tabla «1. Horas totales por materia»: «Biología y Geología - BYG» → { BYG: 'Biología y Geología' }. Solo de los textos que no son de la tabla de horas. */
+function horarioMaterias_(items) {
+  const m = {};
+  items.forEach(function (i) {
+    const x = /^(.{2,80}?)\s+-\s+([A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9.]{0,9})$/.exec(i.t.trim());
+    if (x && !m[x[2]]) m[x[2]] = x[1].trim();
+  });
+  return m;
+}
+
+/* El lector. { lector, clave, variante, huella, curso, generado, hojas, profesores: [{ nombre, desde, hasta, centro, referencia, generacion, plantilla, sinHorario, horas, materias }], sinTabla, problema }.
+   `problema`: '' o la frase de por qué no se pudo leer. `sinTabla`: profesores con «Horario regular» cuya tabla no se supo leer. */
+function leerHorario_(bytes, fuente, huella, conj, entrada) {
+  const salida = { lector: fuente.versionLector, clave: fuente.clave, variante: entrada.variante || '', huella: huella, curso: '', generado: '', hojas: 0, profesores: [], sinTabla: 0, problema: '' };
+  const pdf = pdfTextos_(bytes, true);
+  if (!pdf.ok) { salida.problema = pdf.motivo; return salida; }
+  salida.hojas = pdf.hojas.length;
+  let actual = null;
+  const cierra = function () {
+    if (!actual) return;
+    const sin = !actual.tabla || !actual.tabla.horas.length;
+    if (actual.tabla && !actual.tabla.horas.length && (actual.regular || actual.centro)) salida.sinTabla++;
+    const p = actual.regular || actual.centro;
+    salida.profesores.push({ nombre: actual.nombre, desde: p ? p.desde : '', hasta: p ? p.hasta : '', centro: actual.centro, referencia: actual.referencia, generacion: actual.generacion, plantilla: actual.plantilla,
+      sinHorario: sin, horas: sin ? [] : actual.tabla.horas, materias: horarioMaterias_(actual.restos) });
+    actual = null;
+  };
+  pdf.hojas.forEach(function (hoja, n) {
+    const claros = hoja.filter(function (t) { return !t.g && t.t.trim() !== ''; }), lineas = horarioLineas_(claros), cab = horarioCabecera_(lineas);
+    if (cab.nombre && (!actual || normalizarAlumno_(actual.nombre) !== normalizarAlumno_(cab.nombre))) {
+      cierra();
+      actual = { nombre: cab.nombre, regular: null, centro: null, referencia: '', generacion: '', plantilla: '', tabla: null, restos: [] };
+    }
+    if (!actual) return;
+    ['regular', 'centro', 'referencia', 'generacion', 'plantilla'].forEach(function (k) { if (!actual[k] && cab[k]) actual[k] = cab[k]; });
+    const t = actual.tabla ? null : horarioTabla_(lineas, claros, pdf.rayas[n] || { h: [], v: [] });
+    if (t) actual.tabla = t;
+    const usados = t ? t.usados : [];
+    actual.restos = actual.restos.concat(claros.filter(function (i) { return usados.indexOf(i) === -1; }));
+  });
+  cierra();
+  if (!salida.profesores.length) { salida.problema = 'El PDF no trae ningún horario de profesor.'; return salida; }
+  const cuenta = {};
+  salida.profesores.forEach(function (p) { const d = p.centro || (p.desde ? { desde: p.desde } : null); const c = d ? consultaCursoDeDia_(d.desde) : ''; if (c) cuenta[c] = (cuenta[c] || 0) + 1; });
+  salida.curso = Object.keys(cuenta).sort(function (a, b) { return cuenta[b] - cuenta[a]; })[0] || '';
+  salida.generado = salida.profesores.map(function (p) { return p.generacion; }).sort().pop() || '';
+  return salida;
+}
+
+/* ==== Horario.gs ==== */
+/* El conjunto `horario-profesorado` (fila 178): el horario oficial de cada profesor, por días y horas, que sale del PDF «Horario del profesorado» de Séneca (HorarioLeer.gs lo lee).
+   Una parte por curso, en hecho/horario-profesorado/<curso>/curso.json, con un registro por profesor. De cada profesor manda el PDF más reciente (por su fecha de generación) que le trae horario:
+   un PDF con un solo profesor (un sustituto) solo cambia el suyo y los demás se quedan como estaban. Lleva nombres de trabajadores: lo leído vive en _interno/leido/ y las partes, en Drive.
+   Nunca sale de aquí un nombre hacia diagnostico/, comprobaciones, estado.json ni documentos: solo cifras. */
+
+/* ---- El fichero al soltarlo ---- */
+
+/* ¿Es el PDF del horario del profesorado? Por lo que dice dentro, sin abrirlo: el informe lleva en sus datos el nombre `HorarioProfesor.jrxml`. */
+function esHorarioPdf_(bytes) {
+  const b = 'HorarioProfesor';
+  for (let i = 0; i + b.length <= bytes.length; i++) {
+    if ((bytes[i] & 255) !== 72) continue;
+    let k = 1;
+    while (k < b.length && (bytes[i + k] & 255) === b.charCodeAt(k)) k++;
+    if (k === b.length) return true;
+  }
+  return false;
+}
+
+/* El PDF leído, recordado mientras sea el mismo (reconocerlo, contarlo y guardarlo lo piden uno detrás de otro). */
+let HORARIO_MEMO_ = { bytes: null, leido: null };
+function horarioDeBytes_(bytes) {
+  if (HORARIO_MEMO_.bytes !== bytes) HORARIO_MEMO_ = { bytes: bytes, leido: leerHorario_(bytes, { versionLector: 0, clave: 'horario-profesorado' }, '', null, {}) };
+  return HORARIO_MEMO_.leido;
+}
+
+/* A quién se refiere el PDF: cuántos profesores trae y una marca de cuáles son (un PDF con otros profesores es otro fichero; con los mismos, lo sustituye). Sin poder leerse, `sin-leer`. */
+function ambitoDeHorario_(l) {
+  if (l.problema) return 'sin-leer';
+  const nombres = {};
+  l.profesores.forEach(function (p) { nombres[normalizarAlumno_(p.nombre)] = true; });
+  const lista = Object.keys(nombres).sort();
+  return 'p' + lista.length + '-' + huella_(Utilities.newBlob(lista.join('\u001f'), 'text/plain').getBytes()).slice(0, 8);
+}
+
+function textoAmbitoHorario_(valor) {
+  const m = /^p(\d+)-/.exec(String(valor || ''));
+  if (m) return numeroLegible_(+m[1]) + (+m[1] === 1 ? ' profesor' : ' profesores');
+  return valor === 'sin-leer' ? 'no se ha podido leer' : String(valor || '');
+}
+
+/* El curso sale de lo que dice el PDF («Horario regular del centro: 01/09/26 …»); si no, el elegido al soltarlo. Completa la ficha que dio `sacarFicha_` (sin reglas para este listado). */
+function fichaDeHorario_(f, bytes, opciones) {
+  const l = horarioDeBytes_(bytes), curso = l.curso || (opciones || {}).cursoElegido || '';
+  f.ficha.cursoEscolar = curso;
+  f.cursoSupuesto = !l.curso && !!curso;
+  f.falta = curso ? [] : ['cursoEscolar'];
+  f.ficha.ambito = ambitoDeHorario_(l);
+}
+
+/* Lo que trae un fichero al soltarlo: { filas, resumen } con «590 horas» (los profesores ya salen en «a quién se refiere»). */
+function contarHorario_(c, bytes, tipo) {
+  if (tipo !== 'pdf') return { filas: null, resumen: 'Fichero' };
+  const l = horarioDeBytes_(bytes);
+  if (l.problema) return { filas: null, resumen: 'Fichero PDF' };
+  const n = l.profesores.length, h = l.profesores.reduce(function (s, p) { return s + p.horas.length; }, 0);
+  return { filas: n, resumen: numeroLegible_(h) + (h === 1 ? ' hora' : ' horas') };
+}
+
+/* ---- Montar ---- */
+
+function frasesDeFicheroHorario_(l, curso) {
+  if (l.problema) return { usable: false, frases: ['No se ha podido leer el horario del profesorado. ' + l.problema] };
+  if (l.curso && l.curso !== curso) return { usable: false, frases: ['El horario dice que es del curso ' + l.curso + ' pero está guardado como del curso ' + curso + ': no se ha usado.'] };
+  return { usable: true, frases: l.sinTabla ? [numeroLegible_(l.sinTabla) + (l.sinTabla === 1 ? ' profesor trae horario regular pero no se ha sabido leer su tabla: sale sin horas.' : ' profesores traen horario regular pero no se ha sabido leer su tabla: salen sin horas.')] : [] };
+}
+
+/* La hora de una casilla con lo que se necesita para consultarla sin abrir la lista de partes: unidad, materia y actividad juntas, y el nombre completo de cada materia. */
+function horaDeHorario_(h, materias) {
+  const partes = h.partes.map(function (p) { return { unidad: p.unidad, materia: p.materia, materiaNombre: (p.materia && materias[p.materia]) || '', actividad: p.actividad }; });
+  const junta = function (k) { return partes.map(function (p) { return p[k]; }).filter(function (x, i, l) { return x && l.indexOf(x) === i; }).join(', '); };
+  const hora = { dia: h.dia, tramo: h.tramo, hora: h.inicio ? h.inicio + '-' + h.fin : '', inicio: h.inicio, fin: h.fin, unidad: junta('unidad'), materia: junta('materia'), materiaNombre: junta('materiaNombre'), actividad: junta('actividad'), texto: h.texto, partes: partes };
+  if (h.bilingue) hora.bilingue = true;
+  return hora;
+}
+
+function idDeProfesorHorario_(nombre) { return 'h-' + huella_(Utilities.newBlob(normalizarAlumno_(nombre), 'text/plain').getBytes()).slice(0, 12); }
+
+/* La parte de un curso. `leidos`: los PDF del curso, en el orden del índice. ctx = { personal: la parte del personal del mismo curso o null }. Devuelve { objeto, cifras }. */
+function montarHorario_(conj, parte, leidos, ctx) {
+  const avisos = [], por = {}, orden = [], fichas = personalPorNombre_(ctx.personal);
+  leidos.forEach(function (l, i) {
+    const e = frasesDeFicheroHorario_(l, parte.cursoEscolar);
+    e.frases.forEach(function (d) { avisos.push({ tipo: 'horario-fichero', id: null, datos: { detalle: d } }); });
+    if (!e.usable) return;
+    l.profesores.forEach(function (p) { const k = normalizarAlumno_(p.nombre); if (!por[k]) { por[k] = []; orden.push(k); } por[k].push({ p: p, i: i }); });
+  });
+  const registros = orden.sort().map(function (k) {
+    const con = por[k].filter(function (x) { return !x.p.sinHorario; }).sort(function (a, b) { return a.p.generacion < b.p.generacion ? -1 : a.p.generacion > b.p.generacion ? 1 : a.i - b.i; });
+    const p = (con.length ? con[con.length - 1] : por[k][0]).p, datos = { profesor: p.nombre };
+    if (p.desde) { datos.desde = p.desde; datos.hasta = p.hasta; }
+    if (p.referencia) datos.fechaReferencia = p.referencia;
+    if (p.generacion) datos.fechaGeneracion = p.generacion;
+    if (p.plantilla) datos.plantilla = p.plantilla;
+    if (p.sinHorario) datos.sinHorario = true;
+    datos.horas = p.horas.map(function (h) { return horaDeHorario_(h, p.materias || {}); });
+    const f = fichas[k] || [];
+    if (f.length === 1 && f[0].id) { datos.fichaConjunto = 'personal'; datos.fichaId = f[0].id; }
+    return { id: idDeProfesorHorario_(p.nombre), datos: datos };
+  });
+  const objeto = { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_,
+    personalMirado: !!ctx.personal, campos: camposPublicos_(conj, false), registros: registros, avisos: avisos };
+  const con = registros.filter(function (r) { return !r.datos.sinHorario; });
+  return { objeto: objeto, cifras: { profesores: registros.length, conHorario: con.length, sinHorario: registros.length - con.length, horas: con.reduce(function (n, r) { return n + r.datos.horas.length; }, 0) } };
+}
+
+/* Lo leído de los PDF de un curso, o null si falta alguno (y se olvida lo apuntado si ya no es el mismo fichero). */
+function leidosDeHorario_(raiz, t, avance) {
+  const salida = [], xs = t.necesarias.filter(function (n) { return n.entrada.cursoEscolar === t.parte.cursoEscolar; });
+  for (let i = 0; i < xs.length; i++) {
+    const l = cargarLeido_(raiz, xs[i].k);
+    if (!l || !avance.leidos[xs[i].k] || l.huella !== avance.leidos[xs[i].k].huella) { delete avance.leidos[xs[i].k]; return null; }
+    salida.push(l);
+  }
+  return salida;
+}
+
+function montarParteDeHorario_(raiz, t, avance, cache, indice) {
+  const t0 = new Date().getTime(), leidos = leidosDeHorario_(raiz, t, avance);
+  if (!leidos) return;
+  const hp = parteVecinaTutorias_(indice, 'personal', t.parte.cursoEscolar, 'curso');
+  const r = montarHorario_(t.conj, t.parte, leidos, { personal: hp ? abrirParteVecina_(hp, cache) : null });
+  avance.cifras = avance.cifras || {}; avance.cifras[t.ruta] = r.cifras;
+  cerrarMontaje_(raiz, t, avance, r.objeto, t0);
+}
+
+/* Lo que cambia el montaje además de los listados: el número del montador y la huella de la parte del personal que mira. */
+function claveDeMontajeHorario_(conj, parte, indice) {
+  const hp = parteVecinaTutorias_(indice, 'personal', parte.cursoEscolar, 'curso');
+  return conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|' + (hp ? hp.huella : '');
+}
+
+/* ---- Lo que dice la página ---- */
+
+/* Del curso de hoy (o el más reciente que tenga parte): { cursoEscolar, masCursos, profesores, conHorario, sinHorario, horas }. Solo cifras y cursos. */
+function resumenHorarioParaPagina_(partes, avance) {
+  const cursos = partes.slice().sort(function (a, b) { return ordenDeCurso_(b.cursoEscolar) - ordenDeCurso_(a.cursoEscolar); });
+  const p = cursos.filter(function (x) { return x.cursoEscolar === cursoActual_(); })[0] || cursos[0];
+  const k = p && (avance.cifras || {})[p.ruta];
+  return p && k ? Object.assign({ cursoEscolar: p.cursoEscolar, masCursos: cursos.length - 1 }, k) : null;
+}
+
 /* ==== Fondo.gs ==== */
 /* La vuelta de fondo (fila 66): lo que antes se hacía al abrir la pantalla antigua y ahora se hace solo, cada vez que el disparador de 10 minutos arranca recogerEntrada_.
    Lo que se hizo y cuándo queda en _interno/fondo.json, solo con marcas de tiempo: lo lee la comprobación `antigua-sin-pantalla`. */
@@ -11023,6 +11596,10 @@ const CONSULTA_CONJUNTOS_ = [
   /* Fila 136: los profesores por grupo (una línea por clase) y de cada alumno (una tabla de materia y profesor). */
   { id: 'profesorado-grupos', nombre: 'Profesores por grupo', conjunto: 'profesorado-grupos', parte: 'curso', modo: 'curso', unidad: ['clase', 'clases'], ver: ['nivel', 'unidad', 'materia', 'profesor'], eje: { filas: ['profesor'], cols: [] } },
   { id: 'profesorado-alumnos', nombre: 'Profesores de cada alumno', conjunto: 'profesorado-alumnos', parte: 'curso', modo: 'curso', ejeNombres: { 'profesores.materia': 'Materia', 'profesores.profesor': 'Profesor/a' }, unidad: ['alumno', 'alumnos'], ver: ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'], eje: { filas: ['alumno'], cols: [] } },
+  /* Fila 178: el horario del profesorado, una línea por hora ocupada; «en tal fecha» se queda con los horarios cuyo periodo contiene esa fecha. */
+  { id: 'horario-profesorado', nombre: 'Horario del profesorado', conjunto: 'horario-profesorado', parte: 'curso', modo: 'curso', unidad: ['profesor', 'profesores'], vigencia: { tipo: 'registro', desde: 'desde', hasta: 'hasta' },
+    nombresTabla: { horas: 'Horas' }, titulos: { 'horas.dia': 'Día', 'horas.tramo': 'Tramo', 'horas.hora': 'Hora', 'horas.unidad': 'Unidad', 'horas.materia': 'Materia', 'horas.actividad': 'Actividad', 'horas.texto': 'Casilla' },
+    ver: ['profesor', 'horas.dia', 'horas.tramo', 'horas.hora', 'horas.unidad', 'horas.materia', 'horas.actividad', 'horas.texto', 'desde', 'hasta'], eje: { filas: ['profesor'], cols: ['horas.dia'] } },
   { id: 'empresas', nombre: 'Empresas', conjunto: 'empresas', parte: 'todas', modo: 'unica', unidad: ['empresa', 'empresas'], ver: ['razonSocial', 'nombreComercial', 'contacto'] },
   { id: 'administraciones', nombre: 'Administraciones', conjunto: 'administraciones', parte: 'todas', modo: 'unica', unidad: ['administración', 'administraciones'], ver: ['nombreCorto', 'clase', 'dependeDe'], eje: { filas: ['clase'], cols: [] } },
   { id: 'cargos', nombre: 'Cargos', conjunto: 'cargos', parte: 'todos', modo: 'unica', unidad: ['registro', 'registros'], vigencia: { tipo: 'cargo' }, ver: ['cargoNombre', 'persona', 'desde', 'hasta'], eje: { filas: ['cargoNombre'], cols: [] } },
@@ -11040,6 +11617,7 @@ const CONSULTA_SALEN_ = {
   libros: ['nivel', 'nivelTexto', 'materia', 'conLibro', 'isbn', 'editorial', 'titulo', 'anioImplantacion', 'importe', 'digital', 'chequeLibro', 'otroMaterial'],
   'profesorado-grupos': ['nivel', 'unidad', 'materia', 'profesor'],
   'profesorado-alumnos': ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'],
+  'horario-profesorado': ['profesor', 'desde', 'hasta', 'fechaReferencia', 'fechaGeneracion', 'plantilla', 'sinHorario', 'horas.dia', 'horas.tramo', 'horas.hora', 'horas.unidad', 'horas.materia', 'horas.materiaNombre', 'horas.actividad', 'horas.texto'],
   empresas: ['razonSocial', 'nombreComercial', 'contacto'],
   administraciones: ['clase', 'tercero', 'nombreCorto', 'nombreOficial', 'dir3', 'codigoCentro', 'dependeDe', 'nombresAnteriores.nombre', 'nombresAnteriores.hasta', 'dependeDeAnteriores.nombre', 'dependeDeAnteriores.hasta',
     'departamentos.nombre', 'departamentos.nivel', 'departamentos.dir3', 'departamentos.contacto'],
@@ -11062,7 +11640,7 @@ function consultaCursos_(indice, def) {
   const hechos = indice.hechos || [];
   let cursos;
   if (def.soloPropio) cursos = hechos.filter(function (h) { return h.conjunto === def.conjunto && h.parte === def.parte; }).map(function (h) { return h.cursoEscolar; });
-  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'solicitudes-licencias', 'profesorado-grupos', 'profesorado-alumnos'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
+  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'solicitudes-licencias', 'profesorado-grupos', 'profesorado-alumnos', 'horario-profesorado'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
   return ordenarCursos_(cursos);
 }
 

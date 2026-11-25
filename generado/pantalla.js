@@ -382,6 +382,7 @@ function textoDeUnConjunto(c) {
   if (c.libros !== undefined && c.conjunto === 'libros') return textoDeLibros(c);
   if (c.ausencias !== undefined && (c.conjunto === 'ausencias' || c.conjunto === 'solicitudes-licencias')) return textoDeAusencias(c);
   if (c.profesorado !== undefined && c.conjunto.indexOf('profesorado-') === 0) return textoDeProfesorado(c);
+  if (c.horario !== undefined && c.conjunto === 'horario-profesorado') return textoDeHorario(c);
   if (c.entero) return textoDelEntero(c);
   if (c.contactos) return textoDeContactos(c);
   var t = c.actuales.map(function (a, i) {
@@ -429,6 +430,17 @@ function textoDeProfesorado(c) {
     t.push(c.etiqueta + ': ' + numeroConPuntos(k.grupos) + (k.grupos === 1 ? ' grupo' : ' grupos') + ' y ' + numeroConPuntos(k.profesores) + (k.profesores === 1 ? ' profesor' : ' profesores') + ', curso ' + k.cursoEscolar);
     if (k.cesados) t.push(numeroConPuntos(k.cesados) + (k.cesados === 1 ? ' profesor cesado no sale' : ' profesores cesados no salen'));
   }
+  if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
+  t.push(c.alDia ? 'al día' : 'poniéndose al día');
+  if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
+  return t.join(' · ');
+}
+
+/* El horario del profesorado: cuántos profesores, del curso de hoy (o el más reciente). */
+function textoDeHorario(c) {
+  var k = c.horario;
+  if (!k) return c.etiqueta + ': poniéndose al día';
+  var t = [c.etiqueta + ': ' + numeroConPuntos(k.profesores) + (k.profesores === 1 ? ' profesor' : ' profesores') + ', curso ' + k.cursoEscolar];
   if (k.masCursos) t.push('y ' + k.masCursos + (k.masCursos === 1 ? ' curso más' : ' cursos más'));
   t.push(c.alDia ? 'al día' : 'poniéndose al día');
   if (c.avisos) t.push(c.avisos + (c.avisos === 1 ? ' aviso ' : ' avisos ') + c.sufijoAvisos);
