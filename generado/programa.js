@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v80';
+const VERSION_CD = 'CD v81';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -2444,10 +2444,38 @@ function buscarEnIndice_(indice, clave, variante) {
   return indice.listados.filter(function (e) { return e.clave === clave && (e.variante || '') === (variante || ''); })[0] || null;
 }
 
+/* Fila 180: `registro.json` solo guarda el historial de los 200 últimos movimientos. Si no se puede leer (vacío o cortado) se vuelve a leer una vez; si sigue mal, el historial cuenta como vacío
+   y quien puede escribir aparta el fichero sin borrarlo ni abrirlo (registro-ilegible-<aaaammdd-hhmm>.json) y empieza uno nuevo. Solo se pierde ese historial. */
+function leerRegistro_(interno) {
+  for (let i = 0; i < 2; i++) {
+    try {
+      const reg = leerJson_(interno, 'registro.json');
+      return { reg: reg && Array.isArray(reg.movimientos) ? reg : { movimientos: [] }, ilegible: false };
+    } catch (e) { if (!e || e.name !== 'SyntaxError') throw e; }
+  }
+  return { reg: { movimientos: [] }, ilegible: true };
+}
+
+function apartarRegistro_(interno) {
+  const it = interno.getFilesByName('registro.json');
+  const ahora = ahoraMadrid_();
+  if (it.hasNext()) it.next().setName('registro-ilegible-' + ahora.slice(0, 10).replace(/-/g, '') + '-' + ahora.slice(11, 16).replace(':', '') + '.json');
+}
+
+/* Para la vuelta de fondo: si el registro no se puede leer, lo aparta aunque nadie haya guardado nada. Devuelve true si lo apartó. */
+function apartarRegistroIlegible_(raiz) {
+  const interno = subcarpetaPorRuta_(raiz, '_interno');
+  if (!leerRegistro_(interno).ilegible) return false;
+  apartarRegistro_(interno);
+  return true;
+}
+
 /* Apunta qué pasó con un fichero. Se guardan los 200 últimos, en _interno/registro.json. */
 function apuntarMovimiento_(raiz, mov) {
   const interno = subcarpetaPorRuta_(raiz, '_interno');
-  const reg = leerJson_(interno, 'registro.json') || { movimientos: [] };
+  const leido = leerRegistro_(interno);
+  if (leido.ilegible) apartarRegistro_(interno);
+  const reg = leido.reg;
   mov.cuando = ahoraMadrid_();
   reg.movimientos.push(mov);
   reg.movimientos = reg.movimientos.slice(-MAX_MOVIMIENTOS_);
@@ -2455,8 +2483,7 @@ function apuntarMovimiento_(raiz, mov) {
 }
 
 function leerMovimientos_(raiz) {
-  const interno = subcarpetaPorRuta_(raiz, '_interno');
-  return (leerJson_(interno, 'registro.json') || { movimientos: [] }).movimientos;
+  return leerRegistro_(subcarpetaPorRuta_(raiz, '_interno')).reg.movimientos;
 }
 
 function hayFicheros_(carpeta) {
@@ -7466,6 +7493,7 @@ const FRASES_AVISO_ = {
   'libros-fichero': '{detalle}',
   'profesorado-fichero': '{detalle}',
   'horario-fichero': '{detalle}',
+  'registro-apartado': 'El historial de subidas se había estropeado y se ha apartado como «{fichero}»; se ha empezado uno nuevo. Solo se ha perdido ese historial.',
   'horario-sin-horario': 'Está en activo en el personal y no tiene horario de Séneca: suelta el PDF de su horario.',
   'profesorado-sin-personal': 'Da {materia} en {unidad} y no está en el listado del personal. Sale igual en los profesores por grupo y de cada alumno.',
   'contactos-cambio-ignorado': 'Un cambio de contactos no se ha aplicado. {detalle}',
@@ -7589,7 +7617,7 @@ function leerAvisosDeHechos_(raiz) {
       });
     });
   });
-  avisosDeFicherosQueFaltan_(indice).concat(avisosDeIdsSinFichero_(raiz), ensayoAvisos_(raiz)).forEach(function (a) { lista.push(a); });
+  avisosDeFicherosQueFaltan_(indice).concat(avisosDeIdsSinFichero_(raiz), avisosDeRegistroApartado_(raiz), ensayoAvisos_(raiz)).forEach(function (a) { lista.push(a); });
   return { avisos: lista, incompleto: incompleto, indice: indice, avance: avance };
 }
 
@@ -7679,6 +7707,17 @@ function cmpAvisosPantalla_(ctx) {
   const cifras = { 'avisos-en-los-datos': r.avisos.length, pendientes: r.avisos.length - revisados, revisados: revisados, 'marcas-huerfanas-borradas': vistos.huerfanasBorradas,
     'sin-frase-llana': sinFrase, 'partes-sin-leer': r.incompleto ? 1 : 0 };
   return { estado: sinFrase || r.incompleto ? 'mal' : 'bien', cifras: cifras };
+}
+
+/* Fila 180: una línea por historial de subidas apartado por estar estropeado (`registro-ilegible-…` en _interno). */
+function avisosDeRegistroApartado_(raiz) {
+  const it = subcarpetaPorRuta_(raiz, '_interno').getFiles(), nombres = [];
+  while (it.hasNext()) { const n = it.next().getName(); if (/^registro-ilegible-/.test(n)) nombres.push(n); }
+  return nombres.sort().map(function (n) {
+    const aviso = { tipo: 'registro-apartado', id: null, datos: { fichero: n } };
+    const f = frasePlanaDeAviso_(aviso);
+    return { huella: huellaDeAviso_('listados', '_interno/' + n, aviso), conjunto: 'listados', donde: 'Listados · Historial de subidas', tipo: aviso.tipo, quien: 'Historial de subidas', que: f.texto, conocida: f.conocida };
+  });
 }
 
 /* ==== ComprobPuerta.gs ==== */
@@ -8021,11 +8060,11 @@ const COMPROBACIONES_ = [
   { id: 'ausencias-una-ficha', fila: 114, que: 'Ninguna ausencia sin identificador ni repetido dentro de una parte', funcion: 'cmpAusenciasUnaFicha_' },
   { id: 'consultar-curso-anterior', fila: 107, que: 'El filtro «Año: curso anterior» de Consultar con el alumnado de hoy: cuántos alumnos, cuántas líneas (una por alumno) y cuántos salen sin matrícula del curso anterior (solo cifras)', funcion: 'cmpConsultarCursoAnterior_' },
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
-  { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' },
+  { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' }, { id: 'registro-apartado', fila: 180, que: 'Cuántos historiales de subidas estropeados se han apartado en _interno (registro-ilegible-…) y si el de ahora se puede leer; solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpRegistroApartado_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
 function cmpFuncion_(nombre) {
-  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpRegistroApartado_: cmpRegistroApartado_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -8363,6 +8402,14 @@ function cmpComprobIlegibles_(ctx) {
   let n = 0;
   while (it.hasNext()) if (/^comprobaciones-ilegible-/.test(it.next().getName())) n++;
   return { estado: 'dato', cifras: { apartados: n } };
+}
+
+/* Fila 180: cuántos historiales de subidas estropeados se han apartado en _interno/ (registro-ilegible-…) y si el de ahora se puede leer. Solo cifras; nunca mal: no hay nada que arreglar. */
+function cmpRegistroApartado_(ctx) {
+  const interno = subcarpetaPorRuta_(ctx.raiz, '_interno'), it = interno.getFiles();
+  let n = 0, ultimo = '', bytes = 0;
+  while (it.hasNext()) { const f = it.next(); if (/^registro-ilegible-/.test(f.getName()) && f.getName() > ultimo) { ultimo = f.getName(); bytes = f.getSize(); } if (/^registro-ilegible-/.test(f.getName())) n++; }
+  return { estado: 'dato', cifras: { apartados: n, 'bytes-del-ultimo': bytes, 'se-lee-ahora': leerRegistro_(interno).ilegible ? 0 : 1 } };
 }
 
 /* El id de una entrada para comparar con lo que hay en Drive: el suyo y, si viene vacío, el del fichero que está en su `ruta` (se cuenta en `cuenta.n`). */
@@ -11202,6 +11249,7 @@ function vueltaDeFondo_(raiz) {
   const hecho = [];
   let sigue = false;
   try { if (!turnoEscrituraVigente_(raiz)) repararJsonRestos_(raiz); } catch (e) { /* se reintenta en la próxima vuelta */ }
+  try { if (!turnoEscrituraVigente_(raiz)) apartarRegistroIlegible_(raiz); } catch (e) { /* se reintenta en la próxima vuelta (fila 180) */ }
   try { asegurarDisparador_(); } catch (e) { /* si no se puede crear, la comprobación lo dice */ }
   try { revisarClave_(raiz, CLAVE_MIRAR_PAGINA_MS_); hecho.push('clave'); } catch (e) { /* mirar la clave nunca rompe la vuelta */ }
   try { sigue = colocarExpedientes_(raiz, FONDO_TOPE_MS_) || sigue; hecho.push('expedientes'); } catch (e) { /* se reintenta en la próxima vuelta */ }

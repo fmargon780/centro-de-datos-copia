@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v40",
-  "commit": "3386069",
+  "version": "página nueva v41",
+  "commit": "ef67f93",
   "ficheros": {
     ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
@@ -9,18 +9,18 @@
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "1f8cc7f0222a7eac3e6e3388b8b63c4811b1443c172a08e680fc16d31f42d679",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "810d41ce730e49bbf0226b14e6be36e32721b6091643790e1cba74da6f884ef0",
+    "commit.js": "0eddcf95b3c7711199d7884aaaf6c557c76a1b877439b42d704361d8fc435bef",
     "ensayo.js": "eeb42eee06ada1d053d0088dcb9fd9e01692905e11764850bd6fa92ede83a498",
     "escritura.js": "fd4101f4ade13787e94f950fd80c49fd22c48ed52a2bd52b39525acc1a754d7f",
     "generado/estilos.css": "81fe50e2a1f57bd694167560882d089ebb9227937770f9ec571ba913f2eb001e",
     "generado/pantalla.js": "476a49fbafc2a969f34d03ea4114b0212a76ab479cb042d7c7fe2b2a9298cb00",
-    "generado/programa.js": "183cfcad82772a070e461b317ac6628ec0df1a06e5596ab04a76485adff2e7a8",
+    "generado/programa.js": "cd9ab76681945b758328f6cc4c13e9fc11620932ca1c03d863c69e319c5f0f29",
     "index.html": "f8d23072f58ff53ca5b843940e0124115cf633a8cd99e2038db13df71f715396",
     "medidas.js": "b90bc11db319e94d00e317c7c2f1e9785449cfb2958df88da641639e4bafd6fc",
     "publicar.js": "446769cac6bdec8735a624cb25341ae3b41a2eb3d6f0a3e5499dc189924945ef",
     "servidor.js": "d8c653e75f8eeef0552e44a04876e2f06d9b26dd3d4ce4b67d37062fd60dc895",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
     "turno-escritura.js": "0aff4ba1b1bcaf0ee7cac57271fd23e0082b5e221584b3ebf3e685603adb8698",
-    "version.js": "489c106445135fe2db5932c739e138950626a564c7dace245c495f11ef0c2650"
+    "version.js": "37ccec8378530d3a07b340744e72a4b678629f4aeaf6dd2cf286a4266529709c"
   }
 }
