@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v79';
+const VERSION_CD = 'CD v80';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -7031,7 +7031,7 @@ function claveDeMontajeBase_(conj, parte, partes, indice, avance, necesarias) {
   if (conj.deContactos) return claveDeMontajeContactos_(conj, parte, indice);
   if (conj.porPeriodos) return claveDeMontajeConsejo_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.deProfesorado) return claveDeMontajeProfesorado_(conj, parte, indice, avance, hoy) + cola;
-  if (conj.deHorario) return claveDeMontajeHorario_(conj, parte, indice) + cola;
+  if (conj.deHorario) return claveDeMontajeHorario_(conj, parte, indice, hoy) + cola;
   if (conj.conDias) return claveDeMontajeTutorias_(conj, parte, necesarias, indice, avance, hoy) + cola;
   if (conj.porCursos) return conj.versionMontador + '|' + conj.fuentes[0].versionLector;
   return conj.versionMontador + '|' + (parte.anio ? '' : partes.map(function (p) { return p.cursoEscolar; }).join(','));
@@ -7255,7 +7255,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fichero': 'consejoFichero', 'consejo-sin-ficha': 'consejoSinFicha', 'consejo-ficha-dudosa': 'consejoFichaDudosa',
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
-  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal', 'horario-fichero': 'horarioFichero',
+  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal', 'horario-fichero': 'horarioFichero', 'horario-sin-horario': 'horarioSinHorario',
   'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
@@ -7466,6 +7466,7 @@ const FRASES_AVISO_ = {
   'libros-fichero': '{detalle}',
   'profesorado-fichero': '{detalle}',
   'horario-fichero': '{detalle}',
+  'horario-sin-horario': 'Está en activo en el personal y no tiene horario de Séneca: suelta el PDF de su horario.',
   'profesorado-sin-personal': 'Da {materia} en {unidad} y no está en el listado del personal. Sale igual en los profesores por grupo y de cada alumno.',
   'contactos-cambio-ignorado': 'Un cambio de contactos no se ha aplicado. {detalle}',
   'correcciones-ignorada': 'Una corrección de otra aplicación no se ha aplicado. {detalle}',
@@ -7785,6 +7786,7 @@ function cmpProfesoradoAlumnos_(ctx) {
 
 const COMPROBACIONES_HORARIO_ = [
   { id: 'horario-lectura', fila: 178, que: 'Cuántos PDF del horario del profesorado hay en cada curso, cuántos profesores salen con horario y cuántos sin él, y que ningún profesor con «Horario regular» se quede sin tabla leída (solo cuentas)', funcion: 'cmpHorarioLectura_' },
+  { id: 'horario-avisos', fila: 179, que: 'Los avisos de «sin horario» del horario del profesorado son los docentes en activo del personal del curso que no tienen horario (solo cuentas)', funcion: 'cmpHorarioAvisos_' },
   { id: 'horario-dias', fila: 178, que: 'Ninguna hora del horario cae fuera de lunes a viernes ni se queda sin tramo, y ningún profesor sale dos veces en la misma parte (solo cuentas)', funcion: 'cmpHorarioDias_' }
 ];
 
@@ -7820,6 +7822,22 @@ function cmpHorarioDias_(ctx) {
     });
   });
   return { estado: malas || repetidos ? 'mal' : 'bien', cifras: { cursos: partes.length, horas: horas, 'fuera-de-semana-o-sin-tramo': malas, 'profesores-repetidos': repetidos } };
+}
+
+/* `horario-avisos` (fila 179): por curso, cuántos avisos `horario-sin-horario` lleva la parte y cuántos docentes en activo del personal no tienen horario; mal si no son los mismos. */
+function cmpHorarioAvisos_(ctx) {
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === 'horario-profesorado'; });
+  if (!partes.length) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let avisos = 0, esperados = 0, malos = 0;
+  partes.forEach(function (h) {
+    const p = cmpAbrirParte_(ctx, h), vp = cmpVecinaProfesorado_(ctx, 'personal', h.cursoEscolar, 'curso'), dia = String((ctx.avance.montado || {})[h.ruta] || '').split('|').pop();
+    if (!p || (p.obj.personalMirado && !vp)) { malos++; return; }
+    const lleva = p.obj.avisos.filter(function (a) { return a.tipo === 'horario-sin-horario'; }).length;
+    const debe = vp && p.obj.registros.length ? docentesSinHorario_(vp.obj, p.obj.registros, /^\d{4}-\d\d-\d\d$/.test(dia) ? dia : hoyMadrid_()).length : 0;
+    avisos += lleva; esperados += debe;
+    if (lleva !== debe && p.obj.registros.length) malos++;
+  });
+  return { estado: malos ? 'mal' : 'bien', cifras: { cursos: partes.length, avisos: avisos, 'docentes-sin-horario': esperados, 'que-no-cuadran': malos } };
 }
 
 /* ==== ComprobCorrecciones.gs ==== */
@@ -8007,7 +8025,7 @@ const COMPROBACIONES_ = [
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
 ].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
 function cmpFuncion_(nombre) {
-  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -11058,7 +11076,20 @@ function horaDeHorario_(h, materias) {
 
 function idDeProfesorHorario_(nombre) { return 'h-' + huella_(Utilities.newBlob(normalizarAlumno_(nombre), 'text/plain').getBytes()).slice(0, 12); }
 
-/* La parte de un curso. `leidos`: los PDF del curso, en el orden del índice. ctx = { personal: la parte del personal del mismo curso o null }. Devuelve { objeto, cifras }. */
+/* Fila 179: los docentes en activo del personal del curso que no tienen horario con horas en `registros`: [{ id, empleado }]. En activo: docente (no «no-docente») sin el cese ya pasado (la misma regla que
+   los profesores por grupo, fila 136). Se compara por nombre, sin tildes ni mayúsculas. Un sustituto nunca toma el horario de la persona a la que sustituye: cada uno solo cuenta con el suyo. */
+function docentesSinHorario_(personal, registros, hoy) {
+  const con = {}, salida = [], por = personalPorNombre_(personal);
+  registros.forEach(function (r) { if (!r.datos.sinHorario) con[normalizarAlumno_(r.datos.profesor)] = true; });
+  Object.keys(por).sort().forEach(function (k) {
+    const fichas = por[k].filter(function (r) { return r.datos.tipoPersonal !== 'no-docente'; });
+    if (!fichas.length || con[k] || estadoDeCese_(fichas, hoy).cesado) return;
+    salida.push({ id: fichas[0].id, empleado: fichas[0].datos.empleado });
+  });
+  return salida;
+}
+
+/* La parte de un curso. `leidos`: los PDF del curso, en el orden del índice. ctx = { hoy, personal: la parte del personal del mismo curso o null }. Devuelve { objeto, cifras }. */
 function montarHorario_(conj, parte, leidos, ctx) {
   const avisos = [], por = {}, orden = [], fichas = personalPorNombre_(ctx.personal);
   leidos.forEach(function (l, i) {
@@ -11080,6 +11111,8 @@ function montarHorario_(conj, parte, leidos, ctx) {
     if (f.length === 1 && f[0].id) { datos.fichaConjunto = 'personal'; datos.fichaId = f[0].id; }
     return { id: idDeProfesorHorario_(p.nombre), datos: datos };
   });
+  /* Fila 179: sin ningún PDF usable en el curso no hay avisos (saldrían todos los profesores). */
+  if (ctx.personal && orden.length) docentesSinHorario_(ctx.personal, registros, ctx.hoy).forEach(function (d) { avisos.push({ tipo: 'horario-sin-horario', id: d.id, datos: { profesor: d.empleado } }); });
   const objeto = { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_,
     personalMirado: !!ctx.personal, campos: camposPublicos_(conj, false), registros: registros, avisos: avisos };
   const con = registros.filter(function (r) { return !r.datos.sinHorario; });
@@ -11101,15 +11134,15 @@ function montarParteDeHorario_(raiz, t, avance, cache, indice) {
   const t0 = new Date().getTime(), leidos = leidosDeHorario_(raiz, t, avance);
   if (!leidos) return;
   const hp = parteVecinaTutorias_(indice, 'personal', t.parte.cursoEscolar, 'curso');
-  const r = montarHorario_(t.conj, t.parte, leidos, { personal: hp ? abrirParteVecina_(hp, cache) : null });
+  const r = montarHorario_(t.conj, t.parte, leidos, { hoy: hoyDeParte_(t.ruta), personal: hp ? abrirParteVecina_(hp, cache) : null });
   avance.cifras = avance.cifras || {}; avance.cifras[t.ruta] = r.cifras;
   cerrarMontaje_(raiz, t, avance, r.objeto, t0);
 }
 
-/* Lo que cambia el montaje además de los listados: el número del montador y la huella de la parte del personal que mira. */
-function claveDeMontajeHorario_(conj, parte, indice) {
+/* Lo que cambia el montaje además de los listados: el número del montador, la huella de la parte del personal que mira y el día (un cese que pasa quita un aviso; si sale lo mismo, la parte no se reescribe). */
+function claveDeMontajeHorario_(conj, parte, indice, hoy) {
   const hp = parteVecinaTutorias_(indice, 'personal', parte.cursoEscolar, 'curso');
-  return conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|' + (hp ? hp.huella : '');
+  return conj.versionMontador + '|' + conj.fuentes[0].versionLector + '|' + (hp ? hp.huella : '') + '|' + hoy;
 }
 
 /* ---- Lo que dice la página ---- */
