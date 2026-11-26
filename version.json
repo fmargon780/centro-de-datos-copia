@@ -1,6 +1,6 @@
 {
-  "version": "página nueva v42",
-  "commit": "5e4d6ee",
+  "version": "página nueva v43",
+  "commit": "c60ea98",
   "ficheros": {
     ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "ABRIR EL CENTRO DE DATOS.html": "8c4286ed5914900582434eb6e36dc87ed52fe9a86b62e29065704fa729aa3c94",
@@ -9,18 +9,18 @@
     "ajustes.js": "a2ea8e9a5408010a25809a97b18f30071d01d7053f5f71a8eab87dc97bf82006",
     "arranque.js": "1f8cc7f0222a7eac3e6e3388b8b63c4811b1443c172a08e680fc16d31f42d679",
     "carpeta.js": "5355b7a82f29ae29dd6f5c7efd1feab6e8bc334653b21eb6c98ade87acd08261",
-    "commit.js": "60cc560288cddad488cf8801b3cfd2be85f7de6cfaa83652574f60940822c484",
+    "commit.js": "ce84092571da36a92807ed98ad7fa4d743c4fa82dc67a6e8298ab6e268f3c5ef",
     "ensayo.js": "eeb42eee06ada1d053d0088dcb9fd9e01692905e11764850bd6fa92ede83a498",
     "escritura.js": "fd4101f4ade13787e94f950fd80c49fd22c48ed52a2bd52b39525acc1a754d7f",
     "generado/estilos.css": "81fe50e2a1f57bd694167560882d089ebb9227937770f9ec571ba913f2eb001e",
     "generado/pantalla.js": "476a49fbafc2a969f34d03ea4114b0212a76ab479cb042d7c7fe2b2a9298cb00",
-    "generado/programa.js": "0393ddeda697f4c465380697d8d79d691904e8688fff0ca840196442374f1731",
+    "generado/programa.js": "c38abd610feb78747bfea11947f751d720786523b9537d47be059ea50150858f",
     "index.html": "f8d23072f58ff53ca5b843940e0124115cf633a8cd99e2038db13df71f715396",
     "medidas.js": "b90bc11db319e94d00e317c7c2f1e9785449cfb2958df88da641639e4bafd6fc",
     "publicar.js": "446769cac6bdec8735a624cb25341ae3b41a2eb3d6f0a3e5499dc189924945ef",
     "servidor.js": "d8c653e75f8eeef0552e44a04876e2f06d9b26dd3d4ce4b67d37062fd60dc895",
     "sha256.js": "e1adddc64ad7c011ada5e8a53de4d815d3012229aac2ae67d4fbfbcd5207a824",
     "turno-escritura.js": "0aff4ba1b1bcaf0ee7cac57271fd23e0082b5e221584b3ebf3e685603adb8698",
-    "version.js": "5ce77e6d1d999c1e41e701eb8916cb758840ad5bd8c7e63ccf911cde9cb1026d"
+    "version.js": "0077e85c511efa4ae9854bb69a8f8f193e325ba47b8fe4ec970d96af258f93fb"
   }
 }

@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v82';
+const VERSION_CD = 'CD v83';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -2542,6 +2542,15 @@ function traeDeFila_(c, resumen) {
   return c.traeFila ? c.traeFila + (resumen ? ' ' + resumen + '.' : '') : (resumen || '');
 }
 
+/* Lo que cuenta un listado en «Listados». Casi siempre es lo apuntado al soltarlo; el horario del profesorado (fila 178) se cuenta con lo último leído, porque un lector nuevo relee el PDF ya guardado
+   y la cifra de al soltarlo («0 horas») se quedaría vieja. Sin lo leído todavía, lo apuntado. */
+function resumenVigente_(raiz, c, e) {
+  if (!c.cuenta || c.cuenta.modo !== 'horario') return e.resumen;
+  const l = leerAvance_(raiz).leidos[claveLeido_(e.clave, e.variante)];
+  if (!l || typeof l.horas !== 'number') return e.resumen;
+  return numeroLegible_(l.horas) + (l.horas === 1 ? ' hora' : ' horas');
+}
+
 /* Lo que enseña la tabla de la página: todas las filas (de todos los cursos) y, en el curso actual, una gris por cada listado de los de siempre que no tenga ninguna. */
 function estadoListados_(raiz) {
   const indice = leerIndice_(raiz);
@@ -2576,7 +2585,7 @@ function estadoListados_(raiz) {
       filas.push({ clave: e.clave, variante: e.variante || '', cursoEscolar: e.cursoEscolar || '', nombre: c.tituloFila || c.titulo, ambito: textoAmbito_(e.clave, e.ambito),
         periodo: textoPeriodo_(e.periodo), estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
         deCuando: fechaLegible_(e.subido) + ' · ' + haceTiempo_(e.subido, ahora),
-        trae: traeDeFila_(c, e.resumen), usan: c.usan, subidoPor: e.subidoPor === DUENO_CD_ ? 'Centro de datos' : (e.subidoPor || ''), anteriores: e.anteriores || 0,
+        trae: traeDeFila_(c, resumenVigente_(raiz, c, e)), usan: c.usan, subidoPor: e.subidoPor === DUENO_CD_ ? 'Centro de datos' : (e.subidoPor || ''), anteriores: e.anteriores || 0,
         url: e.idDrive ? 'https://drive.google.com/file/d/' + e.idDrive + '/view' : '' });
     });
   });
@@ -3545,8 +3554,8 @@ const CONJUNTOS_ = [
   { conjunto: 'profesorado-alumnos', titulo: 'Profesores de cada alumno', cuenta: 'alumnos', acuerdoHecho: ACUERDO_HECHO_, montador: 'profesorado', versionMontador: 1, porCursos: true, deProfesorado: 'alumnos', mira: ['alumnado', 'profesorado-grupos'], sinDiagnostico: true,
     entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_ALUMNOS_ },
   /* El horario del profesorado (fila 178, Horario.gs): una parte por curso, de los PDF `horario-profesorado` (puede haber varios por curso: el de todos y los de un solo profesor). Mira el personal (`mira`). Sin diagnóstico: lleva nombres. */
-  { conjunto: 'horario-profesorado', titulo: 'Horario del profesorado', cuenta: 'profesores', acuerdoHecho: ACUERDO_HECHO_, montador: 'horario', versionMontador: 2, porCursos: true, deHorario: true, mira: ['personal'], sinDiagnostico: true,
-    entregas: [], aplicaciones: {}, sufijoAvisos: 'del horario', fuentes: [{ clave: 'horario-profesorado', lector: 'horario', versionLector: 2 }], campos: CAMPOS_HORARIO_ },
+  { conjunto: 'horario-profesorado', titulo: 'Horario del profesorado', cuenta: 'profesores', acuerdoHecho: ACUERDO_HECHO_, montador: 'horario', versionMontador: 3, porCursos: true, deHorario: true, mira: ['personal'], sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'del horario', fuentes: [{ clave: 'horario-profesorado', lector: 'horario', versionLector: 3 }], campos: CAMPOS_HORARIO_ },
   /* Las empresas (fila 23): el primer conjunto que se entrega entero. No tiene listados ni campos propios: su única fuente es la entrega vigente de `entregadoPor` (la lista entera) y sus campos y registros los dice
      ella (HechosEnteros.gs). Una sola parte, `todas`. Otro conjunto así es otra línea como esta. `entregadas` y `quienEntrega` son palabras de la línea de la página. */
   { conjunto: 'empresas', titulo: 'Empresas', cuenta: 'empresas', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
@@ -3811,6 +3820,7 @@ function leerUnaFuente_(raiz, t, avance) {
   if (leido.cambios) avance.leidos[t.k].cambios = leido.cambios;
   if (leido.sobran) avance.leidos[t.k].sobran = leido.sobran;
   if (leido.cursosBusqueda) avance.leidos[t.k].cursosBusqueda = leido.cursosBusqueda;
+  if (t.fuente.lector === 'horario') avance.leidos[t.k].horas = leido.horas || 0;
   avance.segundos.lectores[t.k] = Math.round((new Date().getTime() - t0) / 1000);
 }
 
@@ -11032,7 +11042,7 @@ function horarioMaterias_(items) {
 /* El lector. { lector, clave, variante, huella, curso, generado, hojas, profesores: [{ nombre, desde, hasta, centro, referencia, generacion, plantilla, sinHorario, horas, materias }], sinTabla, problema }.
    `problema`: '' o la frase de por qué no se pudo leer. `sinTabla`: profesores con «Horario regular» cuya tabla no se supo leer. */
 function leerHorario_(bytes, fuente, huella, conj, entrada) {
-  const salida = { lector: fuente.versionLector, clave: fuente.clave, variante: entrada.variante || '', huella: huella, curso: '', generado: '', hojas: 0, profesores: [], sinTabla: 0, problema: '' };
+  const salida = { lector: fuente.versionLector, clave: fuente.clave, variante: entrada.variante || '', huella: huella, curso: '', generado: '', hojas: 0, profesores: [], sinTabla: 0, horas: 0, problema: '' };
   const pdf = pdfTextos_(bytes, true);
   if (!pdf.ok) { salida.problema = pdf.motivo; return salida; }
   salida.hojas = pdf.hojas.length;
@@ -11070,6 +11080,7 @@ function leerHorario_(bytes, fuente, huella, conj, entrada) {
   salida.profesores.forEach(function (p) { const d = p.centro || (p.desde ? { desde: p.desde } : null); const c = d ? consultaCursoDeDia_(d.desde) : ''; if (c) cuenta[c] = (cuenta[c] || 0) + 1; });
   salida.curso = Object.keys(cuenta).sort(function (a, b) { return cuenta[b] - cuenta[a]; })[0] || '';
   salida.generado = salida.profesores.map(function (p) { return p.generacion; }).sort().pop() || '';
+  salida.horas = salida.profesores.reduce(function (n, p) { return n + p.horas.length; }, 0);   // lo que dice «Listados» (fila 178, arreglo 2): se rehace con cada lectura
   return salida;
 }
 
