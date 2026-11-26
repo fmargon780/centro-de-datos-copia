@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v84';
+const VERSION_CD = 'CD v85';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -763,6 +763,11 @@ const COMPROBACIONES_SOLICITUDES_ = [
 const COMPROBACIONES_FICHAJES_ = [
   { id: 'fichajes-lectura', fila: 182, que: 'Cuántas líneas y personas hay en los fichajes de cada curso y que las líneas del fichero vigente están todas en la parte (cada una en su registro, con sus casillas)', funcion: 'cmpFichajesLectura_' },
   { id: 'fichajes-suma', fila: 182, que: 'Ningún día de una persona tiene líneas de dos ficheros distintos, y ningún identificador sale vacío o repetido dentro de una parte de fichajes', funcion: 'cmpFichajesSuma_' }
+];
+
+/* Fila 183 */
+const COMPROBACIONES_CONSULTAR_ = [
+  { id: 'consultar-salida', fila: 183, que: 'Que el recuento de Consultar que sale al imprimir y a Excel no lleva ningún eje delicado: en el alumnado, cuántos ejes delicados hay y cuántos se han colado (bien si 0; solo cifras)', funcion: 'cmpConsultarSalida_' }
 ];
 
 /* ==== Ficha.gs ==== */
@@ -8094,10 +8099,10 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' }, { id: 'registro-apartado', fila: 180, que: 'Cuántos historiales de subidas estropeados se han apartado en _interno (registro-ilegible-…) y si el de ahora se puede leer; solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpRegistroApartado_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_, COMPROBACIONES_FICHAJES_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_, COMPROBACIONES_FICHAJES_, COMPROBACIONES_CONSULTAR_);
 function cmpFuncion_(nombre) {
   return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpFichajesLectura_: cmpFichajesLectura_, cmpFichajesSuma_: cmpFichajesSuma_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpRegistroApartado_: cmpRegistroApartado_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
+    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpConsultarSalida_: cmpConsultarSalida_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
 function cmpIdsDeFicheros_(carpeta, ids) {
@@ -12461,14 +12466,15 @@ function consultaXlsx_(modelo) {
 }
 
 /* Fila 100: el libro del recuento, con dos hojas: «Recuento» (aviso, título con filtros y fecha, ejes y cálculo, la tabla con sus totales) y «Detalle» (la lista de quiénes entran, sin lo delicado). `rec`: de `consultaRecuento_`; `titulo`
-   y `filtros` como en `consultaSalida_`; `detalle`: el modelo de `consultaSalida_` de la lista de partida. */
-function consultaXlsxRecuento_(rec, titulo, filtros, hoy, detalle) {
+   y `filtros` como en `consultaSalida_`; `detalle`: el modelo de `consultaSalida_` de la lista de partida; `aviso`: el de `consultaAvisoQuitadasRecuento_` (fila 183). `rec` ya viene sin los ejes delicados. */
+function consultaXlsxRecuento_(rec, titulo, filtros, hoy, detalle, aviso) {
   filtros = consultaFiltrosRecuento_(rec, filtros);
   const t = consultaTablaRecuento_(rec), txt = function (x) { return { tipo: 'texto', crudo: x, texto: x }; };
   const ejes = 'Filas: ' + (rec.ejesFilas.length ? consultaNombresEjes_(rec.ejesFilas).join(', ') : 'ninguno') + ' · Columnas: ' + (rec.ejesCols.length ? consultaNombresEjes_(rec.ejesCols).join(', ') : 'ninguno') + ' · ' + consultaFraseCalculo_(rec);
   const filas = [[txt(CONSULTA_AVISO_PERSONAL_)], [txt(titulo + (filtros.length ? ' · ' + filtros.join('; ') : '') + ' · ' + hoy)], [txt(ejes)]];
-  const aviso = consultaAvisoAnterior_(rec.anterior, (consultaDefinicion_(rec.id) || {}).unidad);   // fila 107
-  if (aviso) filas.push([txt(aviso)]);
+  if (aviso) filas.push([txt(aviso)]);   // fila 183: lo que se quita al imprimir y a Excel
+  const avisoAnt = consultaAvisoAnterior_(rec.anterior, (consultaDefinicion_(rec.id) || {}).unidad);   // fila 107
+  if (avisoAnt) filas.push([txt(avisoAnt)]);
   filas.push(t.cabecera.map(txt));
   t.lineas.forEach(function (l) { filas.push(l.map(function (x) { return typeof x === 'string' ? txt(x) : { tipo: 'numero', crudo: x.valor, texto: x.texto }; })); });
   return consultaLibro_([{ nombre: 'Recuento', filas: filas }, { nombre: 'Detalle', filas: consultaFilasLista_(detalle) }]);
@@ -12660,6 +12666,40 @@ function consultaCasilla_(rec, i, j) {
   if (i >= 0) rec.ejesFilas.forEach(function (e, n) { partes.push(e.nombre + ': ' + rec.filas[i].etiquetas[n]); });
   if (j >= 0) rec.ejesCols.forEach(function (e, n) { partes.push(e.nombre + ': ' + rec.cols[j].etiquetas[n]); });
   return { tabla: rec.tabla, claves: claves, regs: regs, texto: partes.length ? partes.join(' · ') : 'todo el recuento', lineas: c.items.length };
+}
+
+/* Fila 183: el recuento que sale al imprimir y a Excel. Un eje delicado (el de una columna que «solo sale en pantalla») no sale: el recuento se calcula sin él y se dice cuáles se quitaron.
+   Devuelve `rec` (el recuento sin esos ejes) y `quitadas` (sus nombres). En pantalla no cambia nada. */
+function consultaRecuentoSalida_(carga, estado) {
+  const nombres = {}, quitadas = [];
+  consultaEjes_(carga.campos, consultaDefinicion_(carga.id)).forEach(function (e) { if (e.delicada) nombres[e.ruta] = e.nombre; });
+  const sin = function (lista) {
+    return (lista || []).filter(function (e) {
+      if (!nombres[e.ruta]) return true;
+      if (quitadas.indexOf(nombres[e.ruta]) === -1) quitadas.push(nombres[e.ruta]);
+      return false;
+    });
+  };
+  const rec = consultaRecuento_(carga, Object.assign({}, estado, { filas: sin(estado.filas), cols: sin(estado.cols) }));
+  return { rec: rec, quitadas: quitadas };
+}
+
+/* Solo lee, solo cifras. Con el alumnado de hoy (una sola carga, para no gastar el tiempo de la pasada) comprueba que el recuento de salida quita un eje delicado (`colados` tiene que ser 0). */
+function cmpConsultarSalida_(ctx) {
+  const c = consultaCarga_(ctx.raiz, 'alumnado', '', '');
+  if (!c.hay || c.id !== 'alumnado') return { estado: 'sin datos', cifras: { 'alumnado-con-datos': false } };
+  const delicados = consultaEjes_(c.campos, consultaDefinicion_('alumnado')).filter(function (e) { return e.delicada; });
+  if (!delicados.length) return { estado: 'sin datos', cifras: { 'ejes-delicados': 0 } };
+  const s = consultaRecuentoSalida_(c, { filas: [{ ruta: delicados[0].ruta, agrupa: 'anio' }], cols: [], calculo: 'contar', campo: '', base: 'total', filtros: [], dia: '' });
+  const colados = s.rec.ejesFilas.concat(s.rec.ejesCols).filter(function (e) { return e.delicada; }).length + (s.quitadas.length === 1 ? 0 : 1);
+  return { estado: colados ? 'mal' : 'bien', cifras: { 'ejes-delicados': delicados.length, colados: colados } };
+}
+
+/* El aviso de lo que se quita al imprimir y a Excel: las columnas de la lista (`modelo.quitadas`) más los ejes del recuento, sin repetir nombres. */
+function consultaAvisoQuitadasRecuento_(modelo, ejesQuitados) {
+  const todas = (modelo.quitadas || []).slice();
+  ejesQuitados.forEach(function (n) { if (todas.indexOf(n) === -1) todas.push(n); });
+  return todas.length ? 'Al imprimir o sacar a Excel se quita: ' + todas.join(', ') + '.' : '';
 }
 
 /* La tabla del recuento como filas de texto, para la hoja impresa y el Excel. Primera fila de cabecera: los ejes de filas, las columnas (con sus ejes anidados unidos por « · ») y «Total». */

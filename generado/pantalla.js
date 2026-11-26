@@ -1449,8 +1449,14 @@ function detalleDeRecuento(rec) {
   return { base: base, estado: estado, modelo: consultaSalida_(base, estado, false, base.hoy) };
 }
 
-function hojaDeRecuento(rec, centro, d) {
-  var h = el('div', 'hoja'), m = d.modelo, filtros = consultaFiltrosRecuento_(rec, m.filtros);
+/* Fila 183: lo que sale al imprimir y a Excel: el recuento sin los ejes delicados y el aviso de lo que se quita. */
+function salidaDeRecuento() {
+  var d = detalleDeRecuento(RECUENTO.rec), s = consultaRecuentoSalida_(d.base, estadoRecuento());
+  return { d: d, rec: s.rec, quitadas: s.quitadas.length, aviso: consultaAvisoQuitadasRecuento_(d.modelo, s.quitadas) };
+}
+
+function hojaDeRecuento(s, centro) {
+  var rec = s.rec, d = s.d, h = el('div', 'hoja'), m = d.modelo, filtros = consultaFiltrosRecuento_(rec, m.filtros);
   var linea = [centro.codigo ? 'Código ' + centro.codigo : '', centro.direccion, (centro.localidad || '') + (centro.localidad && centro.provincia ? ' (' + centro.provincia + ')' : ''), centro.telefono ? 'Tel. ' + centro.telefono : ''].filter(function (x) { return x; });
   var cabeza = el('div', 'hoja-centro'); cabeza.appendChild(el('strong', '', centro.nombre || 'Centro de datos')); cabeza.appendChild(el('span', '', linea.join(' · ')));
   h.appendChild(cabeza);
@@ -1464,7 +1470,12 @@ function hojaDeRecuento(rec, centro, d) {
   t.lineas.forEach(function (l) { var f = el('tr'); l.forEach(function (x) { f.appendChild(el('td', '', typeof x === 'string' ? x : x.texto)); }); cuerpo.appendChild(f); });
   tabla.appendChild(cuerpo); h.appendChild(tabla);
   var svg = document.querySelector('#recSvg svg');
+  if (s.quitadas) {   // el gráfico de la pantalla lleva los ejes delicados: se dibuja otro con el recuento sin ellos
+    var g = consultaGrafico_(rec, RECUENTO.tipo), tmp = el('div');
+    dibujarGrafico(tmp, g); svg = tmp.querySelector('svg');
+  }
   if (svg && !document.getElementById('recGraficoCaja').hidden) { var gc = el('div', 'hoja-grafico'); gc.appendChild(svg.cloneNode(true)); h.appendChild(gc); }
+  if (s.aviso) h.appendChild(el('p', 'hoja-pie ambar', s.aviso));
   var avisoAnt = consultaAvisoAnterior_(rec.anterior, recuentoDef().unidad);
   if (avisoAnt) h.appendChild(el('p', 'hoja-pie ambar', avisoAnt));
   (d.base.conEnlaces ? consultaAvisosEnlaces_(d.base, rutasEnUso()) : []).forEach(function (f) { h.appendChild(el('p', 'hoja-pie ambar', f)); });
@@ -1475,11 +1486,11 @@ function hojaDeRecuento(rec, centro, d) {
 function imprimirRecuento() {
   var rec = RECUENTO.rec;
   if (!rec) return Promise.resolve();
-  var d = detalleDeRecuento(rec);
+  var s = salidaDeRecuento();
   return centroDeConsulta().then(function (centro) {
     var caja = document.getElementById('hojaImpresion');
     caja.textContent = '';
-    caja.appendChild(hojaDeRecuento(rec, centro, d));
+    caja.appendChild(hojaDeRecuento(s, centro));
     document.body.classList.add('imprimiendo');
     window.print();
   });
@@ -1488,8 +1499,8 @@ function imprimirRecuento() {
 function excelRecuento() {
   var rec = RECUENTO.rec;
   if (!rec) return;
-  var d = detalleDeRecuento(rec), m = d.modelo;
-  var bytes = consultaXlsxRecuento_(rec, m.conjunto + ' · recuento · ' + m.cuando, m.filtros, m.hoy, m);
+  var s = salidaDeRecuento(), d = s.d, m = d.modelo;
+  var bytes = consultaXlsxRecuento_(s.rec, m.conjunto + ' · recuento · ' + m.cuando, m.filtros, m.hoy, m, s.aviso);
   var nombre = consultaNombreFichero_(d.base, d.estado.dia), conjunto = consultaDefinicion_(d.base.id).nombre;
   var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   var a = document.createElement('a');
