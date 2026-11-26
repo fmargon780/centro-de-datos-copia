@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v83';
+const VERSION_CD = 'CD v84';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -642,6 +642,10 @@ const CATALOGO_ = [
   { clave: 'solicitudes-licencias', titulo: 'Solicitudes de licencias y permisos (Séneca)', tipo: 'csv', usan: 'Ausencias y Guardias', dias: 7, queEs: 'las solicitudes de licencias y permisos',
     columnas: ['Fecha de solicitud', 'Ausencia Relacionada', 'Fecha inicio', 'Estado', 'Documento entrada', 'Documento salida'], ficha: { curso: 'nombre' },
     cuenta: { modo: 'ausencias', uno: 'solicitud', varios: 'solicitudes', persona: ['Nombre'] } },
+  /* Los fichajes del personal (fila 182, Fichajes.gs): se reconoce solo por sus columnas (el nombre, RegContPrePto, no trae curso: el curso es el que se elige al soltarlo). Se cuentan todas las líneas no vacías, también la de la persona sin fichajes. */
+  { clave: 'fichajes', titulo: 'Fichajes (Séneca)', tipo: 'csv', usan: 'Ausencias y Guardias', dias: 7, queEs: 'los fichajes del personal',
+    columnas: ['Acceso', 'Punto de fichaje', 'Fecha y hora', 'Método de fichaje', 'Aprobar'], ficha: { curso: 'nombre' },
+    cuenta: { modo: 'ausencias', uno: 'fichaje', varios: 'fichajes', persona: ['Nombre'] } },
   /* Materias, profesorado y unidades (fila 136, Profesorado.gs): se reconoce solo por sus cuatro columnas; el nombre (RelMatProUni) no trae curso, así que el curso es el que se elige al soltarlo. */
   { clave: 'materias-profesorado', titulo: 'Materias, profesorado y unidades (Séneca)', tipo: 'csv', usan: 'Gestor de asuntos', dias: 30, queEs: 'el listado de materias, profesorado y unidades',
     columnas: ['Curso', 'Materia', 'Unidad', 'Profesor/a'], ficha: { curso: 'nombre' }, cuenta: { modo: 'profesorado', uno: 'línea', varios: 'líneas' } },
@@ -753,6 +757,12 @@ function ordenarCursos_(cursos) {
 const COMPROBACIONES_SOLICITUDES_ = [
   { id: 'solicitudes-lectura', fila: 148, que: 'Cuántas columnas y líneas hay en las solicitudes de licencias y permisos de cada curso, y que cada línea leída del fichero está en un registro', funcion: 'cmpSolicitudesLectura_' },
   { id: 'solicitudes-una-ficha', fila: 148, que: 'Ninguna solicitud de licencia sin identificador ni repetido dentro de una parte', funcion: 'cmpSolicitudesUnaFicha_' }
+];
+
+/* Las comprobaciones de los fichajes (fila 182); su código está en ComprobFichajes.gs (misma razón que las de las solicitudes). */
+const COMPROBACIONES_FICHAJES_ = [
+  { id: 'fichajes-lectura', fila: 182, que: 'Cuántas líneas y personas hay en los fichajes de cada curso y que las líneas del fichero vigente están todas en la parte (cada una en su registro, con sus casillas)', funcion: 'cmpFichajesLectura_' },
+  { id: 'fichajes-suma', fila: 182, que: 'Ningún día de una persona tiene líneas de dos ficheros distintos, y ningún identificador sale vacío o repetido dentro de una parte de fichajes', funcion: 'cmpFichajesSuma_' }
 ];
 
 /* ==== Ficha.gs ==== */
@@ -2425,7 +2435,7 @@ function leerIndice_(raiz) {
    así que al guardar un fichero nuevo sus partes quedan con alDia: false en esa misma escritura. */
 function recalcularAlDia_(indice) {
   (indice.hechos || []).forEach(function (h) {
-    h.alDia = (h.fuentes || []).length > 0 && h.fuentes.every(function (f) { const e = buscarEnIndice_(indice, f.clave, f.variante); return !!e && e.huella === f.huella; });
+    h.alDia = (h.fuentes || []).length > 0 && h.fuentes.every(function (f) { if (f.anterior) return true; const e = buscarEnIndice_(indice, f.clave, f.variante); return !!e && e.huella === f.huella; });   // `anterior`: fichero anterior de los fichajes (fila 182), no está en el índice
   });
 }
 
@@ -3537,6 +3547,10 @@ const CONJUNTOS_ = [
   { conjunto: 'solicitudes-licencias', titulo: 'Solicitudes de licencias y permisos', cuenta: 'solicitudes', acuerdoHecho: ACUERDO_HECHO_, montador: 'ausencias', versionMontador: 1, porCursos: true, sinDiagnostico: true,
     entregas: [], aplicaciones: {}, sufijoAvisos: 'de las solicitudes',
     fuentes: [{ clave: 'solicitudes-licencias', lector: 'ausencias', versionLector: 1 }], campos: [] },
+  /* Los fichajes del personal (fila 182, Fichajes.gs): una parte por curso, de los ficheros `fichajes` de ese curso (el vigente y sus anteriores, sumados por días). Las columnas del fichero son sus campos. Sin diagnóstico: son datos de trabajadores. */
+  { conjunto: 'fichajes', titulo: 'Fichajes', cuenta: 'fichajes', acuerdoHecho: ACUERDO_HECHO_, montador: 'fichajes', versionMontador: 1, porCursos: true, deFichajes: true, sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'de los fichajes',
+    fuentes: [{ clave: 'fichajes', lector: 'ausencias', versionLector: 1 }], campos: [] },
   /* Las tutorías (fila 21): una parte por cada curso con un PDF de la función tutorial. Además de su listado mira la parte del personal y la `actuales` del alumnado del mismo curso
      (`mira`) y se rehace cuando cambia el día en que una línea empieza o acaba (`conDias`). Van después de esos dos. */
   { conjunto: 'tutorias', titulo: 'Tutorías', cuenta: 'grupos', acuerdoHecho: ACUERDO_HECHO_, montador: 'tutorias', versionMontador: 1, porCursos: true, mira: ['personal', 'alumnado'], conDias: true,
@@ -3812,8 +3826,10 @@ function nombreDeLeido_(k) { return k.replace(/\//g, '~') + '.json'; }
 /* Abre UNA fuente (un listado del índice) y guarda lo leído. `t` = { conj, fuente, entrada, k }. */
 function leerUnaFuente_(raiz, t, avance) {
   const t0 = new Date().getTime();
-  const bytes = ficheroDeEntrada_(t.entrada).getBlob().getBytes();
+  const bytes = (t.entrada.ficheroAnterior || ficheroDeEntrada_(t.entrada)).getBlob().getBytes();
   const leido = lectorDe_(t.fuente.lector)(bytes, t.fuente, huella_(bytes), t.conj, t.entrada);
+  /* Fila 182: un fichero anterior se reconoce por su nombre (no se sabe su huella sin abrirlo); la de verdad queda en `huellaFichero`. */
+  if (t.entrada.ficheroAnterior) { leido.huellaFichero = leido.huella; leido.huella = t.entrada.huella; }
   escribirJsonCompacto_(subcarpetaPorRuta_(raiz, '_interno/leido'), nombreDeLeido_(t.k), leido);
   avance.leidos[t.k] = { version: t.fuente.versionLector, huella: leido.huella };
   if (leido.anos) avance.leidos[t.k].anos = leido.anos;
@@ -3835,7 +3851,7 @@ function quitarLeidoViejo_(raiz, indice, avance) {
   while (it.hasNext()) {
     const f = it.next();
     const k = f.getName().replace(/\.json$/, '').replace(/~/g, '/');
-    const trozos = k.split('/');
+    const trozos = k.split('@')[0].split('/');   // fila 182: lo leído de un fichero anterior lleva «@» y su fecha detrás
     const clave = trozos.shift();
     if (!indice.listados.some(function (e) { return e.clave === clave && (e.variante || '') === trozos.join('/'); })) { f.setTrashed(true); delete avance.leidos[k]; delete avance.segundos.lectores[k]; }
   }
@@ -4926,6 +4942,7 @@ function clavesDeCenso_(a) {
 
 /* Los listados `personal` con curso, los de todos los cursos guardados, en orden de variante. Cada uno: { fuente, entrada, k }. */
 function fuentesPorCursos_(indice, conj) {
+  if (conj.deFichajes) return fuentesDeFichajes_(indice, conj);   // fila 182: el vigente de cada curso y sus anteriores (Fichajes.gs)
   const f = conj.fuentes[0];
   return indice.listados.filter(function (e) { return e.clave === f.clave && !e.porAlumno && cursoValido_(e.cursoEscolar); })
     .sort(function (a, b) { return (a.variante || '') < (b.variante || '') ? -1 : ((a.variante || '') > (b.variante || '') ? 1 : 0); })
@@ -7040,7 +7057,11 @@ function fuentesDeParte_(conj, parte, necesarias, avance, indice) {
   if (conj.porPeriodos) return fuentesDeParteConsejo_(parte, necesarias, avance);
   if (conj.porCursos) {
     return necesarias.filter(function (x) { return x.entrada.cursoEscolar === parte.cursoEscolar; })
-      .map(function (x) { return { clave: x.entrada.clave, variante: x.entrada.variante || '', huella: (avance.leidos[x.k] || {}).huella || '' }; });
+      .map(function (x) {
+        const f = { clave: x.entrada.clave, variante: x.entrada.variante || '', huella: (avance.leidos[x.k] || {}).huella || '' };
+        if (x.entrada.ficheroAnterior) f.anterior = true;   // fila 182: un fichero anterior de los fichajes (su huella es su nombre; no está en el índice)
+        return f;
+      });
   }
   const conMatricula = !!parte.anio && necesarias.some(function (x) { return x.fuente.esMatricula && x.entrada.cursoEscolar === parte.cursoEscolar; });
   return necesarias.filter(function (x) {
@@ -7227,7 +7248,7 @@ function hacerTareaHechosInterna_(raiz, t, indice, avance, cache, limite) {
   if (conj.entregadoPor) { montarParteDeEntero_(raiz, t, avance, cache, indice); return; }
   if (conj.deCorrecciones) { montarParteDeCorrecciones_(raiz, t, avance, cache, indice); return; }
   if (conj.deContactos) { montarParteDeContactos_(raiz, t, avance, cache, indice); return; }
-  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'solicitudes-licencias': montarParteDeAusencias_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_, 'horario-profesorado': montarParteDeHorario_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
+  if (conj.porCursos) { ({ tutorias: montarParteDeTutorias_, 'consejo-escolar': montarParteDeConsejo_, libros: montarParteDeLibros_, ausencias: montarParteDeAusencias_, 'solicitudes-licencias': montarParteDeAusencias_, fichajes: montarParteDeFichajes_, 'profesorado-grupos': montarParteDeProfesoradoGrupos_, 'profesorado-alumnos': montarParteDeProfesoradoAlumnos_, 'horario-profesorado': montarParteDeHorario_ }[conj.conjunto] || montarParteDePersonal_)(raiz, t, avance, cache, indice); return; }
   const t0 = new Date().getTime();
   const cargar = function (k) {
     if (cache[k]) return cache[k];
@@ -7292,7 +7313,7 @@ const CONTADORES_AVISO_ = {
   'consejo-fichero': 'consejoFichero', 'consejo-sin-ficha': 'consejoSinFicha', 'consejo-ficha-dudosa': 'consejoFichaDudosa',
   'consejo-fuera-de-periodo': 'consejoFueraDePeriodo', 'consejo-ceses-distintos': 'consejoCesesDistintos',
   'libros-fichero': 'librosFichero', 'libros-repetido': 'librosRepetido', 'libros-dato': 'librosDato',
-  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal', 'horario-fichero': 'horarioFichero', 'horario-sin-horario': 'horarioSinHorario',
+  'ausencias-fichero': 'ausenciasFichero', 'solicitudes-fichero': 'solicitudesFichero', 'fichajes-fichero': 'fichajesFichero', 'profesorado-fichero': 'profesoradoFichero', 'profesorado-sin-personal': 'profesoradoSinPersonal', 'horario-fichero': 'horarioFichero', 'horario-sin-horario': 'horarioSinHorario',
   'contactos-cambio-ignorado': 'contactosCambioIgnorado', 'correcciones-ignorada': 'correccionesIgnorada'
 };
 
@@ -7425,7 +7446,7 @@ function resumenHechosPagina_(raiz) {
     if (conj.conjunto === 'libros') salida.libros = resumenLibrosParaPagina_(partes, avance);
     if (conj.deProfesorado) salida.profesorado = resumenProfesoradoParaPagina_(partes, avance);
     if (conj.deHorario) salida.horario = resumenHorarioParaPagina_(partes, avance);
-    if (conj.conjunto === 'ausencias' || conj.conjunto === 'solicitudes-licencias') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
+    if (conj.conjunto === 'ausencias' || conj.conjunto === 'solicitudes-licencias' || conj.conjunto === 'fichajes') salida.ausencias = resumenAusenciasParaPagina_(partes, avance);
     if (conj.entregadoPor) salida.entero = { registros: (avance.cuentas || {})[conj.conjunto] !== undefined && partes.length ? avance.cuentas[conj.conjunto] : (partes.length ? partes[0].registros : null), quien: conj.quienEntrega || conj.aplicaciones[conj.entregadoPor] || conj.entregadoPor, fecha: (avance.entregados || {})[conj.conjunto] || '', entregadas: conj.entregadas || 'entregadas' };
     if (conj.entregadoPor && conj.desglose) salida.entero.desglose = desglosePaginaEntero_(conj, avance);
     return salida;
@@ -7500,6 +7521,7 @@ const FRASES_AVISO_ = {
   'listado-sin-fichero': 'Falta el fichero de {listado} de {fecha}: vuelve a soltarlo.',
   'ausencias-fichero': '{detalle}',
   'solicitudes-fichero': '{detalle}',
+  'fichajes-fichero': '{detalle}',
   'libros-fichero': '{detalle}',
   'profesorado-fichero': '{detalle}',
   'horario-fichero': '{detalle}',
@@ -8072,9 +8094,9 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' }, { id: 'registro-apartado', fila: 180, que: 'Cuántos historiales de subidas estropeados se han apartado en _interno (registro-ilegible-…) y si el de ahora se puede leer; solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpRegistroApartado_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_, COMPROBACIONES_FICHAJES_);
 function cmpFuncion_(nombre) {
-  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpRegistroApartado_: cmpRegistroApartado_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
+  return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpFichajesLectura_: cmpFichajesLectura_, cmpFichajesSuma_: cmpFichajesSuma_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpRegistroApartado_: cmpRegistroApartado_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
     cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
@@ -10581,6 +10603,146 @@ function ausenciaSale_(clave) {
   return /^(fecha|hora|dia|desde|hasta|inicio|fin|tipo|estado|justific|empleado|profesor|docente|persona|nombre|apellidos)/.test(clave);
 }
 
+/* ==== Fichajes.gs ==== */
+/* El conjunto `fichajes` (fila 182): los fichajes del personal que trae el fichero de Séneca «RegContPrePto.csv» (entradas, salidas, solicitudes de corrección, bajas), una parte por curso y un registro por línea del fichero.
+   Se lee con el mismo lector que las ausencias (`leerAusencias_`): cada título de columna es un campo de la parte y cada casilla se guarda tal cual, sin interpretarla.
+   Lo único propio: **los ficheros se suman por días**. Un curso se monta con el fichero vigente y sus anteriores (carpeta `anteriores/fichajes/<curso>/`), del más viejo al más nuevo. En el día de una persona manda el fichero más nuevo.
+   Lleva datos de trabajadores: lo leído vive en _interno/leido/ y la parte, en hecho/fichajes/<curso>/curso.json, en Drive. Nunca sale de aquí un nombre ni una casilla. */
+
+/* La carpeta de anteriores de un listado, sin crearla si no existe; null si no está. */
+function carpetaAnterioresDe_(e) {
+  let actual = carpetaDatos_();
+  const trozos = ['anteriores', e.clave].concat(e.variante ? String(e.variante).split('/') : []);
+  for (let i = 0; i < trozos.length; i++) {
+    const it = actual.getFoldersByName(trozos[i]);
+    if (!it.hasNext()) return null;
+    actual = it.next();
+  }
+  return actual;
+}
+
+/* Los ficheros anteriores de una entrada del índice, del más viejo al más nuevo: [{ nombre, orden, fichero }]. `orden` es la fecha que lleva el nombre delante (la de cuando fue el vigente). */
+let ANTERIORES_MEMO_ = {};
+function anterioresDeFichajes_(e) {
+  if (!e.anteriores) return [];
+  const llave = e.clave + '/' + (e.variante || '') + '|' + e.anteriores + '|' + e.huella;
+  if (ANTERIORES_MEMO_[llave]) return ANTERIORES_MEMO_[llave];
+  const carpeta = carpetaAnterioresDe_(e), lista = [];
+  if (carpeta) {
+    const it = carpeta.getFiles();
+    while (it.hasNext()) { const f = it.next(), n = f.getName(); lista.push({ nombre: n, orden: n.slice(0, 15), fichero: f }); }
+  }
+  lista.sort(function (a, b) { return a.nombre < b.nombre ? -1 : (a.nombre > b.nombre ? 1 : 0); });
+  if (Object.keys(ANTERIORES_MEMO_).length > 20) ANTERIORES_MEMO_ = {};
+  ANTERIORES_MEMO_[llave] = lista;
+  return lista;
+}
+
+/* Las fuentes de los fichajes: el vigente de cada curso y, tras cada uno, sus anteriores. Cada una: { fuente, entrada, k }. Un anterior lleva en su entrada `ficheroAnterior` (el fichero de Drive) y, de `huella`,
+   su nombre (con la fecha delante): sin abrirlo no se sabe más, y basta para saber si ya está leído. Se leen en `leerUnaFuente_`. */
+function fuentesDeFichajes_(indice, conj) {
+  const f = conj.fuentes[0], salida = [];
+  indice.listados.filter(function (e) { return e.clave === f.clave && !e.porAlumno && cursoValido_(e.cursoEscolar); })
+    .sort(function (a, b) { return (a.variante || '') < (b.variante || '') ? -1 : ((a.variante || '') > (b.variante || '') ? 1 : 0); })
+    .forEach(function (e) {
+      const k = claveLeido_(e.clave, e.variante);
+      salida.push({ fuente: f, entrada: Object.assign({}, e, { ordenFichaje: prefijoFecha_(e.subido) + '~' }), k: k });
+      anterioresDeFichajes_(e).forEach(function (a) {
+        salida.push({ fuente: f, k: k + '@' + a.orden + '-' + claveDeTitulo_(a.nombre.slice(16)).slice(0, 40),
+          entrada: Object.assign({}, e, { huella: a.nombre, ficheroAnterior: a.fichero, ordenFichaje: a.orden, anteriores: 0 }) });
+      });
+    });
+  return salida;
+}
+
+/* El día de una línea: la primera fecha «dd/mm/aaaa» de «Fecha y hora» como «aaaa-mm-dd»; '' si no lleva ninguna (la persona sin fichajes). */
+function diaDeFichaje_(texto) {
+  const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(String(texto || ''));
+  return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+}
+
+function frasesDeFicheroFichajes_(l) {
+  if (l.problema === 'vacio') return ['El listado de fichajes está vacío.'];
+  if (l.problema === 'ilegible') return ['No se ha podido leer el listado de fichajes.'];
+  return [];
+}
+
+/* Suma los ficheros por días. `ficheros`: del más viejo al más nuevo, cada uno [{ datos, celdas, persona, dia, fichero }] (una línea).
+   De cada persona que trae el fichero nuevo se quitan las líneas anteriores cuyo día cae entre su primer y su último día (y las que no tienen día) y se ponen las del nuevo; una persona que no viene conserva lo anterior.
+   La línea de «sin ningún fichaje» (sin «Acceso» ni fecha) solo se queda si esa persona no tiene ninguna otra. Devuelve las líneas ordenadas: persona, día de más nuevo a más viejo y orden del fichero. */
+function sumarFichajesPorDias_(ficheros) {
+  let acum = [], pos = 0;
+  const sin = {};
+  ficheros.forEach(function (lineas) {
+    const dias = lineas.filter(function (l) { return l.dia; }).map(function (l) { return l.dia; }).sort();
+    const desde = dias[0] || '', hasta = dias[dias.length - 1] || '', personas = {};
+    lineas.forEach(function (l) { personas[l.persona] = true; });
+    acum = acum.filter(function (l) { return !(personas[l.persona] && (!l.dia || (l.dia >= desde && l.dia <= hasta))); });
+    Object.keys(personas).forEach(function (p) { if (sin[p]) delete sin[p]; });
+    lineas.forEach(function (l) {
+      l.pos = pos++;
+      if (!l.dia && !l.datos.acceso) sin[l.persona] = l; else acum.push(l);
+    });
+  });
+  const tienen = {};
+  acum.forEach(function (l) { tienen[l.persona] = true; });
+  Object.keys(sin).forEach(function (p) { if (!tienen[p]) acum.push(sin[p]); });
+  return acum.sort(function (a, b) {
+    if (a.persona !== b.persona) return a.persona < b.persona ? -1 : 1;
+    if (a.dia !== b.dia) return a.dia < b.dia ? 1 : -1;
+    return a.pos - b.pos;
+  });
+}
+
+/* La parte de un curso. `fuentes` = [{ leido, entrada }] del más viejo al más nuevo. Cada registro es { id, datos, fichero } (`fichero`: la huella del fichero de Séneca del que sale la línea). */
+function montarFichajes_(conj, parte, fuentes) {
+  const avisos = [], usadas = {}, columnas = [], vistas = {}, ficheros = [], porLinea = {};
+  fuentes.forEach(function (f) {
+    frasesDeFicheroFichajes_(f.leido).forEach(function (d) { avisos.push({ tipo: 'fichajes-fichero', id: null, datos: { detalle: d } }); });
+    if (f.leido.problema) return;
+    const cols = columnasDeAusencias_(f.leido.titulos, usadas), huella = f.leido.huellaFichero || f.leido.huella;
+    cols.forEach(function (c) { if (!vistas[c.clave]) { vistas[c.clave] = true; columnas.push(c); } });
+    ficheros.push(f.leido.filas.map(function (celdas) {
+      const datos = {};
+      cols.forEach(function (c, j) { if (celdas[j]) datos[c.clave] = celdas[j]; });
+      return { datos: datos, celdas: celdas, persona: normalizarAlumno_(datos.nombre), dia: diaDeFichaje_(datos['fecha-y-hora']), fichero: huella };
+    }));
+  });
+  let minimo = '', maximo = '';
+  const registros = sumarFichajesPorDias_(ficheros).map(function (l) {
+    if (l.dia && (!minimo || l.dia < minimo)) minimo = l.dia;
+    if (l.dia && l.dia > maximo) maximo = l.dia;
+    const llave = l.celdas.join('\u001f');
+    porLinea[llave] = (porLinea[llave] || 0) + 1;
+    return { id: idDeAusencia_(l.celdas, porLinea[llave]), datos: l.datos, fichero: l.fichero };
+  });
+  const persona = indiceDePersonaAusencias_(columnas.map(function (c) { return c.titulo; }), conj.conjunto);
+  return { acuerdoHecho: conj.acuerdoHecho, conjunto: conj.conjunto, parte: parte.parte, cursoEscolar: parte.cursoEscolar, generado: ahoraMadrid_(), origen: DUENO_CD_,
+    columnasAusencias: columnas, columnaPersona: persona === -1 ? '' : columnas[persona].clave, desde: minimo, hasta: maximo, ficheros: ficheros.length,
+    campos: columnas.map(function (c) { return { clave: c.clave, etiqueta: c.titulo, apartado: 'Fichaje', tipo: 'texto', dueno: DUENO_CD_, fuente: conj.fuentes[0].clave }; }),
+    registros: registros, avisos: avisos };
+}
+
+/* La tarea «montar» de una parte de fichajes: carga lo leído de todos los ficheros de su curso (el vigente y sus anteriores), los suma por días, escribe la parte y apunta las cifras de la página. */
+function montarParteDeFichajes_(raiz, t, avance, cache) {
+  const t0 = new Date().getTime(), fuentes = [];
+  for (let i = 0; i < t.necesarias.length; i++) {
+    const x = t.necesarias[i];
+    if (x.entrada.cursoEscolar !== t.parte.cursoEscolar) continue;
+    const leido = cargarLeido_(raiz, x.k);
+    if (!leido || !avance.leidos[x.k] || leido.huella !== avance.leidos[x.k].huella) { delete avance.leidos[x.k]; return; }
+    fuentes.push({ leido: leido, entrada: x.entrada });
+  }
+  fuentes.sort(function (a, b) { return a.entrada.ordenFichaje < b.entrada.ordenFichaje ? -1 : (a.entrada.ordenFichaje > b.entrada.ordenFichaje ? 1 : 0); });
+  const objeto = montarFichajes_(t.conj, t.parte, fuentes);
+  avance.ausencias = avance.ausencias || {};
+  avance.ausencias[t.ruta] = cifrasDeAusencias_(objeto);
+  cerrarMontaje_(raiz, t, avance, objeto, t0);
+}
+
+/* Si una clave de un fichaje sale al imprimir y a Excel: todas menos «Observaciones», que es texto libre y se ve solo en pantalla. */
+function fichajeSale_(clave) { return clave !== 'observaciones'; }
+
 /* ==== ComprobLibros.gs ==== */
 /* Las comprobaciones de los libros de texto (fila 37). Solo leen y solo cuentan: ni una asignatura, ni un título, ni un ISBN sale de aquí. */
 
@@ -10672,6 +10834,61 @@ function cmpAusenciasUnaFicha_(ctx, conjunto) {
 /* Fila 148: las mismas dos comprobaciones para las solicitudes de licencias y permisos (`solicitudes-licencias`). */
 function cmpSolicitudesLectura_(ctx) { return cmpAusenciasLectura_(ctx, 'solicitudes-licencias'); }
 function cmpSolicitudesUnaFicha_(ctx) { return cmpAusenciasUnaFicha_(ctx, 'solicitudes-licencias'); }
+
+/* ==== ComprobFichajes.gs ==== */
+/* Las comprobaciones de los fichajes del personal (fila 182). Solo leen y solo cuentan: ni una persona, ni una casilla sale de aquí. */
+
+/* Las partes de fichajes, abiertas, y lo leído del fichero vigente de su curso. null si no hay ninguna parte. */
+function cmpDatosFichajes_(ctx) {
+  const partes = (ctx.indice.hechos || []).filter(function (h) { return h.conjunto === 'fichajes'; });
+  if (!partes.length) return null;
+  return partes.map(function (h) {
+    return { h: h, p: cmpAbrirParte_(ctx, h), vigente: ctx.avance.leidos[claveLeido_('fichajes', h.cursoEscolar)] ? cargarLeido_(ctx.raiz, claveLeido_('fichajes', h.cursoEscolar)) : null };
+  });
+}
+
+/* `fichajes-lectura`: por curso, las líneas del fichero vigente están todas en la parte (cada una en su registro). La línea de «sin ningún fichaje» de una persona que tiene otras líneas puede no estar. */
+function cmpFichajesLectura_(ctx) {
+  const d = cmpDatosFichajes_(ctx);
+  if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let malos = 0, filas = 0, registros = 0, faltan = 0, ficheros = 0;
+  d.forEach(function (c) {
+    if (!c.p) { malos++; return; }
+    registros += c.p.obj.registros.length; ficheros += c.p.obj.ficheros || 0;
+    if (!c.vigente || c.vigente.problema) return;
+    const ids = {}, personas = {}, titulos = c.vigente.titulos.map(normalizarTitulo_);
+    c.p.obj.registros.forEach(function (r) { ids[r.id.split('~')[0]] = true; const k = normalizarAlumno_(r.datos.nombre); if (k && (r.datos.acceso || r.datos['fecha-y-hora'])) personas[k] = true; });
+    const iNombre = titulos.indexOf('nombre'), iAcceso = titulos.indexOf('acceso'), iFecha = titulos.indexOf('fecha y hora');
+    c.vigente.filas.forEach(function (celdas) {
+      filas++;
+      if (ids[idDeAusencia_(celdas, 1).split('~')[0]]) return;
+      const sinFichajes = !celdas[iAcceso] && !diaDeFichaje_(celdas[iFecha]) && personas[normalizarAlumno_(celdas[iNombre])];
+      if (!sinFichajes) faltan++;
+    });
+  });
+  return { estado: malos || faltan ? 'mal' : 'dato', cifras: { cursos: d.length, filas: filas, registros: registros, ficheros: ficheros, 'lineas-que-faltan': faltan, 'cursos-que-no-se-abren': malos } };
+}
+
+/* `fichajes-suma`: ningún día de una persona tiene líneas de dos ficheros distintos, y ningún identificador sale vacío o repetido dentro de una parte. */
+function cmpFichajesSuma_(ctx) {
+  const d = cmpDatosFichajes_(ctx);
+  if (!d) return { estado: 'sin datos', cifras: { cursos: 0 } };
+  let malos = 0, registros = 0, dosFicheros = 0;
+  d.forEach(function (c) {
+    if (!c.p) { malos++; return; }
+    const vistos = {}, dias = {};
+    c.p.obj.registros.forEach(function (r) {
+      registros++;
+      if (!r.id || vistos[r.id]) malos++;
+      vistos[r.id] = true;
+      const dia = diaDeFichaje_(r.datos['fecha-y-hora']);
+      if (!dia) return;
+      const k = normalizarAlumno_(r.datos.nombre) + '|' + dia;
+      if (dias[k] === undefined) dias[k] = r.fichero; else if (dias[k] !== r.fichero) { dosFicheros++; dias[k] = r.fichero; }
+    });
+  });
+  return { estado: malos || dosFicheros ? 'mal' : 'bien', cifras: { cursos: d.length, registros: registros, 'dias-con-dos-ficheros': dosFicheros, 'repetidos-o-vacios': malos } };
+}
 
 /* ==== Profesorado.gs ==== */
 /* Los conjuntos `profesorado-grupos` y `profesorado-alumnos` (fila 136): salen del listado de Séneca «Materias, profesorado y unidades» (RelMatProUni), una parte por curso.
@@ -11714,6 +11931,8 @@ const CONSULTA_CONJUNTOS_ = [
   { id: 'ausencias', nombre: 'Ausencias', conjunto: 'ausencias', parte: 'curso', modo: 'curso', unidad: ['ausencia', 'ausencias'], ver: 'todas', eje: { filas: ['empleado-a', 'empleado', 'profesor-a'], cols: ['estado'] } },
   /* Fila 148: las solicitudes de licencias y permisos, como las ausencias; abre con la persona («Nombre») en filas y el estado en columnas. */
   { id: 'solicitudes-licencias', nombre: 'Solicitudes de licencias y permisos', conjunto: 'solicitudes-licencias', parte: 'curso', modo: 'curso', unidad: ['solicitud', 'solicitudes'], ver: 'todas', eje: { filas: ['nombre'], cols: ['estado'] } },
+  /* Fila 182: los fichajes del personal, como las ausencias; abre con la persona («Nombre») en filas y el tipo de línea («Acceso») en columnas. */
+  { id: 'fichajes', nombre: 'Fichajes', conjunto: 'fichajes', parte: 'curso', modo: 'curso', unidad: ['fichaje', 'fichajes'], ver: 'todas', eje: { filas: ['nombre'], cols: ['acceso'] } },
   /* Fila 136: los profesores por grupo (una línea por clase) y de cada alumno (una tabla de materia y profesor). */
   { id: 'profesorado-grupos', nombre: 'Profesores por grupo', conjunto: 'profesorado-grupos', parte: 'curso', modo: 'curso', unidad: ['clase', 'clases'], ver: ['nivel', 'unidad', 'materia', 'profesor'], eje: { filas: ['profesor'], cols: [] } },
   { id: 'profesorado-alumnos', nombre: 'Profesores de cada alumno', conjunto: 'profesorado-alumnos', parte: 'curso', modo: 'curso', ejeNombres: { 'profesores.materia': 'Materia', 'profesores.profesor': 'Profesor/a' }, unidad: ['alumno', 'alumnos'], ver: ['alumno', 'unidad', 'profesores.materia', 'profesores.profesor'], eje: { filas: ['alumno'], cols: [] } },
@@ -11746,7 +11965,7 @@ const CONSULTA_SALEN_ = {
   contactos: ['empleado', 'correoCentro']
 };
 
-function consultaSale_(conjunto, ruta) { return (conjunto === 'ausencias' || conjunto === 'solicitudes-licencias') ? ausenciaSale_(ruta) : (CONSULTA_SALEN_[conjunto] || []).indexOf(ruta) !== -1; }
+function consultaSale_(conjunto, ruta) { if (conjunto === 'fichajes') return fichajeSale_(ruta); return (conjunto === 'ausencias' || conjunto === 'solicitudes-licencias') ? ausenciaSale_(ruta) : (CONSULTA_SALEN_[conjunto] || []).indexOf(ruta) !== -1; }
 
 function consultaDefinicion_(id) { return CONSULTA_CONJUNTOS_.filter(function (d) { return d.id === id; })[0] || null; }
 
@@ -11761,7 +11980,7 @@ function consultaCursos_(indice, def) {
   const hechos = indice.hechos || [];
   let cursos;
   if (def.soloPropio) cursos = hechos.filter(function (h) { return h.conjunto === def.conjunto && h.parte === def.parte; }).map(function (h) { return h.cursoEscolar; });
-  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'solicitudes-licencias', 'profesorado-grupos', 'profesorado-alumnos', 'horario-profesorado'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
+  else cursos = hechos.filter(function (h) { return h.parte === 'curso' && ['personal', 'tutorias', 'libros', 'ausencias', 'solicitudes-licencias', 'fichajes', 'profesorado-grupos', 'profesorado-alumnos', 'horario-profesorado'].indexOf(h.conjunto) !== -1; }).map(function (h) { return h.cursoEscolar; }).concat([cursoActual_()]);
   return ordenarCursos_(cursos);
 }
 
