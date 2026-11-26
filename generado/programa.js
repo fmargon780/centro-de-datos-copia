@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v81';
+const VERSION_CD = 'CD v82';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -3545,8 +3545,8 @@ const CONJUNTOS_ = [
   { conjunto: 'profesorado-alumnos', titulo: 'Profesores de cada alumno', cuenta: 'alumnos', acuerdoHecho: ACUERDO_HECHO_, montador: 'profesorado', versionMontador: 1, porCursos: true, deProfesorado: 'alumnos', mira: ['alumnado', 'profesorado-grupos'], sinDiagnostico: true,
     entregas: [], aplicaciones: {}, sufijoAvisos: 'del profesorado', fuentes: [{ clave: 'materias-profesorado', lector: 'profesorado', versionLector: 1 }], campos: CAMPOS_PROFESORADO_ALUMNOS_ },
   /* El horario del profesorado (fila 178, Horario.gs): una parte por curso, de los PDF `horario-profesorado` (puede haber varios por curso: el de todos y los de un solo profesor). Mira el personal (`mira`). Sin diagnóstico: lleva nombres. */
-  { conjunto: 'horario-profesorado', titulo: 'Horario del profesorado', cuenta: 'profesores', acuerdoHecho: ACUERDO_HECHO_, montador: 'horario', versionMontador: 1, porCursos: true, deHorario: true, mira: ['personal'], sinDiagnostico: true,
-    entregas: [], aplicaciones: {}, sufijoAvisos: 'del horario', fuentes: [{ clave: 'horario-profesorado', lector: 'horario', versionLector: 1 }], campos: CAMPOS_HORARIO_ },
+  { conjunto: 'horario-profesorado', titulo: 'Horario del profesorado', cuenta: 'profesores', acuerdoHecho: ACUERDO_HECHO_, montador: 'horario', versionMontador: 2, porCursos: true, deHorario: true, mira: ['personal'], sinDiagnostico: true,
+    entregas: [], aplicaciones: {}, sufijoAvisos: 'del horario', fuentes: [{ clave: 'horario-profesorado', lector: 'horario', versionLector: 2 }], campos: CAMPOS_HORARIO_ },
   /* Las empresas (fila 23): el primer conjunto que se entrega entero. No tiene listados ni campos propios: su única fuente es la entrega vigente de `entregadoPor` (la lista entera) y sus campos y registros los dice
      ella (HechosEnteros.gs). Una sola parte, `todas`. Otro conjunto así es otra línea como esta. `entregadas` y `quienEntrega` son palabras de la línea de la página. */
   { conjunto: 'empresas', titulo: 'Empresas', cuenta: 'empresas', acuerdoHecho: ACUERDO_HECHO_, montador: 'entero', versionMontador: 1, entregadoPor: 'gestor-asuntos-ies',
@@ -10874,7 +10874,7 @@ function horarioFecha_(t) {
 /* Las líneas de una hoja, de arriba abajo, con sus textos de izquierda a derecha. */
 function horarioLineas_(textos) {
   return alturasTutorias_(textos).map(function (a) {
-    const items = a.items.slice().sort(function (p, q) { return p.x - q.x; });
+    const items = a.items.map(function (i, k) { return { i: i, k: k }; }).sort(function (p, q) { return p.i.x - q.i.x || p.k - q.k; }).map(function (e) { return e.i; });   // dos textos en la misma posición (la etiqueta y su valor) quedan en el orden del PDF
     return { y: a.y, items: items, texto: items.map(function (i) { return i.t.trim(); }).filter(String).join(' ').replace(/\s+/g, ' ') };
   });
 }
@@ -10966,6 +10966,30 @@ function horarioHora_(t) {
   return m ? { inicio: dos(m[1]) + ':' + m[2], fin: dos(m[3]) + ':' + m[4] } : { inicio: '', fin: '' };
 }
 
+/* Las hojas que vienen giradas (el PDF real de Séneca: hoja vertical con /Rotate 90, tabla de lado). Se detecta por los títulos de columna: si no hay siete en una misma línea pero cinco o más
+   comparten la x, la hoja está girada. Si la y crece de TRAMO a VIERNES: giro 90 (x' = y, y' = -x); si decrece: giro 270 (x' = -y, y' = x). Devuelve 0 (derecha), 90 o 270, o -1 si la hoja no trae los títulos (una hoja de continuación) y no se puede saber. */
+function horarioGiro_(items) {
+  const pos = {};
+  items.forEach(function (i) { const k = horarioMayusculas_(i.t).toLowerCase(); if (HORARIO_COLUMNAS_.indexOf(k) !== -1 && !pos[k]) pos[k] = i; });
+  const t = HORARIO_COLUMNAS_.map(function (k) { return pos[k]; });
+  if (t.some(function (i) { return !i; })) return -1;
+  const mismaY = t.filter(function (i) { return Math.abs(i.y - t[0].y) <= 1; }).length, mismaX = t.filter(function (i) { return Math.abs(i.x - t[0].x) <= 1.5; }).length;
+  if (mismaY >= 7 || mismaX < 5) return 0;
+  return t[6].y > t[0].y ? 90 : 270;
+}
+
+/* La hoja puesta derecha: los textos (copias con `o` = el original) y las rayas, con las posiciones giradas. */
+function horarioDerecha_(items, rayas, giro) {
+  const n90 = giro === 90, r = rayas || { h: [], v: [] };
+  return {
+    items: items.map(function (i) { return { t: i.t, x: n90 ? i.y : -i.y, y: n90 ? -i.x : i.x, f: i.f, neg: i.neg, g: i.g, o: i }; }),
+    rayas: {
+      h: (r.v || []).map(function (v) { return n90 ? { y: -v.x, x1: v.y1, x2: v.y2 } : { y: v.x, x1: -v.y2, x2: -v.y1 }; }),
+      v: (r.h || []).map(function (h) { return n90 ? { x: h.y, y1: -h.x2, y2: -h.x1 } : { x: -h.y, y1: h.x1, y2: h.x2 }; })
+    }
+  };
+}
+
 /* La tabla de horas de una hoja: { horas: [{ dia, tramo, inicio, fin, texto, partes, bilingue }], usados: [los textos que son de la tabla] } o null si la hoja no trae la cabecera. */
 function horarioTabla_(lineas, items, rayas) {
   let cab = null;
@@ -11016,23 +11040,28 @@ function leerHorario_(bytes, fuente, huella, conj, entrada) {
   const cierra = function () {
     if (!actual) return;
     const sin = !actual.tabla || !actual.tabla.horas.length;
-    if (actual.tabla && !actual.tabla.horas.length && (actual.regular || actual.centro)) salida.sinTabla++;
+    if ((!actual.tabla || !actual.tabla.horas.length) && (actual.regular || actual.centro)) salida.sinTabla++;   // también cuando no se encontró la tabla: una forma nueva no pasa callada
     const p = actual.regular || actual.centro;
     salida.profesores.push({ nombre: actual.nombre, desde: p ? p.desde : '', hasta: p ? p.hasta : '', centro: actual.centro, referencia: actual.referencia, generacion: actual.generacion, plantilla: actual.plantilla,
       sinHorario: sin, horas: sin ? [] : actual.tabla.horas, materias: horarioMaterias_(actual.restos) });
     actual = null;
   };
+  const giros = pdf.hojas.map(function (hoja) { return horarioGiro_(hoja.filter(function (t) { return !t.g && t.t.trim() !== ''; })); });
+  const giroDoc = giros.filter(function (g) { return g > 0; })[0] || 0;   // las hojas de continuación no traen los títulos: giran como las demás
   pdf.hojas.forEach(function (hoja, n) {
-    const claros = hoja.filter(function (t) { return !t.g && t.t.trim() !== ''; }), lineas = horarioLineas_(claros), cab = horarioCabecera_(lineas);
+    const claros = hoja.filter(function (t) { return !t.g && t.t.trim() !== ''; }), giro = giros[n] >= 0 ? giros[n] : giroDoc, rayas = pdf.rayas[n] || { h: [], v: [] };
+    const d = giro ? horarioDerecha_(claros, rayas, giro) : { items: claros, rayas: rayas };
+    let lineas = horarioLineas_(d.items), cab = horarioCabecera_(lineas);
+    if (giro && !cab.nombre) { lineas = horarioLineas_(claros); cab = horarioCabecera_(lineas); d.items = claros; d.rayas = rayas; }   // si puesta derecha no se lee el nombre, como venía leyéndose
     if (cab.nombre && (!actual || normalizarAlumno_(actual.nombre) !== normalizarAlumno_(cab.nombre))) {
       cierra();
       actual = { nombre: cab.nombre, regular: null, centro: null, referencia: '', generacion: '', plantilla: '', tabla: null, restos: [] };
     }
     if (!actual) return;
     ['regular', 'centro', 'referencia', 'generacion', 'plantilla'].forEach(function (k) { if (!actual[k] && cab[k]) actual[k] = cab[k]; });
-    const t = actual.tabla ? null : horarioTabla_(lineas, claros, pdf.rayas[n] || { h: [], v: [] });
+    const t = actual.tabla ? null : horarioTabla_(lineas, d.items, d.rayas);
     if (t) actual.tabla = t;
-    const usados = t ? t.usados : [];
+    const usados = t ? t.usados.map(function (i) { return i.o || i; }) : [];
     actual.restos = actual.restos.concat(claros.filter(function (i) { return usados.indexOf(i) === -1; }));
   });
   cierra();
