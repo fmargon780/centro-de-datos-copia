@@ -1,6 +1,6 @@
 /* Generado por pagina/construir.mjs a partir de la aplicación de hoy. No se edita a mano. */
 /* ==== Version.gs ==== */
-const VERSION_CD = 'CD v85';
+const VERSION_CD = 'CD v86';
 /* El lanzador más viejo con el que este programa funciona. Igual que lanzadorMinimo de manifiesto.json (lo vigila una prueba). */
 const LANZADOR_MINIMO = 2;
 
@@ -770,6 +770,11 @@ const COMPROBACIONES_CONSULTAR_ = [
   { id: 'consultar-salida', fila: 183, que: 'Que el recuento de Consultar que sale al imprimir y a Excel no lleva ningún eje delicado: en el alumnado, cuántos ejes delicados hay y cuántos se han colado (bien si 0; solo cifras)', funcion: 'cmpConsultarSalida_' }
 ];
 
+/* Fila 184 */
+const COMPROBACIONES_LISTADOS_ = [
+  { id: 'listados-orden', fila: 184, que: 'Que cada listado guardado tiene su fecha real de subida, que es la que usa la tabla de Listados para ordenar «De cuándo es» (bien si ninguno la pierde; solo cifras)', funcion: 'cmpListadosOrden_' }
+];
+
 /* ==== Ficha.gs ==== */
 /* La ficha de un fichero: qué es, de qué curso, a quién se refiere y de qué periodo. Aquí se interpretan las fuentes que el catálogo nombra.
    Lo que la aplicación duda, no lo supone: lo pone en `falta`. La única suposición permitida es el curso elegido en la página. */
@@ -1112,7 +1117,7 @@ function filaDeAulaEspecifica_(c, entradas, ahora) {
   const edades = porEdad.map(function (e) { return 'FBO ' + edadDeAmbitoFbo_(e.ambito) + ' años'; });
   return { clave: c.clave, variante: '', cursoEscolar: reciente.cursoEscolar || '', nombre: c.tituloFila || c.titulo, ambito: 'Aula específica · ' + edades.join(', '), ambitoCorto: 'Aula específica',
     soloTexto: true, ficheros: entradas.length, periodo: '', estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
-    deCuando: fechaLegible_(reciente.subido) + ' · ' + haceTiempo_(reciente.subido, ahora), trae: numeroLegible_(alumnos) + (alumnos === 1 ? ' alumno' : ' alumnos'),
+    deCuando: fechaLegible_(reciente.subido) + ' · ' + haceTiempo_(reciente.subido, ahora), subidoEn: reciente.subido || '', trae: numeroLegible_(alumnos) + (alumnos === 1 ? ' alumno' : ' alumnos'),
     usan: c.usan, subidoPor: '', anteriores: 0, url: '' };
 }
 
@@ -2000,7 +2005,7 @@ function filaDeAlumnos_(c, ind) {
   if (!suyos.length) return null;
   const ultimo = suyos.slice().sort(function (a, b) { return new Date(b.subido).getTime() - new Date(a.subido).getTime(); })[0];
   return { clave: c.clave, variante: '', cursoEscolar: '', nombre: c.tituloFila || c.titulo, ambito: '', periodo: '', estado: 'neutra', etiqueta: '',
-    deCuando: 'el último, ' + fechaLegible_(ultimo.subido).split(' ')[0], trae: resumenAlumnos_(suyos.length), usan: c.usan, subidoPor: ultimo.subidoPor || '',
+    deCuando: 'el último, ' + fechaLegible_(ultimo.subido).split(' ')[0], subidoEn: ultimo.subido || '', trae: resumenAlumnos_(suyos.length), usan: c.usan, subidoPor: ultimo.subidoPor || '',
     anteriores: 0, url: '', alumnos: suyos.length };
 }
 
@@ -2584,7 +2589,7 @@ function estadoListados_(raiz) {
       .sort(function (a, b) { return ordenDeCurso_(b.cursoEscolar) - ordenDeCurso_(a.cursoEscolar) || (ordenAmbito_(a) < ordenAmbito_(b) ? -1 : 1); });
     if (c.siempre && !suyos.some(function (e) { return !e.cursoEscolar || e.cursoEscolar === actual; })) {
       filas.push({ clave: c.clave, variante: '', cursoEscolar: actual, nombre: c.tituloFila || c.titulo, ambito: '', periodo: '', estado: 'gris', etiqueta: 'Nunca subido',
-        deCuando: '', trae: c.traeFila || '', usan: c.usan, subidoPor: '', anteriores: 0, url: '' });
+        deCuando: '', subidoEn: '', trae: c.traeFila || '', usan: c.usan, subidoPor: '', anteriores: 0, url: '' });
     }
     const aulaVista = {};
     suyos.forEach(function (e) {
@@ -2599,7 +2604,7 @@ function estadoListados_(raiz) {
       const viejo = (ahora.getTime() - new Date(e.subido).getTime()) / 86400000 > (e.caducaDias || c.dias);
       filas.push({ clave: e.clave, variante: e.variante || '', cursoEscolar: e.cursoEscolar || '', nombre: c.tituloFila || c.titulo, ambito: textoAmbito_(e.clave, e.ambito),
         periodo: textoPeriodo_(e.periodo), estado: viejo ? 'ambar' : 'verde', etiqueta: viejo ? 'Se ha quedado viejo' : '',
-        deCuando: fechaLegible_(e.subido) + ' · ' + haceTiempo_(e.subido, ahora),
+        deCuando: fechaLegible_(e.subido) + ' · ' + haceTiempo_(e.subido, ahora), subidoEn: e.subido || '',
         trae: traeDeFila_(c, resumenVigente_(raiz, c, e)), usan: c.usan, subidoPor: e.subidoPor === DUENO_CD_ ? 'Centro de datos' : (e.subidoPor || ''), anteriores: e.anteriores || 0,
         url: e.idDrive ? 'https://drive.google.com/file/d/' + e.idDrive + '/view' : '' });
     });
@@ -8099,10 +8104,10 @@ const COMPROBACIONES_ = [
   { id: 'comprob-ilegibles', fila: 110, que: 'Cuántos ficheros de comprobaciones estropeados se han apartado en _interno (comprobaciones-ilegible-…); solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpComprobIlegibles_' },
   { id: 'json-ilegibles', fila: 115, que: 'Cuántos ficheros JSON de la carpeta no se pueden leer (bien si 0) y cuántos de ellos solo tienen restos detrás del JSON entero', funcion: 'cmpJsonIlegibles_' }, { id: 'registro-apartado', fila: 180, que: 'Cuántos historiales de subidas estropeados se han apartado en _interno (registro-ilegible-…) y si el de ahora se puede leer; solo cifras, nunca mal: no hay nada que arreglar', funcion: 'cmpRegistroApartado_' },
   { id: 'listados', fila: 14, que: 'Cuántas entradas tiene cada listado y cuántas se han quedado viejas', funcion: 'cmpListados_' }
-].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_, COMPROBACIONES_FICHAJES_, COMPROBACIONES_CONSULTAR_);
+].concat(COMPROBACIONES_CORRECCIONES_, COMPROBACIONES_INSTRUCCIONES_, COMPROBACIONES_PROFESORADO_, COMPROBACIONES_HORARIO_, COMPROBACIONES_CENTRO2ID_, COMPROBACIONES_SOLICITUDES_, COMPROBACIONES_FICHAJES_, COMPROBACIONES_CONSULTAR_, COMPROBACIONES_LISTADOS_);
 function cmpFuncion_(nombre) {
   return { cmpCentro2Identificacion_: cmpCentro2Identificacion_, cmpSolicitudesLectura_: cmpSolicitudesLectura_, cmpFichajesLectura_: cmpFichajesLectura_, cmpFichajesSuma_: cmpFichajesSuma_, cmpSolicitudesUnaFicha_: cmpSolicitudesUnaFicha_, cmpProfesoradoLectura_: cmpProfesoradoLectura_, cmpProfesoradoAlumnos_: cmpProfesoradoAlumnos_, cmpHorarioLectura_: cmpHorarioLectura_, cmpHorarioDias_: cmpHorarioDias_, cmpHorarioAvisos_: cmpHorarioAvisos_, cmpInstrucciones_: cmpInstrucciones_, cmpCorreccionesCruce_: cmpCorreccionesCruce_, cmpCorreccionesAplicadas_: cmpCorreccionesAplicadas_, cmpEnsayoFichaIgual_: cmpEnsayoFichaIgual_, cmpEnsayoPersonalIgual_: cmpEnsayoPersonalIgual_, cmpEnsayoTutoriasIgual_: cmpEnsayoTutoriasIgual_, cmpEnsayoConsejoIgual_: cmpEnsayoConsejoIgual_, cmpEnsayoLibrosIgual_: cmpEnsayoLibrosIgual_, cmpEnsayoEmpresasIgual_: cmpEnsayoEmpresasIgual_, cmpEnsayoAdministracionesIgual_: cmpEnsayoAdministracionesIgual_, cmpEnsayoCargosIgual_: cmpEnsayoCargosIgual_, cmpPaginaResponde_: cmpPaginaResponde_, cmpQuienMonta_: cmpQuienMonta_, cmpIdsRellenos_: cmpIdsRellenos_, cmpComprobIlegibles_: cmpComprobIlegibles_, cmpRegistroApartado_: cmpRegistroApartado_, cmpLibrosLectura_: cmpLibrosLectura_, cmpAusenciasLectura_: cmpAusenciasLectura_, cmpAusenciasUnaFicha_: cmpAusenciasUnaFicha_, cmpLibrosUnaFicha_: cmpLibrosUnaFicha_, cmpSubidasTemporales_: cmpSubidasTemporales_, cmpRecibidosPendientes_: cmpRecibidosPendientes_, cmpDiagnosticoLimpio_: cmpDiagnosticoLimpio_, cmpDiagnosticoEnvio_: cmpDiagnosticoEnvio_, cmpClaveGithub_: cmpClaveGithub_, cmpAntiguaSinPantalla_: cmpAntiguaSinPantalla_, cmpAvisosPantalla_: cmpAvisosPantalla_, cmpSoporteEnvio_: cmpSoporteEnvio_, cmpIndiceYCarpetas_: cmpIndiceYCarpetas_, cmpHechosPartes_: cmpHechosPartes_, cmpHechosIdUnico_: cmpHechosIdUnico_, cmpHechosCampos_: cmpHechosCampos_,
-    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpConsultarSalida_: cmpConsultarSalida_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
+    cmpJsonIlegibles_: cmpJsonIlegibles_, cmpConsultarPantalla_: cmpConsultarPantalla_, cmpConsultasGuardadas_: cmpConsultasGuardadas_, cmpConsultarCursoAnterior_: cmpConsultarCursoAnterior_, cmpConsultarSalida_: cmpConsultarSalida_, cmpListadosOrden_: cmpListadosOrden_, cmpHechosAvisos_: cmpHechosAvisos_, cmpHechosFuentes_: cmpHechosFuentes_, cmpTandas_: cmpTandas_, cmpEntradaSinRecoger_: cmpEntradaSinRecoger_, cmpHechosAlSubir_: cmpHechosAlSubir_, cmpTiempos_: cmpTiempos_, cmpMatriculaCruce_: cmpMatriculaCruce_, cmpMatriculaUnaFicha_: cmpMatriculaUnaFicha_, cmpMatriculaAulaEspecifica_: cmpMatriculaAulaEspecifica_, cmpCentro2Tablas_: cmpCentro2Tablas_, cmpExpedientesCruce_: cmpExpedientesCruce_, cmpHistoriaSinNegativos_: cmpHistoriaSinNegativos_, cmpCensoCruce_: cmpCensoCruce_, cmpEntregas_: cmpEntregas_, cmpFichaCompleta_: cmpFichaCompleta_, cmpCensoUnaFicha_: cmpCensoUnaFicha_, cmpSinClasificar_: cmpSinClasificar_, cmpListados_: cmpListados_, cmpAdmisionPorNivel_: cmpAdmisionPorNivel_, cmpPersonalCruce_: cmpPersonalCruce_, cmpPersonalUnaFicha_: cmpPersonalUnaFicha_, cmpTutoriasCruce_: cmpTutoriasCruce_, cmpTutoriasLectura_: cmpTutoriasLectura_, cmpTutoriasHoy_: cmpTutoriasHoy_, cmpTutoriasSobras_: cmpTutoriasSobras_, cmpConsejoCruce_: cmpConsejoCruce_, cmpConsejoUnaFicha_: cmpConsejoUnaFicha_, cmpConsejoHoy_: cmpConsejoHoy_, cmpEmpresasCruce_: cmpEmpresasCruce_, cmpEmpresasUnaFicha_: cmpEmpresasUnaFicha_, cmpAdministracionesCruce_: cmpAdministracionesCruce_, cmpAdministracionesUnaFicha_: cmpAdministracionesUnaFicha_, cmpCargosCruce_: cmpCargosCruce_, cmpCargosUnaFicha_: cmpCargosUnaFicha_, cmpCargosHoy_: cmpCargosHoy_, cmpContactosCruce_: cmpContactosCruce_, cmpContactosUnaFicha_: cmpContactosUnaFicha_, cmpFichaIgualQueBd_: cmpFichaIgualQueBd_, cmpFichaIgualClaves_: cmpFichaIgualClaves_, cmpSoporteBotonUnico_: cmpSoporteBotonUnico_, cmpListadosSinSolapes_: cmpListadosSinSolapes_ }[nombre];
 }
 /* Los ids de todos los ficheros (no borrados) de una carpeta y de sus hijas. */
 function cmpIdsDeFicheros_(carpeta, ids) {
@@ -11913,6 +11918,15 @@ function cmpConsultarPantalla_(ctx) {
   const v = medidaPantalla_(ctx.raiz, 'consultar-pantalla.json', 'consultar-pantalla.json');
   if (!v || v.version !== VERSION_CD) return { estado: 'sin datos', cifras: { 'medida-con-esta-version': false } };
   return { estado: !v.cargada || !v.recuento || v.desbordes || (v.consultas || 0) < CONSULTAS_MONTADAS_.length ? 'mal' : 'bien', cifras: { cargada: v.cargada, recuento: v.recuento === true, grafico: v.grafico === true, enlaces: v.enlaces || 0, consultas: v.consultas || 0, columnas: v.columnas, lineas: v.lineas, desbordes: v.desbordes, 'ancho-de-ventana': v.ancho } };
+}
+
+/* Fila 184. Solo lee, solo cifras. La tabla de Listados ordena «De cuándo es» por la fecha real de subida de cada listado (`subidoEn`, que sale del índice): bien si ninguna entrada, de las normales ni de las de alumnos, tiene la fecha vacía o ilegible. */
+function cmpListadosOrden_(ctx) {
+  const sinFecha = function (e) { return !e.subido || isNaN(new Date(e.subido).getTime()); };
+  const normales = leerIndice_(ctx.raiz).listados.filter(function (e) { return !e.porAlumno; });   // los resúmenes por alumno no son un listado: no llevan fecha
+  const deAlumnos = leerIndiceAlumnos_(ctx.raiz).listados;
+  const malas = normales.filter(sinFecha).length + deAlumnos.filter(sinFecha).length;
+  return { estado: malas ? 'mal' : 'bien', cifras: { listados: normales.length, 'listados-de-alumnos': deAlumnos.length, 'sin-fecha': malas } };
 }
 
 /* ==== Consultar.gs ==== */

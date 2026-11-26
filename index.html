@@ -43,7 +43,7 @@
       <div class="cabeza-tabla"><h2>Listados</h2><label class="curso-tabla">Curso <select id="cursoTabla"></select></label><span class="cuenta" id="resumen"></span><span class="ayuda-tabla">Pulsa un listado para ver cómo se obtiene.</span><button class="accion" id="verMovimientos">Últimos movimientos</button></div>
       <table id="tablaListados">
         <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
-        <thead><tr><th>Listado</th><th>De cuándo es</th><th>Qué trae</th><th>Lo usan</th></tr></thead>
+        <thead><tr id="cabeceraListados"><th aria-sort="none"><button type="button" class="orden">Listado<span class="flecha" aria-hidden="true"></span></button></th><th aria-sort="none"><button type="button" class="orden">De cuándo es<span class="flecha" aria-hidden="true"></span></button></th><th aria-sort="none"><button type="button" class="orden">Qué trae<span class="flecha" aria-hidden="true"></span></button></th><th aria-sort="none"><button type="button" class="orden">Lo usan<span class="flecha" aria-hidden="true"></span></button></th></tr></thead>
         <tbody id="filasListados"></tbody>
       </table>
     </div>

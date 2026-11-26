@@ -95,6 +95,8 @@ function pintarCarpeta(e) {
 
 var ESTADO = null;
 var CURSO_TABLA = '';
+/* Fila 184: el orden de la tabla. col -1 es el de siempre; el primer clic en un título ordena de menor a mayor, el segundo al revés, el tercero vuelve al de siempre. No se recuerda al recargar. */
+var ORDEN = { col: -1, desc: false };
 
 /* Los cursos de la tabla: los que hay en el índice más el actual. Cambiarlo no llama al servidor. */
 function pintarCursoTabla() {
@@ -123,13 +125,58 @@ function pintarTabla() {
     if (!porClave[f.clave]) { porClave[f.clave] = []; grupos.push(porClave[f.clave]); }
     porClave[f.clave].push(f);
   });
-  grupos.forEach(function (g) { cuerpo.appendChild(filaDeGrupo(g)); });
+  ordenarGrupos(grupos).forEach(function (g) { cuerpo.appendChild(filaDeGrupo(g)); });
+  marcarCabecera();
   var partes = [frasePlural(reales, 'listado', 'listados') + ' en ' + CURSO_TABLA,
     viejos ? frasePlural(viejos, 'se ha quedado viejo', 'se han quedado viejos') : 'ninguno se ha quedado viejo'];
   if (expedientes) partes.push(frasePlural(expedientes, 'expediente', 'expedientes'));
   if (ESTADO.pendientes.length) partes.push(ESTADO.pendientes.length + ' sin clasificar');
   document.getElementById('resumen').textContent = partes.join(' · ');
 }
+
+/* Lo que dice la columna «Qué trae» de un grupo de filas. */
+function traeDeGrupo(g) {
+  var n = g.reduce(function (s, x) { return s + (x.ficheros || 1); }, 0);
+  return n > 1 ? frasePlural(n, 'listado', 'listados') + ': ' + g.map(function (x) { return x.ambitoCorto || [x.ambito, x.periodo].filter(Boolean).join(' · '); }).filter(Boolean).join(', ') : g[0].trae;
+}
+
+/* La clave por la que se ordena un grupo. null (solo en «De cuándo es»: nunca subido) va siempre al final. */
+function claveDeOrden(g, col) {
+  if (col === 0) return g[0].nombre || '';
+  if (col === 2) return traeDeGrupo(g) || '';
+  if (col === 3) return g[0].usan || '';
+  var mejor = null;
+  g.forEach(function (x) { var t = x.subidoEn ? Date.parse(x.subidoEn) : NaN; if (!isNaN(t) && (mejor === null || t > mejor)) mejor = t; });
+  return mejor;
+}
+
+/* Estable: ante un empate, el orden de siempre. */
+function ordenarGrupos(grupos) {
+  if (ORDEN.col < 0) return grupos;
+  var signo = ORDEN.desc ? -1 : 1;
+  return grupos.map(function (g, i) { return { g: g, i: i, k: claveDeOrden(g, ORDEN.col) }; }).sort(function (a, b) {
+    if (a.k === null || b.k === null) return a.k === b.k ? a.i - b.i : (a.k === null ? 1 : -1);
+    var c = ORDEN.col === 1 ? a.k - b.k : String(a.k).localeCompare(String(b.k), 'es', { numeric: true });
+    return c ? c * signo : a.i - b.i;
+  }).map(function (x) { return x.g; });
+}
+
+function pulsarOrden(col) {
+  if (ORDEN.col !== col) { ORDEN.col = col; ORDEN.desc = false; }
+  else if (!ORDEN.desc) ORDEN.desc = true;
+  else { ORDEN.col = -1; ORDEN.desc = false; }
+  pintarTabla();
+}
+
+function marcarCabecera() {
+  Array.prototype.forEach.call(document.querySelectorAll('#cabeceraListados th'), function (th, i) {
+    var activa = ORDEN.col === i;
+    th.setAttribute('aria-sort', activa ? (ORDEN.desc ? 'descending' : 'ascending') : 'none');
+    th.querySelector('.flecha').textContent = activa ? (ORDEN.desc ? '▼' : '▲') : '';
+  });
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('#cabeceraListados th button'), function (b, i) { b.onclick = function () { pulsarOrden(i); }; });
 
 function etiquetaDe(f) { return esHistorico(f) ? 'Histórico' : f.etiqueta; }
 
@@ -143,7 +190,7 @@ function filaDeGrupo(g) {
   td.textContent = f.nombre + (n > 1 ? ' · ' + n + ' listados' : (f.ambito || f.periodo ? ' · ' + [f.ambito, f.periodo].filter(Boolean).join(' · ') : ''));
   var etiqueta = ambar ? 'Se ha quedado viejo' : (reales.length ? etiquetaDe(reales[0]) : f.etiqueta);
   if (etiqueta) td.appendChild(el('span', 'etiqueta', etiqueta));
-  var trae = n > 1 ? frasePlural(n, 'listado', 'listados') + ': ' + g.map(function (x) { return x.ambitoCorto || [x.ambito, x.periodo].filter(Boolean).join(' · '); }).filter(Boolean).join(', ') : f.trae;
+  var trae = traeDeGrupo(g);
   tr.appendChild(td);
   tr.appendChild(el('td', '', f.deCuando));
   tr.appendChild(el('td', '', trae));
